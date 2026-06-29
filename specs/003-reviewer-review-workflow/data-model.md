@@ -1,0 +1,183 @@
+# Data Model: Reviewer Review Workflow
+
+Logical model for the entities **owned by feature 003**: `Review`, `PanelReview`, and the
+five review enums (`OverallJudgement`, `IndicationJudgement`, `WarningType`, `ProblemType`,
+`ReviewStatus`). Types are logical; the physical mapping is Prisma → PostgreSQL. Surrogate
+PKs (`id`) are opaque cuids. `createdAt` exists on every table; other timestamps are listed
+explicitly because they carry domain meaning.
+
+This feature **is** the mutable / **review domain** (constitution XI). It references but never
+writes the **catalog domain** (`Region`/`Blueprint`/`Panel` — feature 002) or the **auth
+domain** (`Account` — feature 001).
+
+---
+
+## Enums
+
+All enum **values are the spec's zh-TW strings, verbatim** (constitution VIII). Storage is a
+native Postgres enum whose labels are those zh-TW strings; the Prisma member identifier is
+ASCII with `@map` to the label, and the API transmits the zh-TW value (research D2).
+
+### `OverallJudgement`（整體判定）
+Single-select, image-level. **NULL until submit**; required to submit (FR-010/FR-011).
+
+| zh-TW value | Prisma id `@map` |
+|-------------|------------------|
+| `通過` | `PASS` |
+| `需小修` | `MINOR_FIX` |
+| `需重做` | `REDO` |
+
+### `IndicationJudgement`（適應症／診斷對應）
+Single-select, image-level. Optional/nullable; never forces a note (FR-012).
+
+| zh-TW value | Prisma id `@map` |
+|-------------|------------------|
+| `合理` | `REASONABLE` |
+| `有疑慮` | `DOUBTFUL` |
+
+### `WarningType`（需要添加的警語）
+Member type of a panel's multi-select set; the set may be empty (FR-014).
+
+| zh-TW value | Prisma id `@map` |
+|-------------|------------------|
+| `注意跌倒` | `FALL_RISK` |
+| `需有專人幫助指導` | `NEEDS_ASSISTANCE` |
+| `骨鬆注意` | `OSTEOPOROSIS` |
+| `心肺功能不全者注意` | `CARDIOPULMONARY` |
+| `其它` | `OTHER` |
+
+### `ProblemType`（問題類型）
+Member type of a panel's multi-select set; the set may be empty (FR-016).
+
+| zh-TW value | Prisma id `@map` |
+|-------------|------------------|
+| `部位／主題錯誤` | `WRONG_SUBJECT` |
+| `動作示範錯誤` | `WRONG_DEMONSTRATION` |
+| `文字說明錯誤` | `WRONG_TEXT` |
+| `次數／時間不合理` | `UNREASONABLE_FREQ_TIME` |
+| `缺安全提醒` | `MISSING_SAFETY` |
+| `有錯字` | `TYPO` |
+
+### `ReviewStatus`（審查狀態）
+Stored status of a `Review` (FR-024).
+
+| zh-TW value | Prisma id `@map` | Meaning |
+|-------------|------------------|---------|
+| `草稿` | `DRAFT` | Has at least one autosave; **not** counted in 已提交 x/51. |
+| `已提交` | `SUBMITTED` | Has `overallJudgement`; counted, comparable, exportable (004). |
+
+> **未開始** is **not** a stored value — it is the *absence* of a `Review` row for that
+> (reviewer × blueprint), derived when computing progress (research D4). The progress
+> **filter** still offers 未開始／草稿／已提交; the first is "no row".
+
+---
+
+## Entity: `Review`（審查）
+
+One reviewer's whole review of one blueprint. Identity = (reviewer × blueprint), unique
+(FR-001). Created lazily on the first autosave; owns exactly four `PanelReview` rows.
+
+| Field | Logical type | Notes / constraints |
+|-------|--------------|---------------------|
+| `id` | string (cuid) | PK. |
+| `reviewerId` | string (FK → `Account.id`, 001) | NOT NULL. The owning 審查者. Always set from the session, never the request (FR-003, research D8). |
+| `blueprintId` | string (FK → `Blueprint.id`, 002 surrogate) | NOT NULL. The reviewed blueprint. (The API path uses the catalog **business code** e.g. `S1`; the service resolves it to `Blueprint.id`.) |
+| `overallJudgement` | `OverallJudgement` \| null | 整體判定. **NULL until submit**; required to submit (FR-010/FR-011). |
+| `indicationJudgement` | `IndicationJudgement` \| null | 適應症／診斷對應. Optional (FR-012). |
+| `indicationNote` | text \| null | 適應症說明. Optional free text; preserved verbatim, **sanitized on output** (FR-012, V). |
+| `status` | `ReviewStatus` | default `草稿`. Never regresses 已提交→草稿 (FR-026). |
+| `createdAt` | timestamptz | default now(). Immutable (first autosave). |
+| `lastSavedAt` | timestamptz \| null | Set on every autosave (draft save marker). |
+| `submittedAt` | timestamptz \| null | Set on **first** transition to 已提交; not rewritten on re-submit (FR-032, research D4). |
+| `lastUpdatedAt` | timestamptz | Bumped on **every** mutation (autosave, submit, re-submit). The "最近更新時間 / last-updated" (FR-032). |
+
+**Relationships**
+- `Review *──1 Account` — Prisma relation field **`reviewer`** with scalar **`reviewerId`**
+  (`reviewer Account @relation(fields: [reviewerId], references: [id])`; 001). Other features
+  MUST reference this Review FK as `reviewerId` / `reviewer`, not `accountId`. Disabling an
+  account never deletes its reviews (001 FR-008) — no cascade from `Account`.
+- `Review *──1 Blueprint` (002, read-only reference).
+- `Review 1 ──= PanelReview` (**exactly 4**, one per `panelIndex` 1..4 — FR-013).
+
+**Constraints / indexes**
+- **`UNIQUE(reviewerId, blueprintId)`** — the (reviewer × blueprint) identity (FR-001).
+- Index on `reviewerId` (progress + "繼續審查" scans).
+- Index on `(reviewerId, status)` (已提交 / 草稿 counts — FR-039).
+- Index on `blueprintId` (cross-reviewer aggregation is **004**'s concern; provided for it).
+
+**Application-level invariants** (service layer)
+- Each `Review` has exactly four `PanelReview` rows `{1,2,3,4}` — created together on first
+  autosave, replaced together on each autosave (FR-013, research D3).
+- `status = 已提交 ⇒ overallJudgement IS NOT NULL` (submit gate, FR-011).
+- Autosave never sets `已提交`; never sets a `已提交` row to `草稿` (FR-025/FR-026).
+- `reviewerId` equals the session account on every read/write (FR-003/SC-010).
+
+---
+
+## Entity: `PanelReview`（分格審查）
+
+One reviewer's notes on one of a blueprint's four panels. Exactly four per `Review`. All
+fields optional; all-empty is valid (FR-018).
+
+| Field | Logical type | Notes / constraints |
+|-------|--------------|---------------------|
+| `id` | string (cuid) | PK. |
+| `reviewId` | string (FK → `Review.id`) | NOT NULL. `ON DELETE CASCADE` (panels live and die with their review). |
+| `panelIndex` | int (1..4) | 對應 圖1..圖4 (FR-013). |
+| `requiredWarnings` | `WarningType[]` | 需要添加的警語. **Multi-select set**, default `[]` (empty valid). Members deduped (research D1). |
+| `warningOther` | text \| null | 警語－其它. Optional free text; **orphan-preserved** even if `其它` not selected (FR-019); sanitized on output. |
+| `problemTypes` | `ProblemType[]` | 問題類型. **Multi-select set**, default `[]` (empty valid). Members deduped. |
+| `problemNote` | text \| null | 問題說明. Optional free text; **orphan-preserved** even if no problem type selected (FR-019); sanitized on output. |
+
+**Relationships**
+- `PanelReview *──1 Review`.
+
+**Constraints / indexes**
+- **`UNIQUE(reviewId, panelIndex)`** — one row per panel.
+- Check: `panelIndex BETWEEN 1 AND 4`.
+- Application invariant: the four rows of a review are exactly `{1,2,3,4}` — no gaps, no
+  extras (FR-013), mirroring the catalog's panel set (002).
+
+> **Orphan free-text** (FR-019, spec Edge Cases): `warningOther` / `problemNote` text is
+> **never discarded** because its companion checkbox/set is empty. The autosave writer stores
+> exactly what the client sent (research D3/D10).
+
+---
+
+## Four-aspect coverage (FR-021) — how the fields map to the reviewer's four gates
+
+| 把關面向 | Fields |
+|----------|--------|
+| 動作對不對 | panel `問題類型` = `動作示範錯誤`（輔以 `部位／主題錯誤`） |
+| 安全與禁忌 | panel `問題類型` = `缺安全提醒` + the whole `需要添加的警語` set |
+| 適應症對不對 | image-level `適應症／診斷對應` + `整體判定` |
+| 文字／畫面有沒有錯 | panel `問題類型` = `文字說明錯誤` / `次數／時間不合理` / `有錯字` |
+
+(Coverage mapping only; no separate column — these are the existing fields above.)
+
+---
+
+## Cross-feature references (not owned here)
+
+- **`Account` (001)** — `Review.reviewerId → Account.id`. 003 guarantees the row is owned by
+  the authenticated reviewer; it never creates/edits an `Account`. Only `REVIEWER`-role
+  accounts own reviews (server-enforced, constitution IV).
+- **`Blueprint` / `Panel` / `Region` (002)** — read-only. `Review.blueprintId → Blueprint.id`;
+  the reviewer-facing blueprint payload (metadata + 4 panels incl. `畫面視覺描述`, `isHighRisk`,
+  **never `aiPrompt`**) comes from 002's `blueprint-public` projection (research D9). Ordering
+  for auto-advance uses `Region.displayOrder` → numeric `blueprintId` (research D7). 003 never
+  writes any catalog row.
+- **`HIGH_RISK_BLUEPRINT_IDS` (002 constant)** — `{S4,T8,P1,P4,P5,K2,K3,K5,L3}`. Reused, not
+  redefined (FR-036); drives the informational, non-blocking high-risk badge (FR-033–FR-035).
+
+## Entity-relationship summary
+
+```text
+Account(REVIEWER) 1 ──< Review 0..51 ──= PanelReview ×4
+                          │
+                          └──*:1── Blueprint (002, read-only;  UNIQUE(reviewerId, blueprintId))
+
+Blueprint 1 ──< Review 0..n   (one per reviewer; many reviewers comparable on the same image)
+ReviewStatus = { 草稿, 已提交 }   ; 未開始 = absence of a Review row (derived)
+HighRisk badge source = HIGH_RISK_BLUEPRINT_IDS (002 single named constant)
+```
