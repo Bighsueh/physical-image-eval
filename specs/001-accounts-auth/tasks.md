@@ -27,18 +27,18 @@ supertest (backend), Vitest + React Testing Library (frontend), Playwright (E2E)
 **Purpose**: Stand up the empty-but-runnable monorepo: backend/, frontend/, docker, test
 runners. No business logic yet.
 
-- [ ] T001 Create monorepo root structure (`backend/`, `frontend/`, `e2e/`), root `.gitignore` (ignore `**/.env`, `node_modules`, `dist`, `coverage`, `test-results`), root `README.md`, and `git init` at repo root.
-- [ ] T002 [P] Initialize backend Node 22 + TypeScript project: `backend/package.json`, `backend/tsconfig.json`, install Express, Prisma, @prisma/client, zod, @node-rs/argon2, express-rate-limit, cookie-parser.
-- [ ] T003 [P] Initialize frontend Vite + React + TS project: `frontend/package.json`, `frontend/tsconfig.json`, `frontend/vite.config.ts` (dev server port 5180, proxy `/api` → `http://localhost:3100`), install react-router-dom + @tanstack/react-query.
-- [ ] T004 [P] Configure Tailwind CSS in frontend: `frontend/tailwind.config.js`, `frontend/postcss.config.js`, `frontend/src/index.css` (Tailwind directives).
-- [ ] T005 [P] Configure ESLint + Prettier at repo root: `.eslintrc.cjs`, `.prettierrc` covering both `backend/` and `frontend/` (no language switcher; zh-TW copy lint exempt).
-- [ ] T006 [P] Configure backend test tooling: `backend/vitest.config.ts` (coverage provider, lines/branches gate ≥ 80%), add supertest dev dep, `test` / `test:coverage` scripts in `backend/package.json`.
-- [ ] T007 [P] Configure frontend test tooling: `frontend/vitest.config.ts` (jsdom env), `frontend/tests/setup.ts` (@testing-library/react + jest-dom), `test` script in `frontend/package.json`.
-- [ ] T008 [P] Configure Playwright: `playwright.config.ts` at repo root (baseURL `http://localhost:5180`, webServer hooks), `e2e/` folder, `e2e` npm script.
-- [ ] T009 [P] Author `docker-compose.yml` at repo root: `postgres` (5433→5432, volume), `backend` (3100), `frontend` (5180), and a **read-only** bind mount of the external image source dir `/path/to/image-source` into the backend container (constitution II — read-only; auth itself never reads it, but 001 owns this mount for 002/003).
-- [ ] T010 [P] Container build files: `backend/Dockerfile` (Node 22, build + run), `frontend/Dockerfile` (Vite build + static serve).
-- [ ] T011 [P] Author `backend/.env.example` with every variable from quickstart (`DATABASE_URL`, `SESSION_ABSOLUTE_TTL`, `SESSION_IDLE_TTL`, `COOKIE_SECURE`, `COOKIE_DOMAIN`, `COOKIE_SID_NAME`, `COOKIE_CSRF_NAME`, `ARGON2_*`, `LOGIN_RATE_MAX`, `LOGIN_RATE_WINDOW`, `BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_PASSWORD`); confirm `backend/.env` is gitignored.
-- [ ] T012 Initialize Prisma: `backend/prisma/schema.prisma` datasource (postgresql) + generator (prisma-client-js), wire `DATABASE_URL` (depends on T002).
+- [X] T001 Create monorepo root structure (`backend/`, `frontend/`, `e2e/`), root `.gitignore` (ignore `**/.env`, `node_modules`, `dist`, `coverage`, `test-results`), root `README.md`, and `git init` at repo root.
+- [X] T002 [P] Initialize backend Node 22 + TypeScript project: `backend/package.json`, `backend/tsconfig.json`, install Express, Prisma, @prisma/client, zod, @node-rs/argon2, express-rate-limit, cookie-parser.
+- [X] T003 [P] Initialize frontend Vite + React + TS project: `frontend/package.json`, `frontend/tsconfig.json`, `frontend/vite.config.ts` (dev server port 5180, proxy `/api` → `http://localhost:3100`), install react-router-dom + @tanstack/react-query.
+- [X] T004 [P] Configure Tailwind CSS in frontend: `frontend/tailwind.config.js`, `frontend/postcss.config.js`, `frontend/src/index.css` (Tailwind directives).
+- [X] T005 [P] Configure ESLint + Prettier at repo root: `.eslintrc.cjs`, `.prettierrc` covering both `backend/` and `frontend/` (no language switcher; zh-TW copy lint exempt).
+- [X] T006 [P] Configure backend test tooling: `backend/vitest.config.ts` (coverage provider, lines/branches gate ≥ 80%), add supertest dev dep, `test` / `test:coverage` scripts in `backend/package.json`.
+- [X] T007 [P] Configure frontend test tooling: `frontend/vitest.config.ts` (jsdom env), `frontend/tests/setup.ts` (@testing-library/react + jest-dom), `test` script in `frontend/package.json`.
+- [X] T008 [P] Configure Playwright: `playwright.config.ts` at repo root (baseURL `http://localhost:5180`, webServer hooks), `e2e/` folder, `e2e` npm script.
+- [X] T009 [P] Author `docker-compose.yml` at repo root: `postgres` (5433→5432, volume), `backend` (3100), `frontend` (5180), and a **read-only** bind mount of the external image source dir `/path/to/image-source` into the backend container (constitution II — read-only; auth itself never reads it, but 001 owns this mount for 002/003).
+- [X] T010 [P] Container build files: `backend/Dockerfile` (Node 22, build + run), `frontend/Dockerfile` (Vite build + static serve).
+- [X] T011 [P] Author `backend/.env.example` with every variable from quickstart (`DATABASE_URL`, `SESSION_ABSOLUTE_TTL`, `SESSION_IDLE_TTL`, `COOKIE_SECURE`, `COOKIE_DOMAIN`, `COOKIE_SID_NAME`, `COOKIE_CSRF_NAME`, `ARGON2_*`, `LOGIN_RATE_MAX`, `LOGIN_RATE_WINDOW`, `BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_PASSWORD`); confirm `backend/.env` is gitignored.
+- [X] T012 Initialize Prisma: `backend/prisma/schema.prisma` datasource (postgresql) + generator (prisma-client-js), wire `DATABASE_URL` (depends on T002).
 
 **Checkpoint**: `docker compose up` brings Postgres up; backend/frontend projects compile and run empty.
 

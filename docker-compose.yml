@@ -1,0 +1,71 @@
+# physical-image-eval — local/prod compose (constitution X: fixed ports; constitution II: image source READ-ONLY).
+# Dev ports: postgres 5433→5432, backend 3100, frontend 5180 (avoid host-occupied 5000/7000/5432/32222).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pie-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pie}
+      POSTGRES_DB: ${POSTGRES_DB:-physical_image_eval}
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-pie} -d ${POSTGRES_DB:-physical_image_eval}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pie-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://pie:pie@postgres:5432/physical_image_eval?schema=public}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: '3100'
+      SESSION_ABSOLUTE_TTL: ${SESSION_ABSOLUTE_TTL:-12h}
+      SESSION_IDLE_TTL: ${SESSION_IDLE_TTL:-60m}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      COOKIE_SID_NAME: ${COOKIE_SID_NAME:-pie_sid}
+      COOKIE_CSRF_NAME: ${COOKIE_CSRF_NAME:-pie_csrf}
+      ARGON2_MEMORY_KIB: ${ARGON2_MEMORY_KIB:-19456}
+      ARGON2_ITERATIONS: ${ARGON2_ITERATIONS:-2}
+      ARGON2_PARALLELISM: ${ARGON2_PARALLELISM:-1}
+      LOGIN_RATE_MAX: ${LOGIN_RATE_MAX:-10}
+      LOGIN_RATE_WINDOW: ${LOGIN_RATE_WINDOW:-15m}
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?set a strong bootstrap admin password}
+    ports:
+      - '3100:3100'
+    volumes:
+      # constitution II — external AIGC image source mounted READ-ONLY (:ro). Never written to.
+      # Owned here by 001 for features 002/003 to consume; auth itself does not read it.
+      - type: bind
+        source: '/path/to/image-source'
+        target: /data/blueprints
+        read_only: true
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pie-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '5180:80'
+
+volumes:
+  pgdata:

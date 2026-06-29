@@ -31,6 +31,10 @@ pnpm-debug.log*
 # Test / coverage
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
 
 # Docker / local data volumes
 pgdata/
