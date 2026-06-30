@@ -209,15 +209,15 @@ counted as a reviewer.
 
 ### Tests (write first, MUST FAIL)
 
-- [ ] T079 [P] [US4] Integration role-matrix in `backend/tests/integration/role-enforcement.test.ts` — REVIEWER on EVERY `/api/admin/*` route → `403 FORBIDDEN_ROLE`; reviewer cannot read another account's data; ADMIN is excluded from reviewer-only capability and never listed as a reviewer (FR-011/FR-012/FR-013, SC-001/SC-008).
-- [ ] T080 [P] [US4] Unit in `backend/tests/unit/require-role.test.ts` — `require-role` allows matching role, blocks mismatch with `403 FORBIDDEN_ROLE`, independent of any UI state.
-- [ ] T081 [P] [US4] Frontend in `frontend/tests/RoleGate.test.tsx` — admin nav hidden from reviewer; presence/absence is cosmetic only (not the control).
-- [ ] T082 [P] [US4] E2E in `e2e/auth.spec.ts` (US4 block) — reviewer is blocked from admin routes at the server even with no admin UI shown.
+- [X] T079 [P] [US4] Integration role-matrix in `backend/tests/integration/role-enforcement.test.ts` — REVIEWER on EVERY `/api/admin/*` route → `403 FORBIDDEN_ROLE`; reviewer cannot read another account's data; ADMIN is excluded from reviewer-only capability and never listed as a reviewer (FR-011/FR-012/FR-013, SC-001/SC-008).
+- [X] T080 [P] [US4] Unit in `backend/tests/unit/require-role.test.ts` — `require-role` allows matching role, blocks mismatch with `403 FORBIDDEN_ROLE`, independent of any UI state.
+- [X] T081 [P] [US4] Frontend in `frontend/tests/RoleGate.test.tsx` — admin nav hidden from reviewer; presence/absence is cosmetic only (not the control).
+- [X] T082 [P] [US4] E2E in `e2e/auth.spec.ts` (US4 block) — reviewer is blocked from admin routes at the server even with no admin UI shown.
 
 ### Implementation
 
-- [ ] T083 [US4] Confirm `require-role('ADMIN')` wired on every `/api/admin/*` route in `backend/src/routes/admin-accounts.routes.ts`, and admin login lands `/admin/accounts` (not `/progress`) in `backend/src/controllers/auth.controller.ts`.
-- [ ] T084 [P] [US4] `frontend/src/components/RoleGate.tsx` — hides admin navigation from reviewers (defense-in-depth only).
+- [X] T083 [US4] Confirm `require-role('ADMIN')` wired on every `/api/admin/*` route in `backend/src/routes/admin-accounts.routes.ts`, and admin login lands `/admin/accounts` (not `/progress`) in `backend/src/controllers/auth.controller.ts`.
+- [X] T084 [P] [US4] `frontend/src/components/RoleGate.tsx` — hides admin navigation from reviewers (defense-in-depth only).
 
 **Checkpoint**: Server-side role separation proven for all protected capabilities.
 

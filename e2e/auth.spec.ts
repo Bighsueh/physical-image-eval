@@ -79,6 +79,26 @@ test.describe('US3 — zero registration surface', () => {
   });
 });
 
+test.describe('US4 — server-enforced role separation', () => {
+  test('a reviewer is blocked from admin routes at the SERVER, even with no admin UI', async ({
+    request,
+  }) => {
+    const admin = await adminContext();
+    const blocked = await seedActiveReviewer(admin, `e2e_role_${Date.now()}`, '受限審查員');
+    await admin.dispose();
+
+    // log the reviewer in via the API and try to hit an admin route directly
+    const ctx = await request.newContext();
+    await ctx.post(`${API_URL}/api/auth/login`, {
+      data: { username: blocked.username, password: blocked.password },
+    });
+    const res = await ctx.get(`${API_URL}/api/admin/accounts`);
+    expect(res.status()).toBe(403);
+    expect((await res.json()).error.code).toBe('FORBIDDEN_ROLE');
+    await ctx.dispose();
+  });
+});
+
 test.describe('US2 — admin account lifecycle', () => {
   test('admin creates a reviewer and sees the one-time temp password', async ({ page }) => {
     await adminContext(); // ensures bootstrap admin password is rotated to ADMIN_NEW_PASS
