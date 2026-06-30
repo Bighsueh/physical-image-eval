@@ -52,6 +52,11 @@ export const changePassword = async (
   const currentOk = await verifyPassword(account.passwordHash, currentPassword);
   if (!currentOk) throw new AppError('AUTH_FAILED');
 
+  // Reject reusing the current password — otherwise a forced change after reset could keep the
+  // admin-known temp password as the live credential (SEC-L2; strengthens FR-009).
+  const sameAsCurrent = await verifyPassword(account.passwordHash, newPassword);
+  if (sameAsCurrent) throw new AppError('VALIDATION_ERROR', '新密碼不可與目前密碼相同');
+
   const passwordHash = await hashPassword(newPassword);
   await prisma.$transaction(async (tx) => {
     await accountRepository.setPassword(accountId, { passwordHash, mustChangePassword: false }, tx);

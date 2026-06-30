@@ -17,7 +17,10 @@ export const makeLoginRateLimiter = (max: number, windowMs: number): RequestHand
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => {
-      const ip = req.ip ?? 'unknown';
+      // Prefer Cloudflare's real-client header (prod is behind Cloudflared → nginx); fall back to
+      // req.ip (trust-proxy aware). Avoids keying every client to the tunnel egress IP (SEC-M2).
+      const cf = req.headers['cf-connecting-ip'];
+      const ip = (typeof cf === 'string' && cf) || req.ip || 'unknown';
       const username =
         typeof req.body?.username === 'string' ? req.body.username.toLowerCase() : '';
       return createHash('sha256').update(`${ip}|${username}`).digest('hex');

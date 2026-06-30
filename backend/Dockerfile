@@ -4,9 +4,11 @@ FROM node:22-bookworm-slim AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install dependencies (incl. tsx + prisma CLI used at runtime/deploy).
+# Install PRODUCTION dependencies only (tsx + prisma CLI are runtime deps; vitest/types are not).
+# NODE_ENV=production also implies --omit=dev; we set it explicitly so the prod image never
+# contains the test toolchain (SEC: keep vitest/vite out of prod).
 COPY package.json ./
-RUN npm install --no-audit --no-fund
+RUN npm install --omit=dev --no-audit --no-fund
 
 # Prisma schema + generate client.
 COPY prisma ./prisma

@@ -34,6 +34,17 @@ describe('POST /api/auth/password (US2)', () => {
     expect(res.body.error.code).toBe('AUTH_FAILED');
   });
 
+  it('rejects reusing the current password (400 VALIDATION_ERROR)', async () => {
+    const { agent, csrf, password } = await adminAgent(app);
+    const res = await agent
+      .post('/api/auth/password')
+      .set('X-CSRF-Token', csrf)
+      .send({ currentPassword: password, newPassword: password });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.message).toContain('新密碼不可與目前密碼相同');
+  });
+
   it('rejects a weak new password with 400 VALIDATION_ERROR', async () => {
     const { agent, csrf, password } = await adminAgent(app);
     const res = await agent

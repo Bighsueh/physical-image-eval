@@ -64,5 +64,6 @@ export const accountListQuerySchema = z.object({
     .enum(['true', 'false'])
     .transform((v) => v === 'true')
     .optional(),
-  q: z.string().trim().min(1).optional(),
+  // Bounded to avoid pathologically large ILIKE patterns (admin-only, but defensive — SEC-L1).
+  q: z.string().trim().min(1).max(200).optional(),
 });

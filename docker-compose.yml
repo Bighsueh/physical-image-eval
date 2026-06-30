@@ -46,8 +46,11 @@ services:
       LOGIN_RATE_WINDOW: ${LOGIN_RATE_WINDOW:-15m}
       BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?set a strong bootstrap admin password}
-    ports:
-      - '3100:3100'
+    # SEC-M1: do NOT publish 3100 to the host in prod — the frontend nginx reaches the backend over
+    # the compose network (http://backend:3100), keeping the API behind Cloudflared only. For local
+    # debugging, run the backend on the host (npm run dev -w backend) or add a dev compose override.
+    expose:
+      - '3100'
     volumes:
       # constitution II — external AIGC image source mounted READ-ONLY (:ro). Never written to.
       # Owned here by 001 for features 002/003 to consume; auth itself does not read it.

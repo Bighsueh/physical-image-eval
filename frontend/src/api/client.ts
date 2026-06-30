@@ -61,5 +61,10 @@ export async function apiFetch<T>(
     );
   }
 
-  return { data: envelope.data as T, meta: envelope.meta };
+  // A successful envelope must carry data — guard the cast so a null never reaches callers as T.
+  if (envelope.data === null || envelope.data === undefined) {
+    throw new ApiError('UNEXPECTED_NULL', '回應資料異常', res.status);
+  }
+
+  return { data: envelope.data, meta: envelope.meta };
 }

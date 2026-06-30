@@ -4,6 +4,7 @@ import express, {
   type Request,
   type Response,
 } from 'express';
+import helmet from 'helmet';
 import { ZodError } from 'zod';
 import './types/express.d';
 import { env } from './config/env';
@@ -20,8 +21,13 @@ export const createApp = () => {
   const app = express();
 
   // Behind Cloudflared/nginx in prod we need a single trusted proxy hop for correct req.ip.
-  app.set('trust proxy', env.NODE_ENV === 'production' ? 1 : false);
+  // Prod topology: Client → Cloudflared → nginx → backend (2 trusted hops) so req.ip / rate-limit
+  // can resolve the real client. Dev: no proxy.
+  app.set('trust proxy', env.NODE_ENV === 'production' ? 2 : false);
   app.disable('x-powered-by');
+
+  // Security headers (defense-in-depth; SEC-M3). API-only, so disable CSP's report-only noise.
+  app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'same-site' } }));
 
   app.use(cookieParser());
   app.use(express.json());

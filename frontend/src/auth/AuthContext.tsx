@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { AuthAccount } from '../api/auth';
 
 /**
@@ -28,12 +28,15 @@ export function AuthProvider({
   const [account, setAccountState] = useState<AuthAccount | null>(initialAccount);
   const [status, setStatus] = useState<AuthStatus>(initialStatus);
 
-  const setAccount = (next: AuthAccount | null) => {
+  const setAccount = useCallback((next: AuthAccount | null) => {
     setAccountState(next);
     setStatus(next ? 'authenticated' : 'unauthenticated');
-  };
+  }, []);
 
-  const value = useMemo<AuthState>(() => ({ account, status, setAccount }), [account, status]);
+  const value = useMemo<AuthState>(
+    () => ({ account, status, setAccount }),
+    [account, status, setAccount],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

@@ -13,7 +13,7 @@ export function SessionBootstrap() {
   useEffect(() => {
     if (isLoading) return;
     setAccount(data ?? null);
-  }, [isLoading, isError, data]);
+  }, [isLoading, isError, data, setAccount]);
 
   return null;
 }

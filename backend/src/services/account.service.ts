@@ -87,25 +87,29 @@ export const disableAccount = async (actorId: string, targetId: string): Promise
   // Already disabled → idempotent no-op (no audit, no state change) (FR-010).
   if (!target.isActive) return target;
 
-  // Governance continuity FIRST: never let an operation zero-out active admins (D10). This also
-  // catches self-disable of the sole admin, surfacing the more informative LAST_ADMIN message.
-  if (target.role === 'ADMIN') {
-    const otherActiveAdmins = await accountRepository.countActiveAdmins(prisma, targetId);
-    if (otherActiveAdmins === 0) throw new AppError('LAST_ADMIN_PROTECTED');
-  }
+  // All guards + the mutation run inside ONE Serializable transaction so the last-active-admin
+  // invariant cannot be defeated by two concurrent disables (TOCTOU, D10).
+  return prisma.$transaction(
+    async (tx) => {
+      // Governance continuity FIRST: never zero-out active admins (D10). This also catches
+      // self-disable of the sole admin, surfacing the more informative LAST_ADMIN message.
+      if (target.role === 'ADMIN') {
+        const otherActiveAdmins = await accountRepository.countActiveAdmins(tx, targetId);
+        if (otherActiveAdmins === 0) throw new AppError('LAST_ADMIN_PROTECTED');
+      }
+      // Otherwise an admin still may not disable their own account (anti self-lockout) (D10).
+      if (actorId === targetId) throw new AppError('SELF_OPERATION_FORBIDDEN');
 
-  // Otherwise an admin still may not disable their own account (anti self-lockout) (D10).
-  if (actorId === targetId) throw new AppError('SELF_OPERATION_FORBIDDEN');
-
-  return prisma.$transaction(async (tx) => {
-    const updated = await accountRepository.setActive(targetId, false, tx);
-    await sessionRepository.revokeAllForAccount(targetId, new Date(), tx); // FR-017
-    await recordAction(
-      { actorAccountId: actorId, targetAccountId: targetId, action: 'DISABLE_ACCOUNT' },
-      tx,
-    );
-    return updated;
-  });
+      const updated = await accountRepository.setActive(targetId, false, tx);
+      await sessionRepository.revokeAllForAccount(targetId, new Date(), tx); // FR-017
+      await recordAction(
+        { actorAccountId: actorId, targetAccountId: targetId, action: 'DISABLE_ACCOUNT' },
+        tx,
+      );
+      return updated;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 };
 
 export const enableAccount = async (actorId: string, targetId: string): Promise<Account> => {

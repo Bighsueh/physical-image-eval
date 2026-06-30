@@ -7,6 +7,7 @@ import {
   useResetCredential,
   type AdminAccount,
 } from '../../api/accounts';
+import { ApiError } from '../../api/client';
 import { LogoutButton } from '../../components/LogoutButton';
 
 const ROLE_LABEL: Record<string, string> = { ADMIN: '系統管理員', REVIEWER: '審查者' };
@@ -20,11 +21,22 @@ export function AccountsListPage() {
   const [resetPassword, setResetPassword] = useState<{ username: string; tempPassword: string } | null>(
     null,
   );
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const onReset = async (acc: AdminAccount) => {
-    const result = await reset.mutateAsync(acc.id);
-    setResetPassword({ username: acc.username, tempPassword: result.tempPassword });
+  const runAction = async (fn: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await fn();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : '操作失敗，請稍後再試');
+    }
   };
+
+  const onReset = (acc: AdminAccount) =>
+    runAction(async () => {
+      const result = await reset.mutateAsync(acc.id);
+      setResetPassword({ username: acc.username, tempPassword: result.tempPassword });
+    });
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-10">
@@ -51,6 +63,13 @@ export function AccountsListPage() {
               {resetPassword.tempPassword}
             </p>
           </div>
+        )}
+
+        {actionError && (
+          <p role="alert" className="mb-4 text-sm text-red-700">
+            <span aria-hidden="true">⚠️ </span>
+            {actionError}
+          </p>
         )}
 
         {isLoading && <p>載入中…</p>}
@@ -84,7 +103,7 @@ export function AccountsListPage() {
                     {acc.isActive ? (
                       <button
                         type="button"
-                        onClick={() => disable.mutate(acc.id)}
+                        onClick={() => runAction(() => disable.mutateAsync(acc.id))}
                         className="text-red-700 hover:underline"
                       >
                         停用
@@ -92,7 +111,7 @@ export function AccountsListPage() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => enable.mutate(acc.id)}
+                        onClick={() => runAction(() => enable.mutateAsync(acc.id))}
                         className="text-green-700 hover:underline"
                       >
                         啟用

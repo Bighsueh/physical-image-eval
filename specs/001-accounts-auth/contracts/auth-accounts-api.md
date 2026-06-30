@@ -31,8 +31,12 @@ response uses the project envelope; cookie-based auth + CSRF as defined in
   `401 AUTH_REQUIRED`.
 - `require-role('ADMIN')` gates every `/api/admin/*` route at the server boundary
   (FR-011). UI hiding is never the only control.
-- While `account.mustChangePassword = true`, all protected routes except
-  `POST /api/auth/password` and `POST /api/auth/logout` return `403 PASSWORD_CHANGE_REQUIRED`.
+- While `account.mustChangePassword = true`, all protected **capability** routes except
+  `POST /api/auth/password`, `POST /api/auth/logout`, and `GET /api/auth/session` return
+  `403 PASSWORD_CHANGE_REQUIRED`. `GET /api/auth/session` is exempt because it is the
+  identity/restore endpoint the forced-change flow itself depends on (FR-016): it returns the
+  caller's own account (including the `mustChangePassword` flag) so the SPA can route a
+  mid-reset user to `/password/change` on reopen. It grants no capability.
 
 ### Shared error codes
 

@@ -20,8 +20,8 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Any authenticated user — forced/voluntary password change. */}
-      <Route element={<ProtectedRoute />}>
+      {/* Any authenticated user — forced/voluntary password change (allowed while mustChange). */}
+      <Route element={<ProtectedRoute allowPasswordChange />}>
         <Route path="/password/change" element={<ForcePasswordChangePage />} />
       </Route>
 

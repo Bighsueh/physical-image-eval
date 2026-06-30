@@ -59,7 +59,8 @@ export const validateToken = async (
 
   if (now.getTime() - found.lastSeenAt.getTime() > LAST_SEEN_THROTTLE_MS) {
     await sessionRepository.touchLastSeen(found.id, now, db);
-    found.lastSeenAt = now;
+    // Return a new object rather than mutating the Prisma result in place (immutability).
+    return { ...found, lastSeenAt: now };
   }
   return found;
 };

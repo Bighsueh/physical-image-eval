@@ -44,13 +44,13 @@ model Account {
   isActive           Boolean  @default(true)
   /// true after create or reset; forces change on first login (FR-009, D4).
   mustChangePassword Boolean  @default(false)
-  passwordUpdatedAt  DateTime @default(now())
+  passwordUpdatedAt  DateTime @default(now()) @db.Timestamptz(6)
   /// The admin who created this account; null for the bootstrap admin (FR-020).
   createdByAccountId String?
   createdBy          Account?  @relation("AccountCreatedBy", fields: [createdByAccountId], references: [id])
   createdAccounts    Account[] @relation("AccountCreatedBy")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
 
   sessions        Session[]
   auditActorLogs  AuditLog[] @relation("AuditActor")
@@ -58,6 +58,7 @@ model Account {
 
   @@index([role])
   @@index([isActive])
+  @@index([createdByAccountId])
 }
 
 /// 登入狀態（Session）— one currently-or-formerly valid login. Cookie holds an opaque token
@@ -70,13 +71,13 @@ model Session {
   account    Account   @relation(fields: [accountId], references: [id])
   /// Per-session double-submit CSRF secret, mirrored to the pie_csrf cookie (D7).
   csrfToken  String
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
   /// Absolute expiry = createdAt + SESSION_ABSOLUTE_TTL (D2).
-  expiresAt  DateTime
+  expiresAt  DateTime  @db.Timestamptz(6)
   /// Sliding idle marker; refreshed ≤ 1/min on authed requests (D2).
-  lastSeenAt DateTime  @default(now())
+  lastSeenAt DateTime  @default(now()) @db.Timestamptz(6)
   /// Set on logout, account disable, or credential reset (FR-017).
-  revokedAt  DateTime?
+  revokedAt  DateTime? @db.Timestamptz(6)
 
   @@index([accountId])
   @@index([expiresAt])
@@ -91,7 +92,7 @@ model AuditLog {
   targetAccountId String
   target          Account     @relation("AuditTarget", fields: [targetAccountId], references: [id])
   action          AuditAction
-  createdAt       DateTime    @default(now())
+  createdAt       DateTime    @default(now()) @db.Timestamptz(6)
   /// Optional NON-sensitive context only. Never passwords/temp passwords/hashes/tokens.
   meta            Json?
 

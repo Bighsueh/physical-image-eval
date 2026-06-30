@@ -14,10 +14,16 @@ const admin: AuthAccount = {
 };
 const reviewer: AuthAccount = { ...admin, id: '2', username: 'rev', role: 'REVIEWER' };
 
+const mustChangeAdmin: AuthAccount = { ...admin, mustChangePassword: true };
+
 const tree = (
   <Routes>
     <Route path="/login" element={<div>登入頁</div>} />
     <Route path="/progress" element={<div>進度頁</div>} />
+    <Route path="/password/change" element={<div>變更密碼頁</div>} />
+    <Route element={<ProtectedRoute allowPasswordChange />}>
+      <Route path="/change" element={<div>密碼變更受保護</div>} />
+    </Route>
     <Route element={<ProtectedRoute role="ADMIN" />}>
       <Route path="/secret" element={<div>機密管理</div>} />
     </Route>
@@ -44,5 +50,15 @@ describe('ProtectedRoute (defense-in-depth guard)', () => {
   it('renders the protected element for the matching role', () => {
     renderWithProviders(tree, { route: '/secret', account: admin });
     expect(screen.getByText('機密管理')).toBeInTheDocument();
+  });
+
+  it('redirects a must-change-password account to /password/change', () => {
+    renderWithProviders(tree, { route: '/secret', account: mustChangeAdmin });
+    expect(screen.getByText('變更密碼頁')).toBeInTheDocument();
+  });
+
+  it('lets a must-change account stay on the allowPasswordChange route (no loop)', () => {
+    renderWithProviders(tree, { route: '/change', account: mustChangeAdmin });
+    expect(screen.getByText('密碼變更受保護')).toBeInTheDocument();
   });
 });
