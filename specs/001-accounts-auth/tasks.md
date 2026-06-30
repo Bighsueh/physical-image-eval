@@ -233,19 +233,19 @@ reopen without re-entering credentials, revoke instantly on disable/reset, and e
 
 ### Tests (write first, MUST FAIL)
 
-- [ ] T085 [P] [US5] Integration in `backend/tests/integration/auth-session.test.ts` — `GET /api/auth/session` valid → account + refreshed `lastSeenAt` + re-emitted `pie_csrf`; idle-timeout → `401`; absolute-expiry → `401`; revoked → `401`; in-window reopen restores (FR-015/FR-016, SC-007).
-- [ ] T086 [P] [US5] Integration in `backend/tests/integration/auth-logout.test.ts` — `POST /api/auth/logout` sets `revokedAt` on current session, clears cookies; subsequent protected request → `401` (FR-018).
-- [ ] T087 [P] [US5] Integration in `backend/tests/integration/session-revocation.test.ts` — disable / reset revoke ALL of the target's active sessions instantly across multiple devices (FR-017, SC-006).
-- [ ] T088 [P] [US5] Unit in `backend/tests/unit/session-expiry.test.ts` — idle vs absolute boundary conditions and throttled `lastSeenAt` refresh (extends T029 coverage).
-- [ ] T089 [P] [US5] Frontend in `frontend/tests/session-restore.test.tsx` — App load calls `/api/auth/session` to restore auth; logout clears client state.
-- [ ] T090 [P] [US5] E2E in `e2e/auth.spec.ts` (US5 block) — idle expiry → re-login; in-window reopen restores; logout → re-login.
+- [X] T085 [P] [US5] Integration in `backend/tests/integration/auth-session.test.ts` — `GET /api/auth/session` valid → account + refreshed `lastSeenAt` + re-emitted `pie_csrf`; idle-timeout → `401`; absolute-expiry → `401`; revoked → `401`; in-window reopen restores (FR-015/FR-016, SC-007).
+- [X] T086 [P] [US5] Integration in `backend/tests/integration/auth-logout.test.ts` — `POST /api/auth/logout` sets `revokedAt` on current session, clears cookies; subsequent protected request → `401` (FR-018).
+- [X] T087 [P] [US5] Integration in `backend/tests/integration/session-revocation.test.ts` — disable / reset revoke ALL of the target's active sessions instantly across multiple devices (FR-017, SC-006).
+- [X] T088 [P] [US5] Unit in `backend/tests/unit/session-expiry.test.ts` — idle vs absolute boundary conditions and throttled `lastSeenAt` refresh (extends T029 coverage).
+- [X] T089 [P] [US5] Frontend in `frontend/tests/session-restore.test.tsx` — App load calls `/api/auth/session` to restore auth; logout clears client state.
+- [X] T090 [P] [US5] E2E in `e2e/auth.spec.ts` (US5 block) — idle expiry → re-login; in-window reopen restores; logout → re-login.
 
 ### Implementation
 
-- [ ] T091 [US5] `backend/src/controllers/auth.controller.ts` — add `session` (GET) + `logout` handlers (extends T048).
-- [ ] T092 [US5] `backend/src/routes/auth.routes.ts` — add `GET /api/auth/session` (require-auth) + `POST /api/auth/logout` (require-auth + CSRF) (extends T049).
-- [ ] T093 [US5] `backend/src/services/session.service.ts` — throttled `lastSeenAt` refresh + CSRF re-emit on `/session` (extends T030).
-- [ ] T094 [P] [US5] `frontend/src/api/auth.ts` + `frontend/src/App.tsx` — `useSession` restore-on-load + `useLogout` hook + logout control (extends T050).
+- [X] T091 [US5] `backend/src/controllers/auth.controller.ts` — add `session` (GET) + `logout` handlers (extends T048).
+- [X] T092 [US5] `backend/src/routes/auth.routes.ts` — add `GET /api/auth/session` (require-auth) + `POST /api/auth/logout` (require-auth + CSRF) (extends T049).
+- [X] T093 [US5] `backend/src/services/session.service.ts` — throttled `lastSeenAt` refresh + CSRF re-emit on `/session` (extends T030).
+- [X] T094 [P] [US5] `frontend/src/api/auth.ts` + `frontend/src/App.tsx` — `useSession` restore-on-load + `useLogout` hook + logout control (extends T050).
 
 **Checkpoint**: All five user stories independently functional.
 

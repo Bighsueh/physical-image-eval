@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
+import { SessionBootstrap } from './auth/SessionBootstrap';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { queryClient } from './lib/queryClient';
 import { ForcePasswordChangePage } from './routes/ForcePasswordChangePage';
@@ -43,8 +44,9 @@ export function AppRoutes() {
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+      <AuthProvider initialStatus="unknown">
         <BrowserRouter>
+          <SessionBootstrap />
           <AppRoutes />
         </BrowserRouter>
       </AuthProvider>

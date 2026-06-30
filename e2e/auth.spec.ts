@@ -79,6 +79,26 @@ test.describe('US3 — zero registration surface', () => {
   });
 });
 
+test.describe('US5 — session restore + logout', () => {
+  test('a session is restored after reopening (no re-login), and logout forces re-login', async ({
+    page,
+  }) => {
+    await uiLogin(page, reviewer.username, reviewer.password);
+    await expect(page).toHaveURL(/\/progress$/);
+
+    // reopen the tool (reload) → session restored without re-entering credentials (FR-016)
+    await page.reload();
+    await expect(page).toHaveURL(/\/progress$/);
+    await expect(page.getByText('我的審查進度')).toBeVisible();
+
+    // logout → back to login; protected route now requires re-login (FR-018)
+    await page.getByRole('button', { name: '登出' }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await page.goto('/progress');
+    await expect(page).toHaveURL(/\/login$/);
+  });
+});
+
 test.describe('US4 — server-enforced role separation', () => {
   test('a reviewer is blocked from admin routes at the SERVER, even with no admin UI', async ({
     request,

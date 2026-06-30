@@ -7,6 +7,7 @@ import {
   useResetCredential,
   type AdminAccount,
 } from '../../api/accounts';
+import { LogoutButton } from '../../components/LogoutButton';
 
 const ROLE_LABEL: Record<string, string> = { ADMIN: '系統管理員', REVIEWER: '審查者' };
 
@@ -30,12 +31,15 @@ export function AccountsListPage() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold text-gray-900">帳號管理</h1>
-          <Link
-            to="/admin/accounts/new"
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded px-4 py-2"
-          >
-            新增帳號
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              to="/admin/accounts/new"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded px-4 py-2"
+            >
+              新增帳號
+            </Link>
+            <LogoutButton />
+          </div>
         </div>
 
         {resetPassword && (
