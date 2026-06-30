@@ -6,7 +6,8 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { queryClient } from './lib/queryClient';
 import { ForcePasswordChangePage } from './routes/ForcePasswordChangePage';
 import { LoginPage } from './routes/LoginPage';
-import { ProgressPage } from './routes/ProgressPage';
+import { ReviewProgressPage } from './routes/ReviewProgressPage';
+import { ReviewWorkspacePage } from './routes/ReviewWorkspacePage';
 import { AccountCreatePage } from './routes/admin/AccountCreatePage';
 import { AccountsListPage } from './routes/admin/AccountsListPage';
 
@@ -27,7 +28,8 @@ export function AppRoutes() {
 
       {/* Reviewer-only. */}
       <Route element={<ProtectedRoute role="REVIEWER" />}>
-        <Route path="/progress" element={<ProgressPage />} />
+        <Route path="/progress" element={<ReviewProgressPage />} />
+        <Route path="/review/:blueprintId" element={<ReviewWorkspacePage />} />
       </Route>
 
       {/* Admin-only. */}
