@@ -84,7 +84,8 @@ One reviewer's whole review of one blueprint. Identity = (reviewer × blueprint)
 | `blueprintCode` | string (catalog **business code**, e.g. `S1`) | NOT NULL. The reviewed blueprint, referenced by its business code — **NOT** a FK to `Blueprint.id`. Re-ingestion deletes+recreates every `Blueprint` row with new cuids (002), so a cuid FK would break re-ingestion (RESTRICT) or cascade-delete review data (CASCADE). The catalog is resolved by code at read time; a retired blueprint makes its reviews inaccessible (open → `BLUEPRINT_NOT_FOUND`) but never corrupts them. A DB CHECK enforces the `^[SHETPKLY][1-9][0-9]?$` shape. |
 | `overallJudgement` | `OverallJudgement` \| null | 整體判定. **NULL until submit**; required to submit (FR-010/FR-011). |
 | `indicationJudgement` | `IndicationJudgement` \| null | 適應症／診斷對應. Optional (FR-012). |
-| `indicationNote` | text \| null | 適應症說明. Optional free text; preserved verbatim, **sanitized on output** (FR-012, V). |
+| `indicationNote` | text \| null | 適應症說明. Optional free text; preserved verbatim (V). |
+| `otherComment` | text \| null | 其他意見. Image-level optional free text (2026-07-01); preserved verbatim. |
 | `status` | `ReviewStatus` | default `草稿`. Never regresses 已提交→草稿 (FR-026). |
 | `createdAt` | timestamptz | default now(). Immutable (first autosave). |
 | `lastSavedAt` | timestamptz \| null | Set on every autosave (draft save marker). |
@@ -116,14 +117,16 @@ One reviewer's whole review of one blueprint. Identity = (reviewer × blueprint)
 
 ## Entity: `PanelReview`（分格審查）
 
-One reviewer's notes on one of a blueprint's four panels. Exactly four per `Review`. All
-fields optional; all-empty is valid (FR-018).
+One reviewer's notes on one of a blueprint's four panels. Exactly four per `Review`. Drafts may
+be incomplete, but at **submit** each panel must be `noProblem` OR carry an annotation
+(2026-07-01 clarification supersedes the old "all-empty valid" of FR-018).
 
 | Field | Logical type | Notes / constraints |
 |-------|--------------|---------------------|
 | `id` | string (cuid) | PK. |
 | `reviewId` | string (FK → `Review.id`) | NOT NULL. `ON DELETE CASCADE` (panels live and die with their review). |
-| `panelIndex` | int (1..4) | 對應 圖1..圖4 (FR-013). |
+| `panelIndex` | int (1..4) | 對應 圖1..圖4 — 圖1=左上, 圖2=右上, 圖3=左下, 圖4=右下 (FR-013). |
+| `noProblem` | boolean | 無問題 sign-off (2026-07-01), default `false`. Submit requires `noProblem` OR any annotation per panel. |
 | `requiredWarnings` | `WarningType[]` | 需要添加的警語. **Multi-select set**, default `[]` (empty valid). Members deduped (research D1). |
 | `warningOther` | text \| null | 警語－其它. Optional free text; **orphan-preserved** even if `其它` not selected (FR-019); sanitized on output. |
 | `problemTypes` | `ProblemType[]` | 問題類型. **Multi-select set**, default `[]` (empty valid). Members deduped. |

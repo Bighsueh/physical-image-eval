@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 export function ImageLightbox({ src, alt }: { src: string; alt: string }) {
   const [open, setOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -21,12 +22,14 @@ export function ImageLightbox({ src, alt }: { src: string; alt: string }) {
     return () => {
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
+      triggerRef.current?.focus(); // WCAG 2.4.3 — return focus to the trigger on close
     };
   }, [open]);
 
   return (
     <div data-tour="image">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         aria-label="點擊放大，全螢幕預覽圖片"

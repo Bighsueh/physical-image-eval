@@ -22,6 +22,9 @@ export function useReviewKeyboard({
 }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Never act on shortcuts while a modal (e.g. the image lightbox) is open — otherwise 1/2/3
+      // would silently set 整體判定 behind the overlay.
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
         onSubmit();

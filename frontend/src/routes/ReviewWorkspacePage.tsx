@@ -17,6 +17,11 @@ import { useReviewKeyboard } from '../hooks/useReviewKeyboard';
 import { REVIEW_TOUR_SEEN_KEY, startReviewTour } from '../lib/reviewTour';
 import { isPanelAddressed, reviewDraftReducer, reviewToDraft } from '../state/reviewDraft';
 
+const VALIDATION_ERRORS = {
+  judgement: '請先選擇整體判定',
+  panel: '每個分格請勾選「無問題」或標注問題',
+} as const;
+
 /** Per-image review screen — Layout A (US1–US6). The inner editor is keyed by blueprintId so each
  * blueprint gets a fresh draft + autosave lifecycle (clean auto-advance). */
 export function ReviewWorkspacePage() {
@@ -86,13 +91,13 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
   const doSubmit = useCallback(() => {
     const d = draftRef.current;
     if (!d.overallJudgement) {
-      setSubmitError('請先選擇整體判定');
+      setSubmitError(VALIDATION_ERRORS.judgement);
       document.getElementById('overall-judgement-anchor')?.scrollIntoView?.({ block: 'center' });
       return;
     }
     const unaddressed = d.panels.filter((p) => !isPanelAddressed(p)).map((p) => p.panelIndex);
     if (unaddressed.length > 0) {
-      setSubmitError('每個分格請勾選「無問題」或標注問題');
+      setSubmitError(VALIDATION_ERRORS.panel);
       setPanelErrors(true);
       setActivePanel(unaddressed[0]); // jump to the first panel that needs handling
       return;
@@ -104,6 +109,14 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
 
   const onJudge = useCallback((v: OverallJudgement) => dispatch({ type: 'overall', value: v }), []);
   useReviewKeyboard({ onJudge, onSubmit: doSubmit });
+
+  // Clear a validation banner as soon as the form becomes valid (don't leave it stale on edit).
+  useEffect(() => {
+    if (draft.overallJudgement && draft.panels.every(isPanelAddressed)) {
+      setPanelErrors(false);
+      setSubmitError((prev) => (prev === VALIDATION_ERRORS.judgement || prev === VALIDATION_ERRORS.panel ? null : prev));
+    }
+  }, [draft]);
 
   if (completed) return <CompletionState total={data.progress.total} />;
 
@@ -174,7 +187,7 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
               <OverallJudgementField
                 value={draft.overallJudgement}
                 onChange={(v) => dispatch({ type: 'overall', value: v })}
-                errorId={submitError ? OVERALL_ERROR_ID : undefined}
+                errorId={submitError === VALIDATION_ERRORS.judgement ? OVERALL_ERROR_ID : undefined}
               />
             </div>
             <IndicationField

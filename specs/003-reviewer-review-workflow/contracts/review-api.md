@@ -39,6 +39,7 @@ JSON out. Every response uses the project envelope and reuses 001's cookie sessi
 | 400 | `VALIDATION_ERROR` | 輸入資料有誤 | zod boundary failure (bad enum value, malformed body, panels not 1..4, bad query) |
 | 400 | `INVALID_PARAM` | 請求參數格式錯誤 | `:blueprintId` fails `^[SHETPKLY][1-9][0-9]?$` |
 | 400 | `OVERALL_JUDGEMENT_REQUIRED` | 請先選擇整體判定 | **submit** with `overallJudgement = null` (FR-011/SC-003) |
+| 400 | `PANEL_REVIEW_INCOMPLETE` | 每個分格請勾選「無問題」或標注問題 | **submit** with a panel that is neither `noProblem` nor annotated (2026-07-01) |
 | 401 | `AUTH_REQUIRED` | 請先登入 | no/expired/revoked session |
 | 403 | `FORBIDDEN_ROLE` | 權限不足 | authenticated non-reviewer hits a review route |
 | 403 | `CSRF_INVALID` | 請重新整理後再試 | missing/mismatched CSRF token on a mutation |
@@ -57,9 +58,11 @@ JSON out. Every response uses the project envelope and reuses 001's cookie sessi
   "overallJudgement": "通過" | "需小修" | "需重做" | null,
   "indicationJudgement": "合理" | "有疑慮" | null,
   "indicationNote": "string" | null,
+  "otherComment": "string" | null,   // 其他意見, image-level (2026-07-01)
   "panels": [   // EXACTLY 4, panelIndex 1..4, each present once
     {
       "panelIndex": 1,
+      "noProblem": false,   // 無問題 sign-off (2026-07-01); submit requires noProblem OR an annotation
       "requiredWarnings": ["注意跌倒","需有專人幫助指導","骨鬆注意","心肺功能不全者注意","其它"], // subset, may be []
       "warningOther": "string" | null,
       "problemTypes": ["部位／主題錯誤","動作示範錯誤","文字說明錯誤","次數／時間不合理","缺安全提醒","有錯字"], // subset, may be []

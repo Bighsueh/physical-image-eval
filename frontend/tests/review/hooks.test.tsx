@@ -71,4 +71,19 @@ describe('useReviewKeyboard (US2 keyboard path)', () => {
     expect(onJudge).not.toHaveBeenCalled();
     input.remove();
   });
+
+  it('suppresses shortcuts while a modal (e.g. the image lightbox) is open', () => {
+    const onJudge = vi.fn();
+    const onSubmit = vi.fn();
+    renderHook(() => useReviewKeyboard({ onJudge, onSubmit }));
+    const modal = document.createElement('div');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    document.body.appendChild(modal);
+    fireEvent.keyDown(window, { key: '2' });
+    fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
+    expect(onJudge).not.toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+    modal.remove();
+  });
 });
