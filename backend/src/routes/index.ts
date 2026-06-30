@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { catalogRouter } from '../catalog/routes/catalog.routes';
 import { imageRouter } from '../images/routes/image.routes';
+import { reviewRouter } from '../reviews/routes/review.routes';
 import { adminAccountsRouter } from './admin-accounts.routes';
 import { authRouter } from './auth.routes';
 
@@ -18,3 +19,4 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/admin/accounts', adminAccountsRouter);
 apiRouter.use('/', catalogRouter);
 apiRouter.use('/', imageRouter);
+apiRouter.use('/reviews', reviewRouter);

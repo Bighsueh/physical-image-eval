@@ -20,6 +20,8 @@ export const ERRORS = {
   INVALID_PARAM: { status: 400, message: '參數格式不正確' },
   BLUEPRINT_NOT_FOUND: { status: 404, message: '找不到該藍圖' },
   IMAGE_NOT_FOUND: { status: 404, message: '找不到圖檔' },
+  // Review workflow (feature 003).
+  OVERALL_JUDGEMENT_REQUIRED: { status: 400, message: '請先選擇整體判定' },
   // Infra codes (not in the contract table but used by the 404 / fallthrough handlers).
   NOT_FOUND: { status: 404, message: '找不到資源' },
   INTERNAL_ERROR: { status: 500, message: '伺服器發生錯誤' },

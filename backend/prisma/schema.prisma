@@ -55,6 +55,7 @@ model Account {
   sessions        Session[]
   auditActorLogs  AuditLog[] @relation("AuditActor")
   auditTargetLogs AuditLog[] @relation("AuditTarget")
+  reviews         Review[] // 003 — reviews this reviewer owns (no cascade on disable, 001 FR-008)
 
   @@index([role])
   @@index([isActive])
@@ -194,4 +195,86 @@ model Diagnosis {
   updatedAt         DateTime    @updatedAt @db.Timestamptz(6)
 
   @@index([mappedBlueprintId])
+}
+
+// ── Review domain (feature 003, constitution XI) ────────────────────────────
+// MUTABLE review domain. References (read-only) Account (001) + Blueprint (002); never writes them.
+// Enum members are ASCII ids @map'd to the verbatim zh-TW labels stored in Postgres (research D2).
+
+/// 整體判定 — single-select, image-level. NULL until submit; required to submit (FR-010/011).
+enum OverallJudgement {
+  PASS      @map("通過")
+  MINOR_FIX @map("需小修")
+  REDO      @map("需重做")
+}
+
+/// 適應症／診斷對應 — single-select, optional (FR-012).
+enum IndicationJudgement {
+  REASONABLE @map("合理")
+  DOUBTFUL   @map("有疑慮")
+}
+
+/// 需要添加的警語 — panel multi-select member (FR-014).
+enum WarningType {
+  FALL_RISK        @map("注意跌倒")
+  NEEDS_ASSISTANCE @map("需有專人幫助指導")
+  OSTEOPOROSIS     @map("骨鬆注意")
+  CARDIOPULMONARY  @map("心肺功能不全者注意")
+  OTHER            @map("其它")
+}
+
+/// 問題類型 — panel multi-select member (FR-016).
+enum ProblemType {
+  WRONG_SUBJECT           @map("部位／主題錯誤")
+  WRONG_DEMONSTRATION     @map("動作示範錯誤")
+  WRONG_TEXT              @map("文字說明錯誤")
+  UNREASONABLE_FREQ_TIME  @map("次數／時間不合理")
+  MISSING_SAFETY          @map("缺安全提醒")
+  TYPO                    @map("有錯字")
+}
+
+/// 審查狀態 — 未開始 is NOT stored (it is the absence of a row); only 草稿/已提交 persist (FR-024).
+enum ReviewStatus {
+  DRAFT     @map("草稿")
+  SUBMITTED @map("已提交")
+}
+
+/// 審查 — one reviewer's whole review of one blueprint. Identity = (reviewer × blueprint), unique.
+/// References the blueprint by its BUSINESS CODE ('S1'), NOT a FK to Blueprint.id — re-ingestion
+/// deletes+recreates all Blueprint rows (new cuids), so a cuid FK would break or cascade-delete
+/// review data on every catalog re-ingest. The catalog is resolved by code at read time.
+model Review {
+  id                  String               @id @default(cuid())
+  reviewerId          String
+  reviewer            Account              @relation(fields: [reviewerId], references: [id])
+  blueprintCode       String // business code e.g. "S1"; resolved against the catalog at read time
+  overallJudgement    OverallJudgement?
+  indicationJudgement IndicationJudgement?
+  indicationNote      String?
+  status              ReviewStatus         @default(DRAFT)
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  lastSavedAt         DateTime?            @db.Timestamptz(6)
+  submittedAt         DateTime?            @db.Timestamptz(6)
+  lastUpdatedAt       DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  panels              PanelReview[]
+
+  @@unique([reviewerId, blueprintCode])
+  @@index([reviewerId])
+  @@index([reviewerId, status])
+  @@index([blueprintCode])
+}
+
+/// 分格審查 — one reviewer's notes on one panel. Exactly 4 per Review; all fields optional.
+model PanelReview {
+  id               String        @id @default(cuid())
+  reviewId         String
+  review           Review        @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  panelIndex       Int
+  requiredWarnings WarningType[] @default([])
+  warningOther     String?
+  problemTypes     ProblemType[] @default([])
+  problemNote      String?
+  createdAt        DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@unique([reviewId, panelIndex])
 }
