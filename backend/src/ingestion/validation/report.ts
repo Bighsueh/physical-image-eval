@@ -39,6 +39,11 @@ export const computeWarnings = (catalog: ParsedCatalog): ReportWarning[] => {
     }
   }
 
+  // Unknown top-level folders — explicitly ignored, but surfaced (spec edge case).
+  for (const folder of catalog.unknownFolders ?? []) {
+    warnings.push({ message: `來源含未知資料夾「${folder}」，已略過（不影響 51 藍圖對帳）` });
+  }
+
   return warnings;
 };
 

@@ -30,4 +30,10 @@ describe('warnings (FR-021)', () => {
     c.diagnoses = c.diagnoses.filter((d) => d.mappedBlueprintId !== id);
     expect(computeWarnings(c).some((x) => x.blueprintId === id && x.message.includes('0 筆'))).toBe(true);
   });
+
+  it('surfaces an unknown top-level folder as a warning (not a hard error)', () => {
+    const c = structuredClone(valid);
+    c.unknownFolders = ['99_未知區域'];
+    expect(computeWarnings(c).some((x) => x.message.includes('99_未知區域'))).toBe(true);
+  });
 });

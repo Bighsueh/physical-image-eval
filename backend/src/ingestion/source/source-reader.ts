@@ -17,9 +17,19 @@ export class SourceUnreadableError extends Error {
 
 const INDEX_FILENAME = '00_藍圖總索引與設計規範.md';
 const IMAGE_ROOT = '_產圖';
+const KNOWN_NON_REGION = new Set([IMAGE_ROOT, '_tools']);
 
 /** blueprintId is the filename prefix before the first underscore (e.g. `S1_…` → `S1`). */
 const idFromFilename = (fileName: string): string => fileName.split('_')[0];
+
+/** Read a file read-only; any I/O failure becomes a SourceUnreadableError (drives exit 2). */
+const readFileSafe = (path: string, label: string): string => {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    throw new SourceUnreadableError(`無法讀取${label}：${path}`);
+  }
+};
 
 export interface RawBlueprintFile {
   regionFolder: string;
@@ -42,6 +52,8 @@ export interface SourceData {
   indexContent: string;
   indexRelPath: string;
   imageFiles: RawImageFile[];
+  /** Top-level folders that are neither a known region nor `_產圖`/`_tools` (reported as warnings). */
+  unknownFolders: string[];
 }
 
 const isDir = (p: string): boolean => existsSync(p) && statSync(p).isDirectory();
@@ -54,10 +66,18 @@ export const readSource = (sourceDir: string): SourceData => {
   if (!existsSync(indexPath)) {
     throw new SourceUnreadableError(`找不到總索引：${INDEX_FILENAME}`);
   }
-  const indexContent = readFileSync(indexPath, 'utf8');
+  const indexContent = readFileSafe(indexPath, '總索引');
 
   const blueprintFiles: RawBlueprintFile[] = [];
   const imageFiles: RawImageFile[] = [];
+
+  // Surface top-level folders that are neither a region nor _產圖/_tools (spec edge case).
+  const unknownFolders = readdirSync(sourceDir).filter(
+    (name) =>
+      isDir(join(sourceDir, name)) &&
+      !(name in REGION_FOLDER_MAP) &&
+      !KNOWN_NON_REGION.has(name),
+  );
 
   for (const [regionFolder, regionCode] of Object.entries(REGION_FOLDER_MAP)) {
     // Blueprint .md plans live in the top-level region folder.
@@ -71,7 +91,7 @@ export const readSource = (sourceDir: string): SourceData => {
           blueprintId: idFromFilename(fileName),
           fileName,
           relMarkdownPath: join(regionFolder, fileName),
-          content: readFileSync(join(mdFolder, fileName), 'utf8'),
+          content: readFileSafe(join(mdFolder, fileName), `藍圖 ${fileName}`),
         });
       }
     }
@@ -91,5 +111,5 @@ export const readSource = (sourceDir: string): SourceData => {
     }
   }
 
-  return { blueprintFiles, indexContent, indexRelPath: INDEX_FILENAME, imageFiles };
+  return { blueprintFiles, indexContent, indexRelPath: INDEX_FILENAME, imageFiles, unknownFolders };
 };

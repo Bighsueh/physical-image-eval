@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
+import { BLUEPRINT_ID_REGEX } from '../constants/catalog-constants';
 import { list, ok } from '../../lib/envelope';
 import { AppError } from '../../lib/errors';
 import { catalogService } from '../services/catalog.service';
@@ -9,7 +10,7 @@ import { catalogService } from '../services/catalog.service';
  * any validation failure → 400 INVALID_PARAM. Results are wrapped in the response envelope.
  */
 const regionEnum = z.enum(['S', 'H', 'E', 'T', 'P', 'K', 'L', 'Y']);
-const blueprintIdRe = /^[SHETPKLY][1-9][0-9]?$/;
+const blueprintIdRe = BLUEPRINT_ID_REGEX; // single source of truth (SEC-M3)
 
 const listBlueprintsQuery = z.object({
   region: regionEnum.optional(),

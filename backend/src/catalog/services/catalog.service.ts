@@ -1,5 +1,6 @@
 import type { MappingKind, RegionCode } from '@prisma/client';
 import { AppError } from '../../lib/errors';
+import { parseBlueprintId } from '../../ingestion/parser/id-region';
 import {
   toBlueprintDetailDto,
   toBlueprintSummaryDto,
@@ -8,6 +9,17 @@ import {
 } from '../dto/blueprint-public.dto';
 import { catalogRepository } from '../repositories/catalog.repository';
 
+/** Order blueprints by region displayOrder, then NUMERIC serial (Y1 < Y2 < … < Y12, not Y1,Y10…). */
+const byRegionThenSerial = (
+  a: { blueprintId: string; region: { displayOrder: number } },
+  b: { blueprintId: string; region: { displayOrder: number } },
+): number => {
+  if (a.region.displayOrder !== b.region.displayOrder) {
+    return a.region.displayOrder - b.region.displayOrder;
+  }
+  return (parseBlueprintId(a.blueprintId)?.serial ?? 0) - (parseBlueprintId(b.blueprintId)?.serial ?? 0);
+};
+
 /** Compose repository + public DTO. Never returns aiPrompt/contentHash/sourceMarkdownRef (D7). */
 export const catalogService = {
   async listRegions() {
@@ -15,7 +27,8 @@ export const catalogService = {
   },
 
   async listBlueprints(filters: { region?: RegionCode; highRisk?: boolean }) {
-    return (await catalogRepository.listBlueprints(filters)).map(toBlueprintSummaryDto);
+    const rows = await catalogRepository.listBlueprints(filters);
+    return [...rows].sort(byRegionThenSerial).map(toBlueprintSummaryDto);
   },
 
   async getBlueprintDetail(blueprintId: string) {

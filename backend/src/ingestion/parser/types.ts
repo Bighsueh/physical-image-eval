@@ -54,4 +54,6 @@ export interface ParsedCatalog {
   diagnoses: ParsedDiagnosis[];
   /** Image filenames discovered under the source, used for the orphan check (FR-005). */
   imageInventory: string[];
+  /** Top-level folders that belong to no known region (reported as warnings). */
+  unknownFolders: string[];
 }

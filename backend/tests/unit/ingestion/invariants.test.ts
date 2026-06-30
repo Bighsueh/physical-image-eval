@@ -87,6 +87,12 @@ describe('invariants', () => {
     expect(invariants(collectErrors(c))).toContain('FR-010:highrisk-missing');
   });
 
+  it('D6 — id region letter must match its containing folder', () => {
+    const c = clone(valid);
+    c.blueprints[0].regionCode = c.blueprints[0].regionCode === 'H' ? 'S' : 'H'; // force a mismatch
+    expect(invariants(collectErrors(c))).toContain('D6:id-folder');
+  });
+
   it('FR-022 — illegal and duplicate ids', () => {
     const illegal = clone(valid);
     illegal.blueprints[0].blueprintId = 'Z9';

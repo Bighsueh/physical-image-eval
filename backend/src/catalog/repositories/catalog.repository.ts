@@ -12,26 +12,49 @@ export const catalogRepository = {
   },
 
   listBlueprints(filters: { region?: RegionCode; highRisk?: boolean }) {
+    // select: (not include:) so aiPrompt/contentHash/sourceMarkdownRef are never fetched (SEC-M1).
     return prisma.blueprint.findMany({
       where: {
         ...(filters.region ? { region: { regionCode: filters.region } } : {}),
         ...(typeof filters.highRisk === 'boolean' ? { isHighRisk: filters.highRisk } : {}),
       },
-      include: {
+      select: {
+        blueprintId: true,
+        exerciseName: true,
+        isHighRisk: true,
         region: { select: { regionCode: true, displayOrder: true } },
         _count: { select: { diagnoses: true } },
       },
-      orderBy: [{ region: { displayOrder: 'asc' } }, { blueprintId: 'asc' }],
+      orderBy: { region: { displayOrder: 'asc' } }, // serial order applied numerically in the service
     });
   },
 
   getBlueprintDetail(blueprintId: string) {
     return prisma.blueprint.findUnique({
       where: { blueprintId },
-      include: {
+      select: {
+        blueprintId: true,
+        exerciseName: true,
+        indications: true,
+        frequency: true,
+        gentleReminder: true,
+        version: true,
+        isHighRisk: true,
         region: { select: { regionCode: true, nameZh: true } },
-        panels: { orderBy: { panelIndex: 'asc' } },
-        diagnoses: { orderBy: { matrixNo: 'asc' } },
+        panels: {
+          orderBy: { panelIndex: 'asc' },
+          select: {
+            panelIndex: true,
+            stepName: true,
+            actionDescription: true,
+            timingHint: true,
+            visualDescription: true,
+          },
+        },
+        diagnoses: {
+          orderBy: { matrixNo: 'asc' },
+          select: { matrixNo: true, nameZh: true, mappingKind: true },
+        },
       },
     });
   },

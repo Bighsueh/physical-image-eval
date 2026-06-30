@@ -31,6 +31,7 @@ export const buildCatalog = (source: SourceData): ParsedCatalog => {
     blueprints,
     diagnoses: parseIndex(source.indexContent),
     imageInventory: source.imageFiles.map((i) => i.blueprintId),
+    unknownFolders: source.unknownFolders,
   };
 };
 

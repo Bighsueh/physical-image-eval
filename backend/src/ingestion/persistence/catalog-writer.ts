@@ -72,14 +72,23 @@ export const writeCatalog = async (catalog: ParsedCatalog): Promise<void> => {
       }
 
       for (const d of [...catalog.diagnoses].sort((a, c) => a.matrixNo - c.matrixNo)) {
+        let mappedDbId: string | null = null;
+        if (d.mappedBlueprintId !== null) {
+          mappedDbId = blueprintIdByBusiness.get(d.mappedBlueprintId) ?? null;
+          // Phase A guarantees every non-referral diagnosis points at an existing blueprint
+          // (FR-009). A miss here is a validation gap — fail loudly, never write a broken FK.
+          if (mappedDbId === null) {
+            throw new Error(
+              `BUG: 診斷 ${d.matrixNo} 指向的藍圖 ${d.mappedBlueprintId} 不在寫入映射中（Phase A 驗證缺口）`,
+            );
+          }
+        }
         await tx.diagnosis.create({
           data: {
             matrixNo: d.matrixNo,
             nameZh: d.nameZh,
             mappingKind: d.mappingKind,
-            mappedBlueprintId: d.mappedBlueprintId
-              ? (blueprintIdByBusiness.get(d.mappedBlueprintId) ?? null)
-              : null,
+            mappedBlueprintId: mappedDbId,
           },
         });
       }

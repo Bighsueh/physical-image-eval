@@ -46,21 +46,21 @@ export const parseIndex = (content: string): ParsedDiagnosis[] => {
       if (!BLUEPRINT_ID_REGEX.test(blueprintId)) continue; // skip header/separator rows
       const mappingKind = blueprintId.startsWith('Y') ? 'TEMPLATE' : 'MAPPED';
       for (const { matrixNo, nameZh } of parseCovered(cols[2] ?? '')) {
-        diagnoses.push(
-          ParsedDiagnosisSchema.parse({ matrixNo, nameZh, mappingKind, mappedBlueprintId: blueprintId }),
-        );
+        // safeParse — a malformed row is SKIPPED (then caught by FR-008 reconciliation), never
+        // thrown (which would misclassify a bad source as exit 3 instead of 1).
+        const r = ParsedDiagnosisSchema.safeParse({ matrixNo, nameZh, mappingKind, mappedBlueprintId: blueprintId });
+        if (r.success) diagnoses.push(r.data);
       }
     } else {
       const matrixNo = cols[0];
-      if (!/^\d+$/.test(matrixNo)) continue; // skip header/separator rows
-      diagnoses.push(
-        ParsedDiagnosisSchema.parse({
-          matrixNo: Number(matrixNo),
-          nameZh: (cols[1] ?? '').trim(),
-          mappingKind: 'REFERRAL',
-          mappedBlueprintId: null,
-        }),
-      );
+      if (!/^[1-9]\d*$/.test(matrixNo)) continue; // skip header/separator/zero rows
+      const r = ParsedDiagnosisSchema.safeParse({
+        matrixNo: Number(matrixNo),
+        nameZh: (cols[1] ?? '').trim(),
+        mappingKind: 'REFERRAL',
+        mappedBlueprintId: null,
+      });
+      if (r.success) diagnoses.push(r.data);
     }
   }
 

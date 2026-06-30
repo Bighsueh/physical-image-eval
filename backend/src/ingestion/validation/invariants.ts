@@ -7,7 +7,7 @@ import {
   REGION_COUNTS,
   TOTAL_BLUEPRINTS,
 } from '../../catalog/constants/catalog-constants';
-import { isLegalBlueprintId } from '../parser/id-region';
+import { isLegalBlueprintId, parseBlueprintId } from '../parser/id-region';
 import type { ParsedCatalog } from '../parser/types';
 import type { ReportError } from './report-types';
 
@@ -33,6 +33,15 @@ export const collectErrors = (catalog: ParsedCatalog): ReportError[] => {
       errors.push({ invariant: 'FR-022:unique-id', blueprintId: b.blueprintId, message: `重複藍圖 ID：${b.blueprintId}` });
     }
     seen.add(b.blueprintId);
+    // D6 cross-check: the id's region letter must match its containing folder's region.
+    const parsed = parseBlueprintId(b.blueprintId);
+    if (parsed && parsed.regionCode !== b.regionCode) {
+      errors.push({
+        invariant: 'D6:id-folder',
+        blueprintId: b.blueprintId,
+        message: `藍圖 ${b.blueprintId} 的區域字母與所屬資料夾區域 ${b.regionCode} 不符`,
+      });
+    }
   }
 
   // FR-002: exactly 51 blueprints.

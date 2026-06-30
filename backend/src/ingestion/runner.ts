@@ -1,4 +1,5 @@
 import { readAndBuildCatalog } from './parser/build-catalog';
+import type { ParsedCatalog } from './parser/types';
 import { computeDiff, readSnapshot } from './diff/snapshot-diff';
 import { SourceUnreadableError } from './source/source-reader';
 import { collectErrors } from './validation/invariants';
@@ -26,7 +27,7 @@ export interface RunIngestResult {
 
 export const runIngest = async (opts: RunIngestOptions): Promise<RunIngestResult> => {
   // Phase A — read-only parse.
-  let catalog;
+  let catalog: ParsedCatalog;
   try {
     catalog = readAndBuildCatalog(opts.sourceDir);
   } catch (err) {
@@ -57,7 +58,10 @@ export const runIngest = async (opts: RunIngestOptions): Promise<RunIngestResult
   // Phase B — single transaction snapshot-replace.
   try {
     await writeCatalog(catalog);
-  } catch {
+  } catch (err) {
+    // Log full server-side detail (never swallow); the user-facing report stays generic.
+    // eslint-disable-next-line no-console
+    console.error('[ingest] Phase B transaction failed:', err);
     return {
       exitCode: 3,
       report,
