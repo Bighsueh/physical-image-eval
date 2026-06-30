@@ -100,3 +100,98 @@ model AuditLog {
   @@index([actorAccountId])
   @@index([createdAt])
 }
+
+// ── Catalog domain (feature 002, constitution XI) ───────────────────────────
+// READ-ONLY reference data produced solely by ingestion/re-run. Users never create/edit it.
+
+/// The 8 anatomical regions (S/H/E/T/P/K/L/Y).
+enum RegionCode {
+  S // 肩部
+  H // 頭頸部
+  E // 肘腕手
+  T // 脊椎軀幹
+  P // 骨盆髖
+  K // 膝部
+  L // 小腿足踝
+  Y // 全身運動處方
+}
+
+/// Diagnosis mapping kind. MAPPED∪TEMPLATE = 128 「對應到藍圖」; REFERRAL = 6. Total 134 (FR-008).
+enum MappingKind {
+  MAPPED // 已對應 — synonym/same-treatment → a specific non-Y blueprint
+  TEMPLATE // 通用處方模板 — systemic diagnosis covered by a Y-series blueprint
+  REFERRAL // 轉介 — non-PT; produces no blueprint
+}
+
+/// 解剖區域. Seeded entirely by ingestion.
+model Region {
+  id           String      @id @default(cuid())
+  regionCode   RegionCode  @unique
+  nameZh       String
+  nameEn       String
+  displayOrder Int         @unique
+  createdAt    DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime    @updatedAt @db.Timestamptz(6)
+  blueprints   Blueprint[]
+}
+
+/// 藍圖 — one 2×2 four-panel exercise-education image's reference unit.
+model Blueprint {
+  id                String      @id @default(cuid())
+  /// Business key, regex ^[SHETPKLY][1-9][0-9]?$ (FR-022). e.g. S1.
+  blueprintId       String      @unique
+  regionId          String
+  region            Region      @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  exerciseName      String
+  indications       String
+  frequency         String
+  gentleReminder    String
+  /// Relative path to the single PNG under IMAGE_SOURCE_DIR. Bytes NOT stored (D5).
+  imagePath         String      @unique
+  sourceMarkdownRef String
+  version           String
+  /// Hash of normalized parsed fields; powers idempotent diff (D4). Internal — never serialized.
+  contentHash       String
+  /// Derived: HIGH_RISK_BLUEPRINT_IDS.has(blueprintId) (FR-010).
+  isHighRisk        Boolean     @default(false)
+  /// INTERNAL-ONLY — stored, never serialized to any API response (FR-020, D7).
+  aiPrompt          String
+  createdAt         DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime    @updatedAt @db.Timestamptz(6)
+  panels            Panel[]
+  diagnoses         Diagnosis[]
+
+  @@index([regionId])
+  @@index([isHighRisk])
+}
+
+/// 分格 — one cell of a blueprint's 2×2 grid. Exactly 4 per blueprint (FR-004).
+model Panel {
+  id                String    @id @default(cuid())
+  blueprintId       String
+  blueprint         Blueprint @relation(fields: [blueprintId], references: [id], onDelete: Cascade)
+  panelIndex        Int // 1..4 (app invariant FR-004)
+  stepName          String
+  actionDescription String
+  timingHint        String?
+  visualDescription String?
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([blueprintId, panelIndex])
+}
+
+/// 診斷 — one row of the 134-diagnosis mapping matrix (authoritative: 00 index).
+model Diagnosis {
+  id                String      @id @default(cuid())
+  matrixNo          Int         @unique
+  nameZh            String
+  mappingKind       MappingKind
+  /// NOT NULL for MAPPED/TEMPLATE; NULL for REFERRAL.
+  mappedBlueprintId String?
+  mappedBlueprint   Blueprint?  @relation(fields: [mappedBlueprintId], references: [id], onDelete: Cascade)
+  createdAt         DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime    @updatedAt @db.Timestamptz(6)
+
+  @@index([mappedBlueprintId])
+}

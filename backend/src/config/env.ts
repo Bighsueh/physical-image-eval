@@ -26,6 +26,13 @@ const envSchema = z.object({
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL 必填'),
 
+  // Absolute path to the READ-ONLY mounted AIGC image source (feature 002). Readability is checked
+  // at ingest/serve time (exit 2 / IMAGE_NOT_FOUND), not here, so env.ts stays pure.
+  IMAGE_SOURCE_DIR: z
+    .string()
+    .min(1, 'IMAGE_SOURCE_DIR 必填')
+    .refine((p) => p.startsWith('/'), 'IMAGE_SOURCE_DIR 必須為絕對路徑'),
+
   SESSION_ABSOLUTE_TTL: durationSchema, // absolute session lifetime (ms)
   SESSION_IDLE_TTL: durationSchema, // idle/sliding timeout (ms)
 

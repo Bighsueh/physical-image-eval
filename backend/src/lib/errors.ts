@@ -16,6 +16,10 @@ export const ERRORS = {
   SELF_OPERATION_FORBIDDEN: { status: 409, message: '無法對自己的帳號執行此操作' },
   LAST_ADMIN_PROTECTED: { status: 409, message: '系統需保留至少一位啟用的管理員' },
   RATE_LIMITED: { status: 429, message: '嘗試次數過多，請稍後再試' },
+  // Catalog / image (feature 002).
+  INVALID_PARAM: { status: 400, message: '參數格式不正確' },
+  BLUEPRINT_NOT_FOUND: { status: 404, message: '找不到該藍圖' },
+  IMAGE_NOT_FOUND: { status: 404, message: '找不到圖檔' },
   // Infra codes (not in the contract table but used by the 404 / fallthrough handlers).
   NOT_FOUND: { status: 404, message: '找不到資源' },
   INTERNAL_ERROR: { status: 500, message: '伺服器發生錯誤' },

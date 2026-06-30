@@ -1,7 +1,8 @@
 import { execSync } from 'node:child_process';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
+import { buildValidSource } from './fixtures/generate';
 
 /**
  * One-time test setup: ensure a dedicated TEST database exists and is migrated to the current
@@ -34,4 +35,7 @@ export default async function setup(): Promise<void> {
     env: { ...process.env, DATABASE_URL: testUrl },
     stdio: 'ignore',
   });
+
+  // 3. Build the valid synthetic source tree (feature 002) at the test IMAGE_SOURCE_DIR.
+  buildValidSource(join(backendDir, 'tests', 'fixtures', 'source', 'valid'));
 }
