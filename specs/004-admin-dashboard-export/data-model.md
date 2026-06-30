@@ -139,7 +139,7 @@ each flagged (FR-013/016). Read-only; never alters source rows.
 | `panel{n}.problemNote` | text | 圖{n}_問題說明 | free text — neutralized (FR-014/020) |
 | `submittedAt` | timestamptz | 提交時間 | ISO-8601 UTC (FR-014) |
 
-`{n}` ∈ {1,2,3,4} → 16 panel columns; 27 columns total (column order fixed in
+`{n}` ∈ {1,2,3,4} → 16 panel columns; 28 columns total (column order fixed in
 `dashboard-constants.ts`, D4). A "乾淨通過" record still emits a full row: all four panels'
 warning/problem columns present and empty (FR-015).
 

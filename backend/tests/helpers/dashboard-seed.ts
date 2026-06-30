@@ -1,12 +1,20 @@
-import type { OverallJudgement } from '@prisma/client';
+import type { OverallJudgement, ProblemType, WarningType } from '@prisma/client';
 import { prisma } from '../../src/lib/prisma';
+
+interface PanelSeed {
+  panelIndex: number;
+  requiredWarnings: WarningType[];
+  warningOther: string | null;
+  problemTypes: ProblemType[];
+  problemNote: string | null;
+}
 
 /**
  * Seed a deterministic dashboard scenario directly via Prisma (read-side tests don't need HTTP).
  * 3 active reviewers + 1 非在職; submitted reviews on S1/S2 (with disagreement on S1) + 1 draft on
  * S3 (must be excluded). One panel carries multi-select detail for the export test.
  */
-const emptyPanels = () =>
+const emptyPanels = (): PanelSeed[] =>
   [1, 2, 3, 4].map((panelIndex) => ({ panelIndex, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null }));
 
 export interface SeededDashboard {
@@ -26,7 +34,7 @@ const submit = (
   reviewerId: string,
   blueprintCode: string,
   overall: OverallJudgement,
-  panels = emptyPanels(),
+  panels: PanelSeed[] = emptyPanels(),
 ) =>
   prisma.review.create({
     data: {

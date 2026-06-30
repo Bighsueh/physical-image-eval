@@ -11,7 +11,9 @@ export function ExportButton({ filters }: { filters: ImageFilters }) {
     setBusy(true);
     setError(null);
     try {
-      await downloadExport(filters);
+      // The export endpoint only honors hasRedo/highRisk (notFullyCovered is dashboard-only). Forward
+      // exactly those so the CSV matches what the supported filters imply — never silently dropped.
+      await downloadExport({ hasRedo: filters.hasRedo, highRisk: filters.highRisk });
     } catch {
       setError('匯出失敗，請稍後再試');
     } finally {
@@ -24,6 +26,9 @@ export function ExportButton({ filters }: { filters: ImageFilters }) {
         <Download className="w-4 h-4" aria-hidden="true" />
         匯出 CSV
       </Button>
+      {filters.notFullyCovered && (
+        <span className="text-xs text-ink-soft">（匯出不套用「尚未達全覆蓋」篩選）</span>
+      )}
       {error && (
         <span role="alert" className="text-sm text-accent-deep">
           {error}

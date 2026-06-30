@@ -47,7 +47,7 @@ export function DashboardPage() {
           {images.data && <ImageCoverageTable rows={images.data.rows} />}
           {images.data && (
             <p className="text-xs text-ink-soft nums">
-              顯示 {images.data.rows.length}／{(images.data.meta?.total as number) ?? 51} 張
+              顯示 {images.data.rows.length}／{overview.data?.totalBlueprints ?? images.data.rows.length} 張
             </p>
           )}
         </section>

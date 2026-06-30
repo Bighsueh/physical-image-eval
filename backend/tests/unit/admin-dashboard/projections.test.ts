@@ -9,11 +9,11 @@ import {
   buildReviewerProgress,
 } from '../../../src/admin-dashboard/services/progress.service';
 import { completionPercent } from '../../../src/admin-dashboard/services/completion-ratio';
-import type { SubmittedReview } from '../../../src/admin-dashboard/repositories/review-read.repository';
+import type { SubmittedPanel, SubmittedReview } from '../../../src/admin-dashboard/repositories/review-read.repository';
 
 const reviewer = (id: string, isActive = true) => ({ id, displayName: `R${id}`, isActive });
-const emptyPanels = () => [1, 2, 3, 4].map((panelIndex) => ({ panelIndex, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null }));
-const sub = (id: string, code: string, overall: SubmittedReview['overallJudgement'], isActive = true, panels = emptyPanels()): SubmittedReview => ({
+const emptyPanels = (): SubmittedPanel[] => [1, 2, 3, 4].map((panelIndex) => ({ panelIndex, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null }));
+const sub = (id: string, code: string, overall: SubmittedReview['overallJudgement'], isActive = true, panels: SubmittedPanel[] = emptyPanels()): SubmittedReview => ({
   blueprintCode: code,
   overallJudgement: overall,
   indicationJudgement: null,

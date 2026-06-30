@@ -4,7 +4,7 @@
  * prefixed with a single quote so spreadsheet apps treat it as text, not a formula (FR-020).
  */
 const BOM = String.fromCharCode(0xfeff); // UTF-8 BOM (no irregular-whitespace literal in source)
-const FORMULA_LEAD = /^[=+\-@\t\r]/;
+const FORMULA_LEAD = /^[=+\-@|\t\r]/; // incl. | (LibreOffice/WPS DDE vector)
 
 const neutralize = (cell: string): string => (FORMULA_LEAD.test(cell) ? `'${cell}` : cell);
 

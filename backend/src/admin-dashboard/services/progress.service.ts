@@ -94,10 +94,8 @@ export const buildReviewerProgress = (
   const rows = reviewers.map((r) => {
     const mine = subs.filter((s) => s.reviewer.id === r.id);
     const submittedCodes = new Set(mine.map((s) => s.blueprintCode));
-    const last = mine.reduce<SubmittedReview | null>(
-      (acc, s) => (!acc || (s.submittedAt && acc.submittedAt && s.submittedAt > acc.submittedAt) ? s : acc),
-      null,
-    );
+    const ts = (s: SubmittedReview | null) => s?.submittedAt?.getTime() ?? 0;
+    const last = mine.reduce<SubmittedReview | null>((acc, s) => (ts(s) > ts(acc) ? s : acc), null);
     return {
       accountId: r.id,
       displayName: r.displayName,

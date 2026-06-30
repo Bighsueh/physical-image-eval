@@ -18,7 +18,7 @@ export interface ExportBlueprintRef {
 const REDO = '需重做';
 
 /**
- * Build one CSV row (the fixed 27-column order — research D4) for a submitted (reviewer × image)
+ * Build one CSV row (the fixed 28-column order — research D4) for a submitted (reviewer × image)
  * record. Free text is emitted RAW here; the csv-serializer does RFC-4180 quoting + formula-
  * injection neutralization at write time (FR-020). Clean panels still emit all 16 panel columns,
  * empty (FR-015). 含需重做 is a per-row flag = (整體判定 === 需重做) (FR-017).

@@ -111,7 +111,7 @@ openable single-table format and maps cleanly to FR-017's "單列對應一組（
 提交時間
 ```
 
-(27 columns: 11 record/flag/indication + 4 panels × 4 + 提交時間.) Enum cells carry the **zh-TW
+(28 columns: 11 record/flag/indication + 4 panels × 4 + 提交時間.) Enum cells carry the **zh-TW
 labels verbatim** (FR-019, constitution VIII); `提交時間` is ISO-8601 UTC.
 
 ---

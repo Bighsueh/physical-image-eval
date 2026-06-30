@@ -246,7 +246,7 @@ FR-017, FR-020. Role: `ADMIN`. **Read-only** — the export never alters source 
 - Body: **UTF-8 with BOM (`EF BB BF`)**, CRLF line endings, RFC-4180 quoting. First line = the
   fixed zh-TW header row; one data row per submitted (reviewer × image).
 
-**Header row (27 columns, fixed order — D4)**
+**Header row (28 columns, fixed order — D4)**
 ```
 審查者ID,審查者名稱,在職狀態,藍圖ID,藍圖名稱,解剖區域,高風險,整體判定,含需重做,適應症判定,適應症說明,圖1_需要添加的警語,圖1_警語其它,圖1_問題類型,圖1_問題說明,圖2_需要添加的警語,圖2_警語其它,圖2_問題類型,圖2_問題說明,圖3_需要添加的警語,圖3_警語其它,圖3_問題類型,圖3_問題說明,圖4_需要添加的警語,圖4_警語其它,圖4_問題類型,圖4_問題說明,提交時間
 ```

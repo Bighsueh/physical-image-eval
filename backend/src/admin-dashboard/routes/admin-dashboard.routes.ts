@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { adminReadRateLimiter } from '../../middleware/rate-limit';
 import { requireAuth } from '../../middleware/require-auth';
 import { requirePasswordCurrent } from '../../middleware/require-password-current';
 import { requireRole } from '../../middleware/require-role';
@@ -15,7 +16,7 @@ import { exportCsvHandler } from '../controllers/admin-export.controller';
  * require-password-current, and GET-only — 004 mutates nothing (constitution XI, FR-012/SC-007).
  * No CSRF (no state-changing request exists). Reviewers/anon → 403/401.
  */
-const guard = [requireAuth, requireRole('ADMIN'), requirePasswordCurrent];
+const guard = [adminReadRateLimiter, requireAuth, requireRole('ADMIN'), requirePasswordCurrent];
 
 export const adminDashboardRouter = Router();
 adminDashboardRouter.get('/overview', ...guard, overviewHandler);

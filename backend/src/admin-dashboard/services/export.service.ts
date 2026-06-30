@@ -26,8 +26,11 @@ export const exportService = {
     );
     const order = new Map(blueprints.map((b, i) => [b.blueprintId, i]));
 
-    // Blueprints with ≥1 submitted 需重做 (consistent with the dashboard hasRedo semantics, FR-010).
-    const redoBlueprints = new Set(subs.filter((s) => s.overallJudgement === 'REDO').map((s) => s.blueprintCode));
+    // Blueprints with ≥1 ACTIVE 需重做 — matches the dashboard's active-basis hasRedo (FR-010); an
+    // inactive reviewer's REDO must NOT flag a blueprint that the dashboard doesn't flag.
+    const redoBlueprints = new Set(
+      subs.filter((s) => s.overallJudgement === 'REDO' && s.reviewer.isActive).map((s) => s.blueprintCode),
+    );
 
     let rows = subs;
     if (filters.highRisk) rows = rows.filter((s) => HIGH_RISK_BLUEPRINT_IDS.has(s.blueprintCode));

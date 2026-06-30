@@ -17,7 +17,7 @@ export const INACTIVE_LABEL = '非在職';
 export const OVERALL_JUDGEMENTS = ['通過', '需小修', '需重做'] as const;
 export type OverallJudgementLabel = (typeof OVERALL_JUDGEMENTS)[number];
 
-/** Fixed 27-column export header (FR-014/017, research D4). */
+/** Fixed 28-column export header — 11 scalar + 4 panels × 4 + 提交時間 (FR-014/017, research D4). */
 export const EXPORT_HEADER: readonly string[] = [
   '審查者ID',
   '審查者名稱',
