@@ -38,8 +38,8 @@ test.describe('US1 — reviewer login → 0/51 landing', () => {
     await page.getByRole('button', { name: '登入' }).click();
 
     await expect(page).toHaveURL(/\/progress$/);
-    await expect(page.getByText('51')).toBeVisible();
     await expect(page.getByText('我的審查進度')).toBeVisible();
+    await expect(page.getByLabel('審查進度 0 / 51')).toBeVisible(); // unique 0／51 readout (US7 landing)
   });
 
   test('wrong credentials show the generic failure and stay on login', async ({ page }) => {

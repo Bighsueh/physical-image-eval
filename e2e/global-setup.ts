@@ -12,4 +12,7 @@ export default function globalSetup(): void {
     stdio: ['pipe', 'ignore', 'ignore'],
   });
   execSync('npm run seed:bootstrap-admin -w backend', { stdio: 'ignore' });
+  // Ensure the catalog is present (idempotent snapshot-replace) so review specs (003) are
+  // deterministic. Re-ingestion never touches review data (Review references blueprintCode).
+  execSync('npm run ingest -w backend', { stdio: 'ignore' });
 }
