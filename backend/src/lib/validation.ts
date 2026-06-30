@@ -37,3 +37,22 @@ export const passwordPolicySchema = z
 
 /** Login/current password — presence only; never reveal policy on the login path. */
 export const presentPasswordSchema = z.string({ required_error: '密碼必填' }).min(1, '密碼必填');
+
+/** Login request body — username normalized; password presence only. */
+export const loginSchema = z.object({
+  username: usernameSchema,
+  password: presentPasswordSchema,
+});
+
+/** Self password change (forced or voluntary). New password must pass the strength policy. */
+export const changePasswordSchema = z.object({
+  currentPassword: presentPasswordSchema,
+  newPassword: passwordPolicySchema,
+});
+
+/** Admin create-account request body. role defaults to REVIEWER. */
+export const createAccountSchema = z.object({
+  displayName: displayNameSchema,
+  username: usernameSchema,
+  role: roleSchema.default('REVIEWER'),
+});

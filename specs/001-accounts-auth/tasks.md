@@ -115,20 +115,20 @@ landing; log in with any wrong credentials → identical `401 AUTH_FAILED / 帳�
 
 ### Tests (write first, MUST FAIL)
 
-- [ ] T042 [P] [US1] Integration test in `backend/tests/integration/auth-login.test.ts` — `POST /api/auth/login` valid REVIEWER → 200, sets `pie_sid` + `pie_csrf`, body `data.account` (no hash) + `data.redirect=/progress`; admin → `/admin/accounts`; `mustChangePassword` → `/password/change`.
-- [ ] T043 [P] [US1] Integration test in `backend/tests/integration/auth-login-parity.test.ts` — unknown username / wrong password / disabled account ALL return identical `401 { code:"AUTH_FAILED", message:"帳號或密碼錯誤" }`, no cookies (FR-004, SC-004).
-- [ ] T044 [P] [US1] Unit test in `backend/tests/unit/auth.service.test.ts` — `auth.service.login` runs dummy-verify on unknown user, collapses disabled account into generic failure, issues session on success.
-- [ ] T045 [P] [US1] Frontend test in `frontend/tests/LoginPage.test.tsx` — required fields, submit invokes login hook, shows `帳號或密碼錯誤` on 401, and asserts NO registration/signup link is present (cross-checks US3).
-- [ ] T046 [P] [US1] E2E in `e2e/auth.spec.ts` (US1 block) — valid reviewer login → lands `/progress` showing 0／51; wrong creds → generic message, stays on login.
+- [X] T042 [P] [US1] Integration test in `backend/tests/integration/auth-login.test.ts` — `POST /api/auth/login` valid REVIEWER → 200, sets `pie_sid` + `pie_csrf`, body `data.account` (no hash) + `data.redirect=/progress`; admin → `/admin/accounts`; `mustChangePassword` → `/password/change`.
+- [X] T043 [P] [US1] Integration test in `backend/tests/integration/auth-login-parity.test.ts` — unknown username / wrong password / disabled account ALL return identical `401 { code:"AUTH_FAILED", message:"帳號或密碼錯誤" }`, no cookies (FR-004, SC-004).
+- [X] T044 [P] [US1] Unit test in `backend/tests/unit/auth.service.test.ts` — `auth.service.login` runs dummy-verify on unknown user, collapses disabled account into generic failure, issues session on success.
+- [X] T045 [P] [US1] Frontend test in `frontend/tests/LoginPage.test.tsx` — required fields, submit invokes login hook, shows `帳號或密碼錯誤` on 401, and asserts NO registration/signup link is present (cross-checks US3).
+- [X] T046 [P] [US1] E2E in `e2e/auth.spec.ts` (US1 block) — valid reviewer login → lands `/progress` showing 0／51; wrong creds → generic message, stays on login.
 
 ### Implementation
 
-- [ ] T047 [US1] `backend/src/services/auth.service.ts` — `login(username, password)`: normalize, lookup, dummy-verify-on-miss, argon2 verify, disabled→generic-fail, issue session + CSRF (depends T024, T028, T030).
-- [ ] T048 [US1] `backend/src/controllers/auth.controller.ts` — login handler: set `pie_sid` (httpOnly+Secure+SameSite=Lax) + `pie_csrf` cookies, envelope with role-based `redirect`.
-- [ ] T049 [US1] `backend/src/routes/auth.routes.ts` — `POST /api/auth/login` (rate-limit, no auth, no CSRF); mount in `app.ts`.
-- [ ] T050 [P] [US1] `frontend/src/api/auth.ts` — `useLogin` TanStack Query mutation hook.
-- [ ] T051 [US1] `frontend/src/routes/LoginPage.tsx` — the only public screen; zh-TW labels, keyboard-operable, text (not color) error state (depends T050).
-- [ ] T052 [US1] `frontend/src/components/ProtectedRoute.tsx` + router config — public `/login`, role-based landing redirect (reviewer → `/progress`), client guard is defense-in-depth only.
+- [X] T047 [US1] `backend/src/services/auth.service.ts` — `login(username, password)`: normalize, lookup, dummy-verify-on-miss, argon2 verify, disabled→generic-fail, issue session + CSRF (depends T024, T028, T030).
+- [X] T048 [US1] `backend/src/controllers/auth.controller.ts` — login handler: set `pie_sid` (httpOnly+Secure+SameSite=Lax) + `pie_csrf` cookies, envelope with role-based `redirect`.
+- [X] T049 [US1] `backend/src/routes/auth.routes.ts` — `POST /api/auth/login` (rate-limit, no auth, no CSRF); mount in `app.ts`.
+- [X] T050 [P] [US1] `frontend/src/api/auth.ts` — `useLogin` TanStack Query mutation hook.
+- [X] T051 [US1] `frontend/src/routes/LoginPage.tsx` — the only public screen; zh-TW labels, keyboard-operable, text (not color) error state (depends T050).
+- [X] T052 [US1] `frontend/src/components/ProtectedRoute.tsx` + router config — public `/login`, role-based landing redirect (reviewer → `/progress`), client guard is defense-in-depth only.
 
 **Checkpoint**: US1 independently demoable — reviewer login → 0／51, generic-failure parity holds.
 
