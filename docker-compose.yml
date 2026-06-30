@@ -54,10 +54,11 @@ services:
     expose:
       - '3100'
     volumes:
-      # constitution II — external AIGC image source mounted READ-ONLY (:ro). Never written to.
-      # Owned here by 001 for features 002/003 to consume; auth itself does not read it.
+      # Image source mounted READ-ONLY (:ro) — never written to (constitution II spirit). For local
+      # testing this is the repo-bundled ./images (a copy of the source; gitignored). To run against
+      # the original external dataset instead, override IMAGE_SOURCE in .env with its absolute path.
       - type: bind
-        source: '/path/to/image-source'
+        source: ${IMAGE_SOURCE:-./images}
         target: /data/blueprints
         read_only: true
 

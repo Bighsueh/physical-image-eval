@@ -48,8 +48,9 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-# Read-only external image source is NOT part of this repo (mounted at runtime).
-# Do not copy the 04_運動圖解藍圖 source into the repo.
+# Image source is NOT committed (medical AIGC dataset, ~80M). For local testing it is bundled as a
+# copy under images/ (mounted read-only by docker-compose); kept out of git history.
+images/
 
 # Generated 002 ingestion fixtures (built by test global-setup)
 backend/tests/fixtures/source/
