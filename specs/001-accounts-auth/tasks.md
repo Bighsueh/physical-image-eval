@@ -256,13 +256,13 @@ reopen without re-entering credentials, revoke instantly on disable/reset, and e
 **Purpose**: Coverage gate, security/timing hardening, accessibility, docs, end-to-end
 validation — concerns spanning all stories.
 
-- [ ] T095 [P] Verify coverage ≥ 80% on backend (`npm run test:coverage`) and frontend; close gaps in `backend/tests/` / `frontend/tests/` (constitution VII).
-- [ ] T096 [P] Security pass: assert no passwords / temp passwords / tokens / session ids appear in logs; secrets loaded only from env and validated at startup; argon2 params sourced from env (constitution V).
-- [ ] T097 Constant-time login verification in `backend/tests/integration/timing-parity.test.ts` — no observable body or timing difference across unknown / active / disabled username classes (SC-004, D6).
-- [ ] T098 [P] Accessibility pass on `frontend/src/routes/LoginPage.tsx`, `ForcePasswordChangePage.tsx`, and admin forms — keyboard-only operation, error state via text (not color alone), labels associated to inputs (constitution IX).
-- [ ] T099 [P] Optional expired-session prune housekeeping in `backend/src/jobs/prune-sessions.ts` using the `expiresAt` index.
-- [ ] T100 Run quickstart.md §5 curl acceptance flows (5.1–5.9) + §7 audit-trail inspection end-to-end against the running stack.
-- [ ] T101 [P] Run instructions: `backend/README.md` + `frontend/README.md` (ports, env, seed, tests; no secrets committed).
+- [X] T095 [P] Verify coverage ≥ 80% on backend (`npm run test:coverage`) and frontend; close gaps in `backend/tests/` / `frontend/tests/` (constitution VII).
+- [X] T096 [P] Security pass: assert no passwords / temp passwords / tokens / session ids appear in logs; secrets loaded only from env and validated at startup; argon2 params sourced from env (constitution V).
+- [X] T097 Constant-time login verification in `backend/tests/integration/timing-parity.test.ts` — no observable body or timing difference across unknown / active / disabled username classes (SC-004, D6).
+- [X] T098 [P] Accessibility pass on `frontend/src/routes/LoginPage.tsx`, `ForcePasswordChangePage.tsx`, and admin forms — keyboard-only operation, error state via text (not color alone), labels associated to inputs (constitution IX).
+- [X] T099 [P] Optional expired-session prune housekeeping in `backend/src/jobs/prune-sessions.ts` using the `expiresAt` index.
+- [X] T100 Run quickstart.md §5 curl acceptance flows (5.1–5.9) + §7 audit-trail inspection end-to-end against the running stack.
+- [X] T101 [P] Run instructions: `backend/README.md` + `frontend/README.md` (ports, env, seed, tests; no secrets committed).
 
 ---
 

@@ -3,7 +3,9 @@ import { type APIRequestContext, request } from '@playwright/test';
 /**
  * E2E API seeding helpers — drive the REAL backend (through the frontend proxy or directly) to set
  * up accounts. No DB shortcuts, no special test endpoints (constitution III). The backend under
- * test must be started with the bootstrap admin creds below.
+ * test must be started with the bootstrap admin creds below, and with a HIGH login rate limit
+ * (e.g. LOGIN_RATE_MAX=100000) — the suite logs the admin in many times from one IP, which would
+ * otherwise trip the production-low dev limit (FR-021).
  */
 export const API_URL = process.env.E2E_API_URL ?? 'http://localhost:3100';
 export const BOOTSTRAP_USER = process.env.E2E_BOOTSTRAP_USER ?? 'admin';
@@ -22,23 +24,29 @@ const post = async (ctx: APIRequestContext, path: string, data: unknown) => {
 
 /** Log in the bootstrap admin and, on first run, perform the forced password change. */
 export const adminContext = async (): Promise<APIRequestContext> => {
-  const ctx = await request.newContext();
-  let res = await ctx.post(`${API_URL}/api/auth/login`, {
+  const ctx = await request.newContext({ baseURL: API_URL });
+
+  // First-run: rotate the forced bootstrap password to a known value.
+  const first = await ctx.post('/api/auth/login', {
     data: { username: BOOTSTRAP_USER, password: BOOTSTRAP_PASS },
   });
-  let body = await res.json();
+  const firstBody = await first.json();
+  if (first.ok() && firstBody.data?.account?.mustChangePassword) {
+    const csrf = await csrfOf(ctx);
+    await ctx.post('/api/auth/password', {
+      data: { currentPassword: BOOTSTRAP_PASS, newPassword: ADMIN_NEW_PASS },
+      headers: { 'X-CSRF-Token': csrf },
+    });
+  }
 
-  if (body.data?.account?.mustChangePassword) {
-    await post(ctx, '/api/auth/password', {
-      currentPassword: BOOTSTRAP_PASS,
-      newPassword: ADMIN_NEW_PASS,
-    });
-  } else if (!res.ok()) {
-    // Bootstrap password already rotated to ADMIN_NEW_PASS by a previous run.
-    res = await ctx.post(`${API_URL}/api/auth/login`, {
-      data: { username: BOOTSTRAP_USER, password: ADMIN_NEW_PASS },
-    });
-    body = await res.json();
+  // Establish a clean authenticated session with the now-effective admin password.
+  const effective =
+    first.ok() && !firstBody.data?.account?.mustChangePassword ? BOOTSTRAP_PASS : ADMIN_NEW_PASS;
+  const login = await ctx.post('/api/auth/login', {
+    data: { username: BOOTSTRAP_USER, password: effective },
+  });
+  if (!login.ok()) {
+    throw new Error(`admin login failed: ${login.status()} ${await login.text()}`);
   }
   return ctx;
 };
@@ -63,6 +71,9 @@ export const seedActiveReviewer = async (
     displayName,
     role: 'REVIEWER',
   });
+  if (!createRes.ok()) {
+    throw new Error(`seed create failed: ${createRes.status()} ${await createRes.text()}`);
+  }
   const created = await createRes.json();
   const tempPassword: string = created.data.tempPassword;
 

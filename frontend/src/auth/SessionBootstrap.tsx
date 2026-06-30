@@ -13,7 +13,6 @@ export function SessionBootstrap() {
   useEffect(() => {
     if (isLoading) return;
     setAccount(data ?? null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isError, data]);
 
   return null;

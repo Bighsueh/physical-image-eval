@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, request as pwRequest, test } from '@playwright/test';
 import {
   adminContext,
   ADMIN_NEW_PASS,
@@ -100,15 +100,13 @@ test.describe('US5 — session restore + logout', () => {
 });
 
 test.describe('US4 — server-enforced role separation', () => {
-  test('a reviewer is blocked from admin routes at the SERVER, even with no admin UI', async ({
-    request,
-  }) => {
+  test('a reviewer is blocked from admin routes at the SERVER, even with no admin UI', async () => {
     const admin = await adminContext();
     const blocked = await seedActiveReviewer(admin, `e2e_role_${Date.now()}`, '受限審查員');
     await admin.dispose();
 
     // log the reviewer in via the API and try to hit an admin route directly
-    const ctx = await request.newContext();
+    const ctx = await pwRequest.newContext();
     await ctx.post(`${API_URL}/api/auth/login`, {
       data: { username: blocked.username, password: blocked.password },
     });
@@ -135,7 +133,7 @@ test.describe('US2 — admin account lifecycle', () => {
     await expect(page.getByText('一次性臨時密碼')).toBeVisible();
   });
 
-  test('disabling a reviewer blocks subsequent login', async ({ page, request }) => {
+  test('disabling a reviewer blocks subsequent login', async ({ page }) => {
     const admin = await adminContext();
     const reviewer = await seedActiveReviewer(admin, `e2e_disable_${Date.now()}`, '待停用');
 
