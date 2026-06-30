@@ -19,10 +19,12 @@ export function startReviewTour(): void {
     progressText: '{{current}} / {{total}}',
     steps: [
       {
-        element: '[data-tour="left-block"]',
+        element: '[data-tour="left-intro"]',
         popover: {
           title: '左側：受審圖與企劃（唯讀）',
           description: '這裡是要審查的圖與藍圖文字。一邊對照它，一邊在右側填寫你的判定。',
+          side: 'bottom',
+          align: 'start',
         },
       },
       {

@@ -1,5 +1,6 @@
 import { Maximize2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Click the image to open a full-screen preview (Facebook-style lightbox) — replaces the inline
@@ -43,31 +44,35 @@ export function ImageLightbox({ src, alt }: { src: string; alt: string }) {
       </button>
       <p className="mt-1.5 text-xs text-ink-soft">點圖可全螢幕預覽，細看四格的文字與箭頭。</p>
 
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={`預覽：${alt}`}
-          onClick={() => setOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
-        >
-          <button
-            ref={closeRef}
-            type="button"
+      {open &&
+        createPortal(
+          // Portaled to <body> so it escapes the sticky column / top-bar stacking contexts and
+          // covers the whole viewport (was rendering under the sticky navbar).
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`預覽：${alt}`}
             onClick={() => setOpen(false)}
-            aria-label="關閉預覽"
-            className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4"
           >
-            <X className="w-5 h-5" aria-hidden="true" />
-          </button>
-          <img
-            src={src}
-            alt={alt}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[92vh] max-w-[96vw] object-contain"
-          />
-        </div>
-      )}
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="關閉預覽"
+              className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white"
+            >
+              <X className="w-5 h-5" aria-hidden="true" />
+            </button>
+            <img
+              src={src}
+              alt={alt}
+              onClick={(e) => e.stopPropagation()}
+              className="max-h-[92vh] max-w-[96vw] object-contain"
+            />
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -173,8 +173,8 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* LEFT — what & why, then image + read-only plan (sticky). */}
-        <div data-tour="left-block" className="self-start lg:sticky lg:top-[4.5rem] space-y-3">
-          <p className="text-sm text-ink-soft">
+        <div className="self-start lg:sticky lg:top-[4.5rem] space-y-3">
+          <p data-tour="left-intro" className="text-sm text-ink-soft">
             左側為<strong className="text-ink">受審圖與藍圖企劃（唯讀）</strong>。請對照圖片與下方說明，逐項在右側填寫你的判定——右側的輸入不會改動這裡。
           </p>
           <ImageLightbox src={bp.imageUrl} alt={`${bp.blueprintId} ${bp.exerciseName}`} />
