@@ -1,13 +1,14 @@
+import { AlertTriangle } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLogin } from '../api/auth';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { Button } from '../components/ui';
 
 /**
- * The ONLY public screen (constitution III — no registration anywhere). Keyboard-operable native
- * form; error state conveyed by text + icon, not color alone (constitution IX). On success, store
- * the account and navigate to the server-provided role-based redirect.
+ * The ONLY public screen (constitution III — no registration anywhere). Warm clinical card on a
+ * paper background; keyboard-operable; error state by text + icon, not color alone (constitution IX).
  */
 export function LoginPage() {
   const navigate = useNavigate();
@@ -29,59 +30,64 @@ export function LoginPage() {
     }
   };
 
+  const field =
+    'w-full border border-border rounded-xl px-3 py-2 mb-4 bg-white focus:outline-none focus:ring-2 focus:ring-primary';
+
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <form
-        onSubmit={onSubmit}
-        aria-labelledby="login-title"
-        className="w-full max-w-sm bg-white p-8 rounded-lg shadow"
-      >
-        <h1 id="login-title" className="text-xl font-semibold mb-6 text-gray-900">
-          運動衛教圖審查工具登入
-        </h1>
-
-        <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-          帳號
-        </label>
-        <input
-          id="username"
-          name="username"
-          autoComplete="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-          密碼
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        {errorMessage && (
-          <p role="alert" className="text-sm text-red-700 mb-4">
-            <span aria-hidden="true">⚠️ </span>
-            {errorMessage}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={login.isPending}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium rounded py-2 disabled:opacity-50"
+    <main className="min-h-screen flex items-center justify-center bg-paper px-4">
+      <div className="w-full max-w-sm">
+        <div className="bg-primary text-white rounded-2xl px-6 py-4 mb-5 text-center shadow-soft">
+          <h1 className="font-brand text-2xl font-bold tracking-wide">運動衛教圖審查</h1>
+        </div>
+        <form
+          onSubmit={onSubmit}
+          aria-labelledby="login-title"
+          className="bg-surface border border-border p-8 rounded-2xl shadow-soft"
         >
-          {login.isPending ? '登入中…' : '登入'}
-        </button>
-      </form>
+          <h2 id="login-title" className="text-lg font-semibold mb-6 text-ink">
+            登入
+          </h2>
+
+          <label htmlFor="username" className="block text-sm font-medium text-ink mb-1">
+            帳號
+          </label>
+          <input
+            id="username"
+            name="username"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            className={field}
+          />
+
+          <label htmlFor="password" className="block text-sm font-medium text-ink mb-1">
+            密碼
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            inputMode="numeric"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className={field}
+          />
+
+          {errorMessage && (
+            <p role="alert" className="flex items-center gap-1.5 text-sm text-accent-deep mb-4">
+              <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+              {errorMessage}
+            </p>
+          )}
+
+          <Button type="submit" loading={login.isPending} className="w-full">
+            {login.isPending ? '登入中…' : '登入'}
+          </Button>
+        </form>
+      </div>
     </main>
   );
 }

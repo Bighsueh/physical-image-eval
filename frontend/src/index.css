@@ -1,12 +1,44 @@
+/* Fonts: Noto Sans TC (body/UI, clinical readability) + LXGW WenKai TC (brand banner, brush feel). */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  font-family: system-ui, -apple-system, 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-  line-height: 1.5;
+@layer base {
+  :root {
+    font-family: '"Noto Sans TC"', system-ui, -apple-system, 'PingFang TC', 'Microsoft JhengHei',
+      sans-serif;
+    line-height: 1.65; /* comfortable CJK reading */
+    color: #3a3a32; /* ink */
+  }
+
+  body {
+    margin: 0;
+    background-color: #f6f1e7; /* paper */
+    color: #3a3a32;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Always-visible focus ring (constitution IX, keyboard-operable). */
+  :focus-visible {
+    outline: 3px solid #6f7d58; /* primary */
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Tabular figures for data (progress, counts, seconds) — no layout jitter. */
+  .nums {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
-body {
-  margin: 0;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

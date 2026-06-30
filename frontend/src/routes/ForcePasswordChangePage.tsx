@@ -1,12 +1,14 @@
+import { AlertTriangle } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChangePassword } from '../api/auth';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { Button } from '../components/ui';
 
 /**
- * Forced password change after create/reset (FR-009), also usable for voluntary change. On success
- * clears mustChangePassword in client state and routes to the role-based landing.
+ * Forced password change after create/reset (FR-009). Passwords are 6 digits. On success clears
+ * mustChangePassword in client state and routes to the role-based landing.
  */
 export function ForcePasswordChangePage() {
   const navigate = useNavigate();
@@ -28,26 +30,33 @@ export function ForcePasswordChangePage() {
     }
   };
 
-  return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm bg-white p-8 rounded-lg shadow">
-        <h1 className="text-xl font-semibold mb-2 text-gray-900">變更密碼</h1>
-        <p className="text-sm text-gray-600 mb-6">首次登入請先設定新的密碼（6 位數字）。</p>
+  const field =
+    'w-full border border-border rounded-xl px-3 py-2 mb-4 bg-white focus:outline-none focus:ring-2 focus:ring-primary';
 
-        <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-paper px-4">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm bg-surface border border-border p-8 rounded-2xl shadow-soft"
+      >
+        <h1 className="text-xl font-bold mb-2 text-ink">變更密碼</h1>
+        <p className="text-sm text-ink-soft mb-6">首次登入請先設定新的密碼（6 位數字）。</p>
+
+        <label htmlFor="currentPassword" className="block text-sm font-medium text-ink mb-1">
           目前密碼
         </label>
         <input
           id="currentPassword"
           type="password"
           autoComplete="current-password"
+          inputMode="numeric"
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
           required
-          className="w-full border border-gray-300 rounded px-3 py-2 mb-4"
+          className={field}
         />
 
-        <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="newPassword" className="block text-sm font-medium text-ink mb-1">
           新密碼
         </label>
         <input
@@ -57,27 +66,23 @@ export function ForcePasswordChangePage() {
           inputMode="numeric"
           pattern="\d{6}"
           maxLength={6}
+          minLength={6}
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           required
-          minLength={6}
-          className="w-full border border-gray-300 rounded px-3 py-2 mb-4"
+          className={field}
         />
 
         {errorMessage && (
-          <p role="alert" className="text-sm text-red-700 mb-4">
-            <span aria-hidden="true">⚠️ </span>
+          <p role="alert" className="flex items-center gap-1.5 text-sm text-accent-deep mb-4">
+            <AlertTriangle className="w-4 h-4" aria-hidden="true" />
             {errorMessage}
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={change.isPending}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium rounded py-2 disabled:opacity-50"
-        >
+        <Button type="submit" loading={change.isPending} className="w-full">
           {change.isPending ? '變更中…' : '變更密碼'}
-        </button>
+        </Button>
       </form>
     </main>
   );
