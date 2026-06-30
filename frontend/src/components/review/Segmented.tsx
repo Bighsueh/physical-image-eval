@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-
 /**
  * Accessible single-select segmented control (radiogroup of buttons). Keyboard: arrows move and
  * select, Home/End jump. Selection conveyed by aria-checked + a check mark + weight — not color
@@ -18,7 +16,6 @@ interface SegmentedProps<T extends string> {
   onChange: (value: T | null) => void;
   allowDeselect?: boolean;
   describedBy?: string;
-  children?: ReactNode;
 }
 
 export function Segmented<T extends string>({

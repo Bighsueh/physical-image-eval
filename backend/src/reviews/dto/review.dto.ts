@@ -79,15 +79,19 @@ export const toReviewPayload = (review: ReviewWithPanels | null): ReviewPayload 
     indicationJudgement: review.indicationJudgement
       ? INDICATION_ID_TO_ZH[review.indicationJudgement]
       : null,
-    indicationNote: escapeHtml(review.indicationNote),
+    // Free text returned VERBATIM: the frontend binds it into controlled input `value` props
+    // (React is XSS-safe; never innerHTML). Escaping here gave no protection and corrupted clinical
+    // notes containing < > & on every save/reload round-trip. CSV export neutralizes at its own
+    // boundary (004 csv-serializer).
+    indicationNote: review.indicationNote,
     panels: [...review.panels]
       .sort((a, b) => a.panelIndex - b.panelIndex)
       .map((p) => ({
         panelIndex: p.panelIndex,
         requiredWarnings: p.requiredWarnings.map((w) => WARNING_ID_TO_ZH[w]),
-        warningOther: escapeHtml(p.warningOther),
+        warningOther: p.warningOther,
         problemTypes: p.problemTypes.map((t) => PROBLEM_ID_TO_ZH[t]),
-        problemNote: escapeHtml(p.problemNote),
+        problemNote: p.problemNote,
       })),
     createdAt: review.createdAt.toISOString(),
     lastSavedAt: review.lastSavedAt?.toISOString() ?? null,

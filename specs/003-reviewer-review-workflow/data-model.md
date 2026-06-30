@@ -81,7 +81,7 @@ One reviewer's whole review of one blueprint. Identity = (reviewer × blueprint)
 |-------|--------------|---------------------|
 | `id` | string (cuid) | PK. |
 | `reviewerId` | string (FK → `Account.id`, 001) | NOT NULL. The owning 審查者. Always set from the session, never the request (FR-003, research D8). |
-| `blueprintId` | string (FK → `Blueprint.id`, 002 surrogate) | NOT NULL. The reviewed blueprint. (The API path uses the catalog **business code** e.g. `S1`; the service resolves it to `Blueprint.id`.) |
+| `blueprintCode` | string (catalog **business code**, e.g. `S1`) | NOT NULL. The reviewed blueprint, referenced by its business code — **NOT** a FK to `Blueprint.id`. Re-ingestion deletes+recreates every `Blueprint` row with new cuids (002), so a cuid FK would break re-ingestion (RESTRICT) or cascade-delete review data (CASCADE). The catalog is resolved by code at read time; a retired blueprint makes its reviews inaccessible (open → `BLUEPRINT_NOT_FOUND`) but never corrupts them. A DB CHECK enforces the `^[SHETPKLY][1-9][0-9]?$` shape. |
 | `overallJudgement` | `OverallJudgement` \| null | 整體判定. **NULL until submit**; required to submit (FR-010/FR-011). |
 | `indicationJudgement` | `IndicationJudgement` \| null | 適應症／診斷對應. Optional (FR-012). |
 | `indicationNote` | text \| null | 適應症說明. Optional free text; preserved verbatim, **sanitized on output** (FR-012, V). |
@@ -96,14 +96,14 @@ One reviewer's whole review of one blueprint. Identity = (reviewer × blueprint)
   (`reviewer Account @relation(fields: [reviewerId], references: [id])`; 001). Other features
   MUST reference this Review FK as `reviewerId` / `reviewer`, not `accountId`. Disabling an
   account never deletes its reviews (001 FR-008) — no cascade from `Account`.
-- `Review *──1 Blueprint` (002, read-only reference).
+- `Review *··> Blueprint` (002, read-only reference **by business code**, not a FK — see `blueprintCode`).
 - `Review 1 ──= PanelReview` (**exactly 4**, one per `panelIndex` 1..4 — FR-013).
 
 **Constraints / indexes**
-- **`UNIQUE(reviewerId, blueprintId)`** — the (reviewer × blueprint) identity (FR-001).
-- Index on `reviewerId` (progress + "繼續審查" scans).
-- Index on `(reviewerId, status)` (已提交 / 草稿 counts — FR-039).
-- Index on `blueprintId` (cross-reviewer aggregation is **004**'s concern; provided for it).
+- **`UNIQUE(reviewerId, blueprintCode)`** — the (reviewer × blueprint) identity (FR-001).
+- Index on `(reviewerId, status)` (已提交 / 草稿 counts — FR-039; also serves reviewerId-leading scans, so no standalone `reviewerId` index).
+- Index on `blueprintCode` (cross-reviewer aggregation is **004**'s concern; provided for it).
+- CHECK `blueprintCode ~ '^[SHETPKLY][1-9][0-9]?$'` and CHECK `panelIndex BETWEEN 1 AND 4` (defense-in-depth, mirrors zod).
 
 **Application-level invariants** (service layer)
 - Each `Review` has exactly four `PanelReview` rows `{1,2,3,4}` — created together on first

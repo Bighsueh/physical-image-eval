@@ -107,13 +107,15 @@ describe('review workflow (US1–US5)', () => {
     expect((await r.agent.get('/api/reviews/S1')).body.data.blueprint.isHighRisk).toBe(false);
   });
 
-  it('enum values round-trip as verbatim zh-TW; free text is HTML-escaped on output', async () => {
-    await patch('S2', docWithPanel(1, { requiredWarnings: ['注意跌倒'], problemTypes: ['有錯字'], problemNote: '<b>x</b>' }, { overallJudgement: '需重做' }));
+  it('enum values round-trip as verbatim zh-TW; free text is returned verbatim (no double-encoding)', async () => {
+    // Free text is stored AND returned verbatim — the React SPA binds it into controlled inputs
+    // (XSS-safe); escaping it server-side would corrupt clinical notes containing < > & on reload.
+    await patch('S2', docWithPanel(1, { requiredWarnings: ['注意跌倒'], problemTypes: ['有錯字'], problemNote: '伸直角度需 <30°' }, { overallJudgement: '需重做' }));
     const open = await r.agent.get('/api/reviews/S2');
     expect(open.body.data.review.overallJudgement).toBe('需重做');
     expect(open.body.data.review.panels[0].requiredWarnings).toEqual(['注意跌倒']);
     expect(open.body.data.review.panels[0].problemTypes).toEqual(['有錯字']);
-    expect(open.body.data.review.panels[0].problemNote).toBe('&lt;b&gt;x&lt;/b&gt;'); // escaped
+    expect(open.body.data.review.panels[0].problemNote).toBe('伸直角度需 <30°'); // verbatim, not escaped
   });
 
   it('CSRF is required on autosave and submit', async () => {

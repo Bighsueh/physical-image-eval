@@ -58,8 +58,10 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
       if (res.completed || !res.next) setCompleted(true);
       else navigate(`/review/${res.next}`);
     },
+    onError: () => setSubmitError('提交失敗，請稍後再試'), // never leave the reviewer guessing
   });
 
+  const { mutate: submitMutate } = submitMutation;
   const doSubmit = useCallback(() => {
     if (!draft.overallJudgement) {
       setSubmitError('請先選擇整體判定');
@@ -67,8 +69,8 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
       return;
     }
     setSubmitError(null);
-    submitMutation.mutate();
-  }, [draft.overallJudgement, submitMutation]);
+    submitMutate(); // stable reference — avoids re-binding the keyboard listener each keystroke
+  }, [draft.overallJudgement, submitMutate]);
 
   const onJudge = useCallback((v: OverallJudgement) => dispatch({ type: 'overall', value: v }), []);
   useReviewKeyboard({ onJudge, onSubmit: doSubmit });
@@ -84,7 +86,8 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-4 mb-4">
+      {/* Overall progress stays fixed-visible at the top while the form scrolls (FR-041). */}
+      <div className="sticky top-0 z-10 -mx-6 px-6 py-3 mb-4 bg-paper/95 backdrop-blur border-b border-border flex items-center justify-between gap-4">
         <Link to="/progress" className="text-sm text-primary-deep hover:underline">
           ‹ 返回進度
         </Link>

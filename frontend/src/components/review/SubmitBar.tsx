@@ -3,7 +3,7 @@ import type { ReviewDoc } from '../../api/reviews';
 import { Button } from '../ui';
 
 export const OVERALL_ERROR_ID = 'overall-judgement-error';
-export type SaveState = 'idle' | 'saving' | 'saved';
+export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 const allPanelsEmpty = (doc: ReviewDoc): boolean =>
   doc.panels.every(
@@ -54,6 +54,12 @@ export function SubmitBar({
             <span className="inline-flex items-center gap-1">
               <Check className="w-3.5 h-3.5" aria-hidden="true" />
               草稿已儲存
+            </span>
+          )}
+          {saveState === 'error' && (
+            <span className="inline-flex items-center gap-1 text-accent-deep">
+              <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
+              草稿儲存失敗，請檢查連線
             </span>
           )}
         </span>

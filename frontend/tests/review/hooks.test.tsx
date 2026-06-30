@@ -1,4 +1,4 @@
-import { fireEvent, renderHook } from '@testing-library/react';
+import { fireEvent, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyDraft, reviewDraftReducer } from '../../src/state/reviewDraft';
 import { useAutosaveReview } from '../../src/hooks/useAutosaveReview';
@@ -35,6 +35,15 @@ describe('useAutosaveReview (US3)', () => {
     await vi.advanceTimersByTimeAsync(900);
     expect(calls.some((c) => c.method === 'PATCH')).toBe(true);
     expect(calls.some((c) => c.url.endsWith('/submit'))).toBe(false);
+  });
+
+  it('surfaces an error state when the autosave PATCH fails (never silently idle)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500, json: async () => ({ success: false, data: null, error: { code: 'X', message: 'boom' } }) })));
+    const d1 = emptyDraft();
+    const d2 = reviewDraftReducer(d1, { type: 'overall', value: '通過' });
+    const { result, rerender } = renderHook(({ d }) => useAutosaveReview('S1', d, 10), { initialProps: { d: d1 } });
+    rerender({ d: d2 });
+    await waitFor(() => expect(result.current).toBe('error')); // real timers + microtask flush
   });
 });
 

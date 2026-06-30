@@ -20,7 +20,7 @@ export function useAutosaveReview(blueprintId: string, draft: ReviewDoc, delay =
     const handle = setTimeout(() => {
       autosaveReview(blueprintId, draft)
         .then(() => setSaveState('saved'))
-        .catch(() => setSaveState('idle'));
+        .catch(() => setSaveState('error')); // surface failure (don't silently revert to idle)
     }, delay);
     return () => clearTimeout(handle);
   }, [draft, blueprintId, delay]);

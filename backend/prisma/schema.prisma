@@ -259,7 +259,8 @@ model Review {
   panels              PanelReview[]
 
   @@unique([reviewerId, blueprintCode])
-  @@index([reviewerId])
+  // No standalone @@index([reviewerId]) — the unique + [reviewerId, status] indexes already cover
+  // every reviewerId-leading query; a third index would only add write cost (DB review).
   @@index([reviewerId, status])
   @@index([blueprintCode])
 }

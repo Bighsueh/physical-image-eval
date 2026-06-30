@@ -1,12 +1,32 @@
-import type {
-  IndicationJudgement,
-  OverallJudgement,
+import {
   Prisma,
-  ProblemType,
-  ReviewStatus,
-  WarningType,
+  type IndicationJudgement,
+  type OverallJudgement,
+  type ProblemType,
+  type ReviewStatus,
+  type WarningType,
 } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+
+/**
+ * Run a transaction at SERIALIZABLE isolation, retrying on a write-conflict (P2034). This closes
+ * the autosave-vs-submit race: the status machine reads `existing` and writes inside one tx, and
+ * Postgres aborts the loser of a concurrent write so the retry re-reads the committed status and
+ * converges to the correct value (submit wins; autosave never regresses 已提交 — FR-026).
+ */
+const runSerializable = async <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> => {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await prisma.$transaction(fn, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (err) {
+      const conflict = err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034';
+      if (conflict && attempt < 3) continue;
+      throw err;
+    }
+  }
+};
 
 /**
  * Prisma data access for the review domain. `upsertReviewWithPanels` does the whole write in ONE
@@ -48,7 +68,7 @@ export const reviewRepository = {
 
   async upsertReviewWithPanels(input: UpsertReviewInput): Promise<ReviewWithPanels> {
     const { reviewerId, blueprintCode, intent } = input;
-    return prisma.$transaction(async (tx) => {
+    return runSerializable(async (tx) => {
       const existing = await tx.review.findUnique({
         where: { reviewerId_blueprintCode: { reviewerId, blueprintCode } },
         select: { id: true, status: true, submittedAt: true },

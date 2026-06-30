@@ -42,9 +42,13 @@ const requireBlueprint = async (code: string): Promise<void> => {
 export const reviewService = {
   /** Open a blueprint for review (incl. reopen): read-only blueprint + my review/empty template. */
   async open(reviewerId: string, code: string) {
-    const detail = await catalogService.getBlueprintDetail(code); // throws BLUEPRINT_NOT_FOUND if missing
-    const review = await reviewRepository.findOwnReviewWithPanels(reviewerId, code);
-    const submitted = await reviewRepository.countSubmitted(reviewerId);
+    // The three reads are independent; getBlueprintDetail rejects with BLUEPRINT_NOT_FOUND if the
+    // code is unknown (also the orphan-review fail-safe — a retired blueprint becomes inaccessible).
+    const [detail, review, submitted] = await Promise.all([
+      catalogService.getBlueprintDetail(code),
+      reviewRepository.findOwnReviewWithPanels(reviewerId, code),
+      reviewRepository.countSubmitted(reviewerId),
+    ]);
     return {
       blueprint: toReviewBlueprint(detail),
       review: toReviewPayload(review),
