@@ -6,6 +6,7 @@ import type { PanelDoc, ReviewDoc } from '../../src/api/reviews';
 import { CompletionState } from '../../src/components/review/CompletionState';
 import { IndicationField } from '../../src/components/review/IndicationField';
 import { PanelReviewForm } from '../../src/components/review/PanelReviewForm';
+import { PanelSwitcher } from '../../src/components/review/PanelSwitcher';
 import { SubmitBar } from '../../src/components/review/SubmitBar';
 import { ZoomableImage } from '../../src/components/review/ZoomableImage';
 
@@ -21,6 +22,31 @@ const docWith = (over: Partial<ReviewDoc> = {}): ReviewDoc => ({
     problemNote: null,
   })),
   ...over,
+});
+
+describe('PanelSwitcher (FR-013 one panel at a time, knows which is active)', () => {
+  const noop = { onToggleWarning: vi.fn(), onWarningOther: vi.fn(), onToggleProblem: vi.fn(), onProblemNote: vi.fn() };
+
+  it('shows one panel form, switches via tabs, and marks panels with content', async () => {
+    const user = userEvent.setup();
+    const panels: PanelDoc[] = [
+      { panelIndex: 1, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null },
+      { panelIndex: 2, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: '第2格有問題' },
+      { panelIndex: 3, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null },
+      { panelIndex: 4, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null },
+    ];
+    render(<PanelSwitcher panels={panels} handlers={noop} />);
+
+    // active panel announced, panel 1 form shown
+    expect(screen.getByText(/正在評/)).toHaveTextContent('圖 1');
+    expect(screen.getByRole('tab', { name: /圖 1/, selected: true })).toBeInTheDocument();
+    // panel 2 carries content → "已填" indicator
+    expect(screen.getByRole('tab', { name: /圖 2/ })).toHaveTextContent('已填寫');
+
+    await user.click(screen.getByRole('tab', { name: /圖 2/ }));
+    expect(screen.getByRole('tab', { name: /圖 2/, selected: true })).toBeInTheDocument();
+    expect(screen.getByText(/正在評/)).toHaveTextContent('圖 2');
+  });
 });
 
 describe('ZoomableImage (FR-006 inline, no lightbox)', () => {

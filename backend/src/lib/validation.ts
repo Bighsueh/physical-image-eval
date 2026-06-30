@@ -29,10 +29,17 @@ export const roleSchema = z.enum(['ADMIN', 'REVIEWER'], {
 /** A Prisma cuid id (kept permissive but non-empty). */
 export const idSchema = z.string().min(1, 'ID 必填');
 
-/** New-password policy (set-new-password flows): exactly 6 digits 0–9 (2026-06-30 clarification). */
+/**
+ * New-password policy (set-new-password flows): at least 6 characters, ANY characters (2026-07-01
+ * clarification). NOTE: the auto-generated temp password issued on create/reset is still a random
+ * 6-digit number (see `generateTempPassword`); only the user's CHOSEN password uses this policy and
+ * is not restricted to digits.
+ */
+export const PASSWORD_MIN_LENGTH = 6;
 export const passwordPolicySchema = z
   .string({ required_error: '密碼必填' })
-  .regex(/^\d{6}$/, '密碼須為 6 位數字');
+  .min(PASSWORD_MIN_LENGTH, `密碼至少需 ${PASSWORD_MIN_LENGTH} 個字元`)
+  .max(128, '密碼過長');
 
 /** Login/current password — presence only; never reveal policy on the login path. */
 export const presentPasswordSchema = z.string({ required_error: '密碼必填' }).min(1, '密碼必填');

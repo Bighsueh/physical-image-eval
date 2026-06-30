@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthAccount } from '../../src/api/auth';
 import { ReviewWorkspacePage } from '../../src/routes/ReviewWorkspacePage';
 import { renderWithProviders } from '../helpers';
@@ -79,6 +79,7 @@ const renderWorkspace = () =>
   );
 
 describe('ReviewWorkspacePage — Layout A (US1/US2/US4/US6)', () => {
+  beforeEach(() => localStorage.setItem('pie_review_tour_seen_v1', '1')); // suppress first-visit auto-tour
   afterEach(() => vi.unstubAllGlobals());
 
   it('renders the PNG + full read-only metadata + the four-gate form, NO aiPrompt, NO lightbox', async () => {
@@ -89,8 +90,10 @@ describe('ReviewWorkspacePage — Layout A (US1/US2/US4/US6)', () => {
     expect(screen.getByText('肩關節僵硬')).toBeInTheDocument(); // indications
     expect(screen.getByText(/畫面描述1/)).toBeInTheDocument(); // visualDescription shown
     expect(screen.getByRole('radio', { name: /通過/ })).toBeInTheDocument();
-    expect(screen.getByText('圖 1')).toBeInTheDocument();
-    expect(screen.getByText('圖 4')).toBeInTheDocument();
+    // The four panels collapse into a tab switcher; one panel form is shown at a time.
+    expect(screen.getByRole('tab', { name: /圖 1/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /圖 4/ })).toBeInTheDocument();
+    expect(screen.getByRole('tabpanel')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).toBeNull(); // inline zoom, never a lightbox
     expect(document.body.textContent).not.toContain('aiPrompt');
   });

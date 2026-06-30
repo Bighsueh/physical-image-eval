@@ -45,9 +45,9 @@ describe('POST /api/auth/password (US2)', () => {
     expect(res.body.error.message).toContain('新密碼不可與目前密碼相同');
   });
 
-  it('rejects a non-6-digit new password with 400 VALIDATION_ERROR', async () => {
+  it('rejects a too-short (<6) new password with 400 VALIDATION_ERROR', async () => {
     const { agent, csrf, password } = await adminAgent(app);
-    for (const bad of ['12345', '1234567', 'abcdef']) {
+    for (const bad of ['', '12345', 'abcde']) {
       const res = await agent
         .post('/api/auth/password')
         .set('X-CSRF-Token', csrf)
@@ -55,6 +55,15 @@ describe('POST /api/auth/password (US2)', () => {
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     }
+  });
+
+  it('accepts a non-numeric ≥6-char new password (policy is length-only, any chars)', async () => {
+    const { agent, csrf, password } = await adminAgent(app);
+    const res = await agent
+      .post('/api/auth/password')
+      .set('X-CSRF-Token', csrf)
+      .send({ currentPassword: password, newPassword: 'P@ssw0rd!' });
+    expect(res.status).toBe(200);
   });
 
   it('revokes the caller OTHER sessions but keeps the current one', async () => {

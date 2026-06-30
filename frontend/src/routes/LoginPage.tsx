@@ -69,7 +69,6 @@ export function LoginPage() {
             name="password"
             type="password"
             autoComplete="current-password"
-            inputMode="numeric"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required

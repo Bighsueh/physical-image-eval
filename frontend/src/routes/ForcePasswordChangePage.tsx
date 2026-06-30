@@ -7,8 +7,9 @@ import { useAuth } from '../auth/AuthContext';
 import { Button } from '../components/ui';
 
 /**
- * Forced password change after create/reset (FR-009). Passwords are 6 digits. On success clears
- * mustChangePassword in client state and routes to the role-based landing.
+ * Forced password change after create/reset (FR-009). The temp password handed out is a random
+ * 6-digit number; the NEW password the user chooses only needs ≥6 characters (any). On success
+ * clears mustChangePassword in client state and routes to the role-based landing.
  */
 export function ForcePasswordChangePage() {
   const navigate = useNavigate();
@@ -40,7 +41,9 @@ export function ForcePasswordChangePage() {
         className="w-full max-w-sm bg-surface border border-border p-8 rounded-2xl shadow-soft"
       >
         <h1 className="text-xl font-bold mb-2 text-ink">變更密碼</h1>
-        <p className="text-sm text-ink-soft mb-6">首次登入請先設定新的密碼（6 位數字）。</p>
+        <p className="text-sm text-ink-soft mb-6">
+          首次登入請先設定新密碼（至少 6 個字元，可用數字、英文或符號）。
+        </p>
 
         <label htmlFor="currentPassword" className="block text-sm font-medium text-ink mb-1">
           目前密碼
@@ -49,7 +52,6 @@ export function ForcePasswordChangePage() {
           id="currentPassword"
           type="password"
           autoComplete="current-password"
-          inputMode="numeric"
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
           required
@@ -63,9 +65,6 @@ export function ForcePasswordChangePage() {
           id="newPassword"
           type="password"
           autoComplete="new-password"
-          inputMode="numeric"
-          pattern="\d{6}"
-          maxLength={6}
           minLength={6}
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
