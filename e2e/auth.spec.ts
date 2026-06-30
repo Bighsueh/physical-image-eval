@@ -1,5 +1,20 @@
 import { expect, test } from '@playwright/test';
-import { adminContext, API_URL, seedActiveReviewer, type SeededReviewer } from './api';
+import {
+  adminContext,
+  ADMIN_NEW_PASS,
+  API_URL,
+  BOOTSTRAP_USER,
+  seedActiveReviewer,
+  type SeededReviewer,
+} from './api';
+
+/** Log in through the UI and wait for the post-login landing. */
+async function uiLogin(page: import('@playwright/test').Page, username: string, password: string) {
+  await page.goto('/login');
+  await page.getByLabel('帳號').fill(username);
+  await page.getByLabel('密碼').fill(password);
+  await page.getByRole('button', { name: '登入' }).click();
+}
 
 /**
  * Feature 001 E2E (constitution VII — critical flows). Runs against the live stack (frontend :5180
@@ -46,5 +61,39 @@ test.describe('US1 — reviewer login → 0/51 landing', () => {
   test('probing /api/auth/register returns 404, never a form (US3)', async ({ request }) => {
     const res = await request.post(`${API_URL}/api/auth/register`, { data: {} });
     expect(res.status()).toBe(404);
+  });
+});
+
+test.describe('US2 — admin account lifecycle', () => {
+  test('admin creates a reviewer and sees the one-time temp password', async ({ page }) => {
+    await adminContext(); // ensures bootstrap admin password is rotated to ADMIN_NEW_PASS
+    await uiLogin(page, BOOTSTRAP_USER, ADMIN_NEW_PASS);
+    await expect(page).toHaveURL(/\/admin\/accounts$/);
+
+    await page.goto('/admin/accounts/new');
+    const username = `e2e_made_${Date.now()}`;
+    await page.getByLabel('顯示名稱').fill('新審查員');
+    await page.getByLabel('帳號識別碼').fill(username);
+    await page.getByRole('button', { name: '建立帳號' }).click();
+
+    // one-time temp password surfaced for hand-off
+    await expect(page.getByText('一次性臨時密碼')).toBeVisible();
+  });
+
+  test('disabling a reviewer blocks subsequent login', async ({ page, request }) => {
+    const admin = await adminContext();
+    const reviewer = await seedActiveReviewer(admin, `e2e_disable_${Date.now()}`, '待停用');
+
+    // disable via the API (admin already authenticated)
+    const list = await admin.get(`${API_URL}/api/admin/accounts?q=${reviewer.username}`);
+    const id = (await list.json()).data[0].id;
+    const csrf = (await admin.storageState()).cookies.find((c) => c.name === 'pie_csrf')?.value ?? '';
+    await admin.post(`${API_URL}/api/admin/accounts/${id}/disable`, { headers: { 'X-CSRF-Token': csrf } });
+    await admin.dispose();
+
+    // disabled reviewer can no longer log in (generic failure)
+    await uiLogin(page, reviewer.username, reviewer.password);
+    await expect(page.getByRole('alert')).toContainText('帳號或密碼錯誤');
+    await expect(page).toHaveURL(/\/login$/);
   });
 });

@@ -145,29 +145,29 @@ records preserved; reset → old sessions dead, only the new temp password works
 
 ### Tests (write first, MUST FAIL)
 
-- [ ] T053 [P] [US2] Integration in `backend/tests/integration/admin-accounts-create.test.ts` — `POST /api/admin/accounts` → 201, `data.tempPassword` returned once, `mustChangePassword=true`, `CREATE_ACCOUNT` audit row; duplicate username → `409 USERNAME_TAKEN`; bad role → `400 VALIDATION_ERROR`.
-- [ ] T054 [P] [US2] Integration in `backend/tests/integration/admin-accounts-read.test.ts` — `GET /api/admin/accounts` → array + `meta:{total,count}` with `role`/`isActive`/`q` filters; `GET /:id` detail; missing → `404 ACCOUNT_NOT_FOUND`; `passwordHash` never present.
-- [ ] T055 [P] [US2] Integration in `backend/tests/integration/admin-accounts-disable.test.ts` — disable → `isActive=false`, ALL target sessions revoked (FR-017), reviews untouched (FR-008), `DISABLE_ACCOUNT` audit; second disable → 200 no-op (idempotent); own account → `409 SELF_OPERATION_FORBIDDEN`; last active admin → `409 LAST_ADMIN_PROTECTED`.
-- [ ] T056 [P] [US2] Integration in `backend/tests/integration/admin-accounts-enable.test.ts` — enable → `isActive=true`, `ENABLE_ACCOUNT` audit, no new credential; re-enable → 200 no-op (idempotent).
-- [ ] T057 [P] [US2] Integration in `backend/tests/integration/admin-accounts-reset.test.ts` — reset → new `tempPassword` once, `mustChangePassword=true`, ALL sessions revoked, disabled account stays disabled (no implicit enable), `RESET_CREDENTIAL` audit; own account → `409 SELF_OPERATION_FORBIDDEN`.
-- [ ] T058 [P] [US2] Integration in `backend/tests/integration/auth-password.test.ts` — `POST /api/auth/password` clears `mustChangePassword`, revokes caller's OTHER sessions, keeps current; wrong currentPassword → `401 AUTH_FAILED`; weak new → `400 VALIDATION_ERROR`; `PASSWORD_CHANGE_REQUIRED` blocks other routes until changed.
-- [ ] T059 [P] [US2] Integration in `backend/tests/integration/bootstrap-admin.test.ts` — seed creates first ADMIN (`mustChangePassword=true`, `createdByAccountId=null`) when none exists; no-op when an admin already exists (FR-020, D5).
-- [ ] T060 [P] [US2] Unit in `backend/tests/unit/account.service.test.ts` — invariants: self-operation forbidden, last-active-admin protected, enable/disable idempotency, reset-disabled-stays-disabled, username case-insensitive uniqueness (D10, D11).
-- [ ] T061 [P] [US2] Frontend in `frontend/tests/admin-accounts.test.tsx` — `AccountCreatePage` surfaces one-time tempPassword; `AccountsListPage` renders list; `ForcePasswordChangePage` submits and clears the flag.
-- [ ] T062 [P] [US2] E2E in `e2e/auth.spec.ts` (US2 block) — admin create → reviewer logs in (≤ 3 steps, SC-003); disable → login fails, reviews preserved; reset → old session revoked + forced change.
+- [X] T053 [P] [US2] Integration in `backend/tests/integration/admin-accounts-create.test.ts` — `POST /api/admin/accounts` → 201, `data.tempPassword` returned once, `mustChangePassword=true`, `CREATE_ACCOUNT` audit row; duplicate username → `409 USERNAME_TAKEN`; bad role → `400 VALIDATION_ERROR`.
+- [X] T054 [P] [US2] Integration in `backend/tests/integration/admin-accounts-read.test.ts` — `GET /api/admin/accounts` → array + `meta:{total,count}` with `role`/`isActive`/`q` filters; `GET /:id` detail; missing → `404 ACCOUNT_NOT_FOUND`; `passwordHash` never present.
+- [X] T055 [P] [US2] Integration in `backend/tests/integration/admin-accounts-disable.test.ts` — disable → `isActive=false`, ALL target sessions revoked (FR-017), reviews untouched (FR-008), `DISABLE_ACCOUNT` audit; second disable → 200 no-op (idempotent); own account → `409 SELF_OPERATION_FORBIDDEN`; last active admin → `409 LAST_ADMIN_PROTECTED`.
+- [X] T056 [P] [US2] Integration in `backend/tests/integration/admin-accounts-enable.test.ts` — enable → `isActive=true`, `ENABLE_ACCOUNT` audit, no new credential; re-enable → 200 no-op (idempotent).
+- [X] T057 [P] [US2] Integration in `backend/tests/integration/admin-accounts-reset.test.ts` — reset → new `tempPassword` once, `mustChangePassword=true`, ALL sessions revoked, disabled account stays disabled (no implicit enable), `RESET_CREDENTIAL` audit; own account → `409 SELF_OPERATION_FORBIDDEN`.
+- [X] T058 [P] [US2] Integration in `backend/tests/integration/auth-password.test.ts` — `POST /api/auth/password` clears `mustChangePassword`, revokes caller's OTHER sessions, keeps current; wrong currentPassword → `401 AUTH_FAILED`; weak new → `400 VALIDATION_ERROR`; `PASSWORD_CHANGE_REQUIRED` blocks other routes until changed.
+- [X] T059 [P] [US2] Integration in `backend/tests/integration/bootstrap-admin.test.ts` — seed creates first ADMIN (`mustChangePassword=true`, `createdByAccountId=null`) when none exists; no-op when an admin already exists (FR-020, D5).
+- [X] T060 [P] [US2] Unit in `backend/tests/unit/account.service.test.ts` — invariants: self-operation forbidden, last-active-admin protected, enable/disable idempotency, reset-disabled-stays-disabled, username case-insensitive uniqueness (D10, D11).
+- [X] T061 [P] [US2] Frontend in `frontend/tests/admin-accounts.test.tsx` — `AccountCreatePage` surfaces one-time tempPassword; `AccountsListPage` renders list; `ForcePasswordChangePage` submits and clears the flag.
+- [X] T062 [P] [US2] E2E in `e2e/auth.spec.ts` (US2 block) — admin create → reviewer logs in (≤ 3 steps, SC-003); disable → login fails, reviews preserved; reset → old session revoked + forced change.
 
 ### Implementation
 
-- [ ] T063 [US2] `backend/src/services/account.service.ts` — `create`/`list`/`get`/`enable`/`disable`/`resetCredential` with all invariants; each mutation writes its audit row + revokes sessions inside ONE transaction (depends T024, T025, T028, T030, T032, T021).
-- [ ] T064 [US2] `backend/src/services/auth.service.ts` — add `changePassword(account, current, next)`: verify current, enforce policy, set hash + `passwordUpdatedAt`, clear `mustChangePassword`, revoke other sessions (extends T047).
-- [ ] T065 [US2] `backend/src/controllers/admin-accounts.controller.ts` — six handlers (create / list / detail / disable / enable / reset) mapping service results to envelopes + correct status codes.
-- [ ] T066 [US2] `backend/src/routes/admin-accounts.routes.ts` — six routes under `/api/admin/accounts` each with `require-auth` + `require-role('ADMIN')` + CSRF on mutations; mount in `app.ts`.
-- [ ] T067 [US2] `backend/src/controllers/auth.controller.ts` + `backend/src/routes/auth.routes.ts` — add `POST /api/auth/password` (require-auth + CSRF, allowed while `mustChangePassword`).
-- [ ] T068 [US2] `backend/prisma/seed/bootstrap-admin.ts` + `seed:bootstrap-admin` npm script — idempotent first-ADMIN seed reading env, no HTTP path (FR-020, D5).
-- [ ] T069 [P] [US2] `frontend/src/api/accounts.ts` — TanStack hooks: create / list / detail / enable / disable / reset.
-- [ ] T070 [P] [US2] `frontend/src/routes/admin/AccountsListPage.tsx` — list + per-row enable/disable/reset actions.
-- [ ] T071 [P] [US2] `frontend/src/routes/admin/AccountCreatePage.tsx` — create form; displays the one-time tempPassword for out-of-band hand-off.
-- [ ] T072 [P] [US2] `frontend/src/routes/ForcePasswordChangePage.tsx` — forced-change flow after create/reset.
+- [X] T063 [US2] `backend/src/services/account.service.ts` — `create`/`list`/`get`/`enable`/`disable`/`resetCredential` with all invariants; each mutation writes its audit row + revokes sessions inside ONE transaction (depends T024, T025, T028, T030, T032, T021).
+- [X] T064 [US2] `backend/src/services/auth.service.ts` — add `changePassword(account, current, next)`: verify current, enforce policy, set hash + `passwordUpdatedAt`, clear `mustChangePassword`, revoke other sessions (extends T047).
+- [X] T065 [US2] `backend/src/controllers/admin-accounts.controller.ts` — six handlers (create / list / detail / disable / enable / reset) mapping service results to envelopes + correct status codes.
+- [X] T066 [US2] `backend/src/routes/admin-accounts.routes.ts` — six routes under `/api/admin/accounts` each with `require-auth` + `require-role('ADMIN')` + CSRF on mutations; mount in `app.ts`.
+- [X] T067 [US2] `backend/src/controllers/auth.controller.ts` + `backend/src/routes/auth.routes.ts` — add `POST /api/auth/password` (require-auth + CSRF, allowed while `mustChangePassword`).
+- [X] T068 [US2] `backend/prisma/seed/bootstrap-admin.ts` + `seed:bootstrap-admin` npm script — idempotent first-ADMIN seed reading env, no HTTP path (FR-020, D5).
+- [X] T069 [P] [US2] `frontend/src/api/accounts.ts` — TanStack hooks: create / list / detail / enable / disable / reset.
+- [X] T070 [P] [US2] `frontend/src/routes/admin/AccountsListPage.tsx` — list + per-row enable/disable/reset actions.
+- [X] T071 [P] [US2] `frontend/src/routes/admin/AccountCreatePage.tsx` — create form; displays the one-time tempPassword for out-of-band hand-off.
+- [X] T072 [P] [US2] `frontend/src/routes/ForcePasswordChangePage.tsx` — forced-change flow after create/reset.
 
 **Checkpoint**: US1 + US2 work independently — full account lifecycle + forced password change.
 

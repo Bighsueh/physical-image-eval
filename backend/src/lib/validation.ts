@@ -56,3 +56,13 @@ export const createAccountSchema = z.object({
   username: usernameSchema,
   role: roleSchema.default('REVIEWER'),
 });
+
+/** Admin account-list query filters (role / isActive / q). */
+export const accountListQuerySchema = z.object({
+  role: roleSchema.optional(),
+  isActive: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .optional(),
+  q: z.string().trim().min(1).optional(),
+});

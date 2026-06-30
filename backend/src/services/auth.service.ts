@@ -1,7 +1,9 @@
 import type { Account } from '@prisma/client';
 import { AppError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
 import { accountRepository } from '../repositories/account.repository';
-import { dummyVerify, verifyPassword } from './password.service';
+import { sessionRepository } from '../repositories/session.repository';
+import { dummyVerify, hashPassword, verifyPassword } from './password.service';
 import { issueSession, type IssuedSession } from './session.service';
 
 /**
@@ -31,4 +33,28 @@ export const login = async (rawUsername: string, password: string): Promise<Logi
 
   const issued = await issueSession(account.id);
   return { account, issued };
+};
+
+/**
+ * Change the caller's own password (forced after create/reset, or voluntary). Verifies the current
+ * password, sets the new hash, clears mustChangePassword, and revokes the caller's OTHER sessions
+ * while keeping the current one (FR-009). Password strength is enforced at the boundary (zod).
+ */
+export const changePassword = async (
+  accountId: string,
+  currentSessionId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> => {
+  const account = await accountRepository.findById(accountId);
+  if (!account) throw new AppError('AUTH_REQUIRED');
+
+  const currentOk = await verifyPassword(account.passwordHash, currentPassword);
+  if (!currentOk) throw new AppError('AUTH_FAILED');
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.$transaction(async (tx) => {
+    await accountRepository.setPassword(accountId, { passwordHash, mustChangePassword: false }, tx);
+    await sessionRepository.revokeAllForAccount(accountId, new Date(), tx, currentSessionId);
+  });
 };

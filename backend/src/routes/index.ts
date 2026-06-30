@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { adminAccountsRouter } from './admin-accounts.routes';
 import { authRouter } from './auth.routes';
 
 /**
@@ -10,3 +11,4 @@ import { authRouter } from './auth.routes';
 export const apiRouter = Router();
 
 apiRouter.use('/auth', authRouter);
+apiRouter.use('/admin/accounts', adminAccountsRouter);
