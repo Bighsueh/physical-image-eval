@@ -15,6 +15,7 @@ export const ERRORS = {
   USERNAME_TAKEN: { status: 409, message: '帳號識別碼已存在' },
   SELF_OPERATION_FORBIDDEN: { status: 409, message: '無法對自己的帳號執行此操作' },
   LAST_ADMIN_PROTECTED: { status: 409, message: '系統需保留至少一位啟用的管理員' },
+  ACCOUNT_HAS_SUBMITTED_REVIEWS: { status: 409, message: '該帳號已有提交的審查紀錄，請改用「停用」' },
   RATE_LIMITED: { status: 429, message: '嘗試次數過多，請稍後再試' },
   // Catalog / image (feature 002).
   INVALID_PARAM: { status: 400, message: '參數格式不正確' },

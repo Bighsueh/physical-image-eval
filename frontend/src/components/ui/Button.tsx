@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { type ButtonHTMLAttributes, forwardRef, type ReactNode } from 'react';
 
 /** Design-system button. One primary CTA per screen; danger for destructive actions. min 44px. */
 type Variant = 'primary' | 'secondary' | 'danger';
@@ -16,17 +16,14 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }
 
-export function Button({
-  variant = 'primary',
-  loading = false,
-  disabled,
-  className = '',
-  children,
-  ...rest
-}: ButtonProps) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { variant = 'primary', loading = false, disabled, className = '', children, ...rest },
+  ref,
+) {
   return (
     <button
       {...rest}
+      ref={ref}
       disabled={disabled || loading}
       className={`inline-flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${VARIANT[variant]} ${className}`}
     >
@@ -34,4 +31,4 @@ export function Button({
       {children}
     </button>
   );
-}
+});

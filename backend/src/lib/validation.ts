@@ -56,11 +56,31 @@ export const changePasswordSchema = z.object({
   newPassword: passwordPolicySchema,
 });
 
-/** Admin create-account request body. role defaults to REVIEWER. */
+/**
+ * Admin create-account request body. role defaults to REVIEWER. Optional `password`: when present,
+ * the admin sets the account password directly (no forced first-login change); when absent, the
+ * system issues a random 6-digit temp password with a forced change (2026-07-01 clarification).
+ */
 export const createAccountSchema = z.object({
   displayName: displayNameSchema,
   username: usernameSchema,
   role: roleSchema.default('REVIEWER'),
+  password: passwordPolicySchema.optional(),
+});
+
+/** Batch create: 1..100 account specs. */
+export const batchCreateAccountsSchema = z.object({
+  accounts: z.array(createAccountSchema).min(1, '至少一筆').max(100, '一次最多 100 筆'),
+});
+
+/** Batch delete: 1..100 account ids. Duplicates are collapsed so a repeated id can't produce a
+ * misleading "first succeeded, second ACCOUNT_NOT_FOUND" mixed result. */
+export const batchDeleteAccountsSchema = z.object({
+  accountIds: z
+    .array(idSchema)
+    .min(1, '至少一筆')
+    .max(100, '一次最多 100 筆')
+    .transform((ids) => [...new Set(ids)]),
 });
 
 /** Admin account-list query filters (role / isActive / q). */

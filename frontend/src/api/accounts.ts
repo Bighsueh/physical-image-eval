@@ -16,11 +16,30 @@ export interface CreateAccountVars {
   displayName: string;
   username: string;
   role: Role;
+  /** When set, the admin fixes the password directly (no forced first-login change). */
+  password?: string;
 }
 
 export interface CredentialResult {
   account: AdminAccount;
-  tempPassword: string;
+  /** `null` when the admin set the password directly. */
+  tempPassword: string | null;
+}
+
+/** Per-row result from POST /admin/accounts/batch. */
+export interface BatchCreateRow {
+  username: string;
+  success: boolean;
+  account: AdminAccount | null;
+  tempPassword: string | null;
+  error: string | null;
+}
+
+/** Per-row result from POST /admin/accounts/batch-delete. */
+export interface BatchDeleteRow {
+  accountId: string;
+  success: boolean;
+  error?: string;
 }
 
 const ACCOUNTS_KEY = ['accounts'];
@@ -36,6 +55,34 @@ export const useCreateAccount = () => {
   return useMutation({
     mutationFn: async (vars: CreateAccountVars) =>
       (await apiFetch<CredentialResult>('/admin/accounts', { method: 'POST', body: vars })).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
+  });
+};
+
+export const useCreateAccountsBatch = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (accounts: CreateAccountVars[]) =>
+      (
+        await apiFetch<{ results: BatchCreateRow[] }>('/admin/accounts/batch', {
+          method: 'POST',
+          body: { accounts },
+        })
+      ).data.results,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
+  });
+};
+
+export const useDeleteAccountsBatch = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (accountIds: string[]) =>
+      (
+        await apiFetch<{ results: BatchDeleteRow[] }>('/admin/accounts/batch-delete', {
+          method: 'POST',
+          body: { accountIds },
+        })
+      ).data.results,
     onSuccess: () => qc.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
   });
 };

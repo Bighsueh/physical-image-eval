@@ -3,9 +3,16 @@ import { toPublicAccount } from '../lib/account-view';
 import { list, ok } from '../lib/envelope';
 import { AppError } from '../lib/errors';
 import { parseBody } from '../lib/parse';
-import { accountListQuerySchema, createAccountSchema } from '../lib/validation';
+import {
+  accountListQuerySchema,
+  batchCreateAccountsSchema,
+  batchDeleteAccountsSchema,
+  createAccountSchema,
+} from '../lib/validation';
 import {
   createAccount,
+  createAccountsBatch,
+  deleteAccountsBatch,
   disableAccount,
   enableAccount,
   getAccount,
@@ -25,6 +32,36 @@ export const createAccountHandler: RequestHandler = async (req, res, next) => {
     const body = parseBody(createAccountSchema, req.body);
     const { account, tempPassword } = await createAccount({ actorId: actorId(req), ...body });
     res.status(201).json(ok({ account: toPublicAccount(account), tempPassword }));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const batchCreateHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const { accounts } = parseBody(batchCreateAccountsSchema, req.body);
+    const results = await createAccountsBatch(actorId(req), accounts);
+    res.status(201).json(
+      ok({
+        results: results.map((r) => ({
+          username: r.username,
+          success: r.success,
+          account: r.account ? toPublicAccount(r.account) : null,
+          tempPassword: r.tempPassword ?? null,
+          error: r.error ?? null,
+        })),
+      }),
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const batchDeleteHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const { accountIds } = parseBody(batchDeleteAccountsSchema, req.body);
+    const results = await deleteAccountsBatch(actorId(req), accountIds);
+    res.status(200).json(ok({ results }));
   } catch (err) {
     next(err);
   }

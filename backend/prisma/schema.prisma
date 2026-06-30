@@ -26,6 +26,7 @@ enum AuditAction {
   DISABLE_ACCOUNT // 停用帳號
   ENABLE_ACCOUNT // 啟用帳號
   RESET_CREDENTIAL // 重設憑證
+  DELETE_ACCOUNT // 刪除帳號（僅限無已提交審查者）
 }
 
 // ── Models ───────────────────────────────────────────────────────────────────
@@ -47,7 +48,8 @@ model Account {
   passwordUpdatedAt  DateTime @default(now()) @db.Timestamptz(6)
   /// The admin who created this account; null for the bootstrap admin (FR-020).
   createdByAccountId String?
-  createdBy          Account?  @relation("AccountCreatedBy", fields: [createdByAccountId], references: [id])
+  // SetNull so deleting a creator account doesn't block on accounts they created.
+  createdBy          Account?  @relation("AccountCreatedBy", fields: [createdByAccountId], references: [id], onDelete: SetNull)
   createdAccounts    Account[] @relation("AccountCreatedBy")
   createdAt          DateTime @default(now()) @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @db.Timestamptz(6)
@@ -88,10 +90,12 @@ model Session {
 model AuditLog {
   id              String      @id @default(cuid())
   /// Who performed it. null only for the bootstrap seed (system actor).
+  // Both refs SetNull on delete so deleting an account PRESERVES its audit rows (append-only,
+  // constitution VI) — the human-readable who/what is denormalized into `meta`.
   actorAccountId  String?
-  actor           Account?    @relation("AuditActor", fields: [actorAccountId], references: [id])
-  targetAccountId String
-  target          Account     @relation("AuditTarget", fields: [targetAccountId], references: [id])
+  actor           Account?    @relation("AuditActor", fields: [actorAccountId], references: [id], onDelete: SetNull)
+  targetAccountId String?
+  target          Account?    @relation("AuditTarget", fields: [targetAccountId], references: [id], onDelete: SetNull)
   action          AuditAction
   createdAt       DateTime    @default(now()) @db.Timestamptz(6)
   /// Optional NON-sensitive context only. Never passwords/temp passwords/hashes/tokens.

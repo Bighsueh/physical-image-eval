@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import {
   accountDetailHandler,
+  batchCreateHandler,
+  batchDeleteHandler,
   createAccountHandler,
   disableAccountHandler,
   enableAccountHandler,
@@ -22,6 +24,8 @@ export const adminAccountsRouter = Router();
 adminAccountsRouter.use(requireAuth, requireRole('ADMIN'), requirePasswordCurrent);
 
 adminAccountsRouter.get('/', listAccountsHandler);
+adminAccountsRouter.post('/batch', csrfProtection, batchCreateHandler); // literal — before '/:id'
+adminAccountsRouter.post('/batch-delete', csrfProtection, batchDeleteHandler);
 adminAccountsRouter.get('/:id', accountDetailHandler);
 adminAccountsRouter.post('/', csrfProtection, createAccountHandler);
 adminAccountsRouter.post('/:id/disable', csrfProtection, disableAccountHandler);
