@@ -137,8 +137,9 @@ Change the **caller's own** password. Used for the forced change after create/re
   ```json
   { "currentPassword": "•••••••", "newPassword": "••••••••••" }
   ```
-  (`newPassword` must be **6 digits (0–9)**; `currentPassword` re-verified. Login itself applies no
-  format check — only "set a new password" enforces the 6-digit policy.)
+  (`newPassword` must be **≥ 6 characters, any type** — 2026-07-01 clarification; the system-issued
+  temp password is still a random 6-digit number. `currentPassword` re-verified. Login itself
+  applies no format check — only "set a new password" enforces the length policy.)
 - 200 — password updated; `mustChangePassword` cleared; the caller's **other** sessions are
   revoked (current session kept).
   ```json
