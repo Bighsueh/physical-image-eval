@@ -41,7 +41,14 @@ export function AccountsListPage() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <AppHeader title="帳號管理" />
+      <AppHeader
+        title="帳號管理"
+        right={
+          <Link to="/admin/dashboard" className="text-white/90 hover:text-white underline">
+            審查儀表板
+          </Link>
+        }
+      />
       <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-ink">帳號管理</h2>

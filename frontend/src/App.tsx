@@ -10,6 +10,8 @@ import { ReviewProgressPage } from './routes/ReviewProgressPage';
 import { ReviewWorkspacePage } from './routes/ReviewWorkspacePage';
 import { AccountCreatePage } from './routes/admin/AccountCreatePage';
 import { AccountsListPage } from './routes/admin/AccountsListPage';
+import { DashboardPage } from './routes/admin/dashboard/DashboardPage';
+import { ImageDrillDownPage } from './routes/admin/dashboard/ImageDrillDownPage';
 
 /**
  * Route tree. Public: /login (the ONLY public screen — constitution III; there is no /register,
@@ -36,6 +38,8 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute role="ADMIN" />}>
         <Route path="/admin/accounts" element={<AccountsListPage />} />
         <Route path="/admin/accounts/new" element={<AccountCreatePage />} />
+        <Route path="/admin/dashboard" element={<DashboardPage />} />
+        <Route path="/admin/dashboard/images/:blueprintId" element={<ImageDrillDownPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
