@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check } from 'lucide-react';
 import type { ReviewDoc } from '../../api/reviews';
 import { Button } from '../ui';
 
@@ -64,13 +64,7 @@ export function SubmitBar({
           )}
         </span>
         <Button onClick={onSubmit} loading={submitting}>
-          {submitting ? (
-            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-          ) : isResubmit ? (
-            '再次提交並前往下一張'
-          ) : (
-            '提交並前往下一張'
-          )}
+          {submitting ? '提交中…' : isResubmit ? '再次提交並前往下一張' : '提交並前往下一張'}
         </Button>
       </div>
     </div>

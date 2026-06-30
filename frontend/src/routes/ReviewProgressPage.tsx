@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getNext, getProgress, type ReviewStatusValue } from '../api/reviews';
 import { useAuth } from '../auth/AuthContext';
-import { AppHeader, Button, Card, HighRiskBadge, ProgressBar } from '../components/ui';
+import { AppHeader, Card, HighRiskBadge, ProgressBar } from '../components/ui';
 
 /** Personal progress page (US7). Counts + per-region + region/status-filterable status list, all the
  * caller's own. Status shown by icon + text (constitution IX). */
@@ -77,11 +77,13 @@ export function ReviewProgressPage() {
                 </span>
               ) : (
                 nextId && (
-                  <Link to={`/review/${nextId}`}>
-                    <Button className="px-6 py-3 text-base">
-                      {ctaLabel}
-                      <ArrowRight className="w-5 h-5" aria-hidden="true" />
-                    </Button>
+                  // Single interactive element (a styled link) — never <a><button> (a11y review).
+                  <Link
+                    to={`/review/${nextId}`}
+                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-medium text-white transition-colors hover:bg-primary-deep"
+                  >
+                    {ctaLabel}
+                    <ArrowRight className="w-5 h-5" aria-hidden="true" />
                   </Link>
                 )
               )}

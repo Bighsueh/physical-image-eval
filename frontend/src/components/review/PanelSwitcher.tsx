@@ -59,7 +59,8 @@ export function PanelSwitcher({
               role="tab"
               id={`paneltab-${p.panelIndex}`}
               aria-selected={selected}
-              aria-controls={`panelform-${p.panelIndex}`}
+              // Only the selected tab controls the single rendered panel (no dangling IDREFs).
+              aria-controls={selected ? 'review-active-panel' : undefined}
               tabIndex={selected ? 0 : -1}
               onClick={() => setActive(p.panelIndex)}
               onKeyDown={(e) => onKeyDown(e, p.panelIndex)}
@@ -86,7 +87,7 @@ export function PanelSwitcher({
 
       <div
         role="tabpanel"
-        id={`panelform-${active}`}
+        id="review-active-panel"
         aria-labelledby={`paneltab-${active}`}
         tabIndex={0}
       >

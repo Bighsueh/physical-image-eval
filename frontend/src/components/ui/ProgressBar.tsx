@@ -20,6 +20,7 @@ export function ProgressBar({
       <div
         className="h-2.5 rounded-full bg-surface-sunken overflow-hidden"
         role="progressbar"
+        aria-label={`${label ?? '進度'}：${value}／${total}`}
         aria-valuenow={value}
         aria-valuemin={0}
         aria-valuemax={total}
