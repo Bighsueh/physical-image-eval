@@ -64,6 +64,21 @@ test.describe('US1 — reviewer login → 0/51 landing', () => {
   });
 });
 
+test.describe('US3 — zero registration surface', () => {
+  test('an unauthenticated visit to a protected route redirects to /login', async ({ page }) => {
+    await page.goto('/admin/accounts');
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole('button', { name: '登入' })).toBeVisible();
+  });
+
+  test('common registration paths all 404 (never a form)', async ({ request }) => {
+    for (const path of ['/api/auth/register', '/api/signup', '/api/accounts', '/api/auth/request-account']) {
+      const res = await request.post(`${API_URL}${path}`, { data: {} });
+      expect(res.status()).toBe(404);
+    }
+  });
+});
+
 test.describe('US2 — admin account lifecycle', () => {
   test('admin creates a reviewer and sees the one-time temp password', async ({ page }) => {
     await adminContext(); // ensures bootstrap admin password is rotated to ADMIN_NEW_PASS

@@ -183,15 +183,15 @@ entry count = 0; protected paths redirect unauthenticated users to login.
 
 ### Tests (write first, MUST FAIL)
 
-- [ ] T073 [P] [US3] Integration in `backend/tests/integration/no-registration.test.ts` — `POST /api/auth/register`, `/api/signup`, `/api/accounts`, `/api/auth/request-account` ALL → `404` envelope, never a registration form (SC-002, FR-005, FR-020).
-- [ ] T074 [P] [US3] Integration in `backend/tests/integration/protected-redirect.test.ts` — unauthenticated request to any protected/admin route → `401 AUTH_REQUIRED` (FR-014).
-- [ ] T075 [P] [US3] Frontend in `frontend/tests/no-registration.test.tsx` — router exposes no register/signup route; LoginPage has no create-account link/form; unauthenticated navigation to a protected route redirects to `/login`.
-- [ ] T076 [P] [US3] E2E in `e2e/auth.spec.ts` (US3 block) — automated scan of reachable UI asserts zero create-account entries; direct-visiting register paths → login or 404 (SC-002).
+- [X] T073 [P] [US3] Integration in `backend/tests/integration/no-registration.test.ts` — `POST /api/auth/register`, `/api/signup`, `/api/accounts`, `/api/auth/request-account` ALL → `404` envelope, never a registration form (SC-002, FR-005, FR-020).
+- [X] T074 [P] [US3] Integration in `backend/tests/integration/protected-redirect.test.ts` — unauthenticated request to any protected/admin route → `401 AUTH_REQUIRED` (FR-014).
+- [X] T075 [P] [US3] Frontend in `frontend/tests/no-registration.test.tsx` — router exposes no register/signup route; LoginPage has no create-account link/form; unauthenticated navigation to a protected route redirects to `/login`.
+- [X] T076 [P] [US3] E2E in `e2e/auth.spec.ts` (US3 block) — automated scan of reachable UI asserts zero create-account entries; direct-visiting register paths → login or 404 (SC-002).
 
 ### Implementation
 
-- [ ] T077 [US3] Assert/lock absence of any registration route in `backend/src/app.ts` and confirm the catch-all `404` envelope handler covers probed paths (reinforces T038).
-- [ ] T078 [US3] `frontend/src/components/ProtectedRoute.tsx` — ensure no register route exists and unauthenticated access redirects to `/login` (extends T052).
+- [X] T077 [US3] Assert/lock absence of any registration route in `backend/src/app.ts` and confirm the catch-all `404` envelope handler covers probed paths (reinforces T038).
+- [X] T078 [US3] `frontend/src/components/ProtectedRoute.tsx` — ensure no register route exists and unauthenticated access redirects to `/login` (extends T052).
 
 **Checkpoint**: US1–US3 (all P1) complete — MVP login + admin lifecycle + zero registration surface.
 
