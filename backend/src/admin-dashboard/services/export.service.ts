@@ -1,0 +1,47 @@
+import { catalogService } from '../../catalog/services/catalog.service';
+import { HIGH_RISK_BLUEPRINT_IDS } from '../constants/dashboard-constants';
+import { buildExportRow, type ExportBlueprintRef } from '../dto/export-record.dto';
+import { reviewReadRepository, type SubmittedReview } from '../repositories/review-read.repository';
+
+/**
+ * Build the export row set (FR-013..017). Submitted-only (drafts never fetched), includes active +
+ * 非在職 (each flagged in the row), exactly one row per (reviewer × blueprint) — guaranteed by the
+ * 003 unique key. Optional hasRedo/highRisk filters narrow rows but never change column structure.
+ * Ordered by catalog blueprint order then reviewer displayName for deterministic output.
+ */
+export interface ExportFilters {
+  hasRedo?: boolean;
+  highRisk?: boolean;
+}
+
+export const exportService = {
+  async buildRows(filters: ExportFilters): Promise<string[][]> {
+    const [subs, blueprints] = await Promise.all([
+      reviewReadRepository.listSubmittedReviews(),
+      catalogService.listBlueprints({}),
+    ]);
+
+    const refByCode = new Map<string, ExportBlueprintRef>(
+      blueprints.map((b) => [b.blueprintId, { exerciseName: b.exerciseName, regionCode: b.regionCode, isHighRisk: b.isHighRisk }]),
+    );
+    const order = new Map(blueprints.map((b, i) => [b.blueprintId, i]));
+
+    // Blueprints with ≥1 submitted 需重做 (consistent with the dashboard hasRedo semantics, FR-010).
+    const redoBlueprints = new Set(subs.filter((s) => s.overallJudgement === 'REDO').map((s) => s.blueprintCode));
+
+    let rows = subs;
+    if (filters.highRisk) rows = rows.filter((s) => HIGH_RISK_BLUEPRINT_IDS.has(s.blueprintCode));
+    if (filters.hasRedo) rows = rows.filter((s) => redoBlueprints.has(s.blueprintCode));
+
+    const sorted = [...rows].sort((a: SubmittedReview, b: SubmittedReview) => {
+      const oa = order.get(a.blueprintCode) ?? Number.MAX_SAFE_INTEGER;
+      const ob = order.get(b.blueprintCode) ?? Number.MAX_SAFE_INTEGER;
+      if (oa !== ob) return oa - ob;
+      return a.reviewer.displayName.localeCompare(b.reviewer.displayName, 'zh-Hant');
+    });
+
+    return sorted.map((s) =>
+      buildExportRow(s, refByCode.get(s.blueprintCode) ?? { exerciseName: '', regionCode: '', isHighRisk: false }),
+    );
+  },
+};

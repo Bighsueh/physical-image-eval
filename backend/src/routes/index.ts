@@ -1,4 +1,8 @@
 import { Router } from 'express';
+import {
+  adminDashboardRouter,
+  adminExportRouter,
+} from '../admin-dashboard/routes/admin-dashboard.routes';
 import { catalogRouter } from '../catalog/routes/catalog.routes';
 import { imageRouter } from '../images/routes/image.routes';
 import { reviewRouter } from '../reviews/routes/review.routes';
@@ -17,6 +21,8 @@ export const apiRouter = Router();
 
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/admin/accounts', adminAccountsRouter);
+apiRouter.use('/admin/dashboard', adminDashboardRouter); // 004 (ADMIN-only, GET-only)
+apiRouter.use('/admin/export', adminExportRouter); // 004 (ADMIN-only CSV)
 apiRouter.use('/', catalogRouter);
 apiRouter.use('/', imageRouter);
 apiRouter.use('/reviews', reviewRouter);
