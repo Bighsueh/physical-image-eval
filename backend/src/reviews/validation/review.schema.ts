@@ -33,6 +33,7 @@ const dedupe = <T>(arr: T[]): T[] => Array.from(new Set(arr));
 
 const panelSchema = z.object({
   panelIndex: z.number().int().min(1).max(4),
+  noProblem: z.boolean().default(false),
   requiredWarnings: z.array(z.enum(WARNING_ZH_VALUES)).default([]).transform(dedupe),
   warningOther: freeText,
   problemTypes: z.array(z.enum(PROBLEM_ZH_VALUES)).default([]).transform(dedupe),
@@ -52,6 +53,7 @@ export const reviewDocumentSchema = z
       .optional()
       .transform((v) => v ?? null),
     indicationNote: freeText,
+    otherComment: freeText,
     panels: z
       .array(panelSchema)
       .length(4, 'panels 必須恰為圖1..圖4')

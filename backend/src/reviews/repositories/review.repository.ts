@@ -36,6 +36,7 @@ const runSerializable = async <T>(fn: (tx: Prisma.TransactionClient) => Promise<
  */
 export interface PanelWrite {
   panelIndex: number;
+  noProblem: boolean;
   requiredWarnings: WarningType[];
   warningOther: string | null;
   problemTypes: ProblemType[];
@@ -48,6 +49,7 @@ export interface UpsertReviewInput {
   overallJudgement: OverallJudgement | null;
   indicationJudgement: IndicationJudgement | null;
   indicationNote: string | null;
+  otherComment: string | null;
   panels: PanelWrite[];
   intent: 'autosave' | 'submit';
 }
@@ -90,6 +92,7 @@ export const reviewRepository = {
           overallJudgement: input.overallJudgement,
           indicationJudgement: input.indicationJudgement,
           indicationNote: input.indicationNote,
+          otherComment: input.otherComment,
           status,
           lastSavedAt: now,
           submittedAt,
@@ -98,6 +101,7 @@ export const reviewRepository = {
           overallJudgement: input.overallJudgement,
           indicationJudgement: input.indicationJudgement,
           indicationNote: input.indicationNote,
+          otherComment: input.otherComment,
           status,
           lastSavedAt: now,
           submittedAt,
@@ -109,6 +113,7 @@ export const reviewRepository = {
         data: input.panels.map((p) => ({
           reviewId: review.id,
           panelIndex: p.panelIndex,
+          noProblem: p.noProblem,
           requiredWarnings: p.requiredWarnings,
           warningOther: p.warningOther,
           problemTypes: p.problemTypes,

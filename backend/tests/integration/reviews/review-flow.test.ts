@@ -4,7 +4,7 @@ import { app } from '../../../src/app';
 import { env } from '../../../src/config/env';
 import { runIngest } from '../../../src/ingestion/runner';
 import { adminAgent, reviewerAgent, type SeededAgent } from '../../helpers/http';
-import { docWithPanel, emptyDoc } from '../../helpers/review';
+import { cleanDoc, docWithPanel, emptyDoc } from '../../helpers/review';
 
 /** US1–US5 review workflow over the ingested catalog. Reviewer auth is recreated per test; the
  * catalog persists (reviews are cascade-cleared with Account each test). */
@@ -45,13 +45,30 @@ describe('review workflow (US1–US5)', () => {
     expect(res.body.error.code).toBe('FORBIDDEN_ROLE');
   });
 
-  it('US2: clean image — 通過 + all-empty panels submits with NO warning + auto-advance', async () => {
-    const res = await submit('S1', emptyDoc({ overallJudgement: '通過' }));
+  it('US2: clean image — 通過 + all panels 無問題 submits + auto-advance', async () => {
+    const res = await submit('S1', cleanDoc({ overallJudgement: '通過' }));
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('已提交');
     expect(res.body.data.next).toBe('S2'); // deterministic next unreviewed
     expect(res.body.data.progress.submitted).toBe(1);
     expect(res.body.error).toBeNull();
+  });
+
+  it('submit gate: a panel that is neither 無問題 nor annotated → 400 PANEL_REVIEW_INCOMPLETE', async () => {
+    // 整體判定 set, but panels left empty + not signed off → blocked, nothing submitted.
+    const res = await submit('S1', emptyDoc({ overallJudgement: '通過' }));
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('PANEL_REVIEW_INCOMPLETE');
+    expect((await r.agent.get('/api/reviews/S1')).body.data.progress.submitted).toBe(0);
+    // A panel annotated with a problem (no 無問題) satisfies the gate.
+    const ok = await submit(
+      'S1',
+      cleanDoc({ overallJudgement: '需小修', otherComment: '整體偏好補充說明' }),
+    );
+    expect(ok.status).toBe(200);
+    const open = await r.agent.get('/api/reviews/S1');
+    expect(open.body.data.review.otherComment).toBe('整體偏好補充說明'); // 其他意見 persisted
+    expect(open.body.data.review.panels.every((p: { noProblem: boolean }) => p.noProblem)).toBe(true);
   });
 
   it('US3: autosave creates 草稿, preserves orphan free-text, restores 100% on reopen', async () => {
@@ -73,7 +90,7 @@ describe('review workflow (US1–US5)', () => {
   });
 
   it('US3: autosave never regresses 已提交 → 草稿 and never double-counts', async () => {
-    await submit('S1', emptyDoc({ overallJudgement: '通過' }));
+    await submit('S1', cleanDoc({ overallJudgement: '通過' }));
     const afterPatch = await patch('S1', emptyDoc({ overallJudgement: '通過', indicationNote: '補充' }));
     expect(afterPatch.body.data.status).toBe('已提交'); // stays submitted
     const open = await r.agent.get('/api/reviews/S1');
@@ -89,10 +106,10 @@ describe('review workflow (US1–US5)', () => {
   });
 
   it('US5: re-submit overwrites in place — submittedAt unchanged, lastUpdated newer, one row', async () => {
-    const first = await submit('S1', emptyDoc({ overallJudgement: '通過' }));
+    const first = await submit('S1', cleanDoc({ overallJudgement: '通過' }));
     const submittedAt = first.body.data.submittedAt;
     await new Promise((res) => setTimeout(res, 10));
-    const second = await submit('S1', emptyDoc({ overallJudgement: '需小修' }));
+    const second = await submit('S1', cleanDoc({ overallJudgement: '需小修' }));
     expect(second.body.data.submittedAt).toBe(submittedAt); // first-submit time kept
     expect(new Date(second.body.data.lastUpdatedAt).getTime()).toBeGreaterThan(
       new Date(submittedAt).getTime(),

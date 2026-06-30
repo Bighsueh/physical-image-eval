@@ -31,6 +31,7 @@ export const PROBLEM_OPTIONS: ProblemType[] = [
 
 export interface PanelDoc {
   panelIndex: number;
+  noProblem: boolean;
   requiredWarnings: WarningType[];
   warningOther: string | null;
   problemTypes: ProblemType[];
@@ -40,6 +41,7 @@ export interface ReviewDoc {
   overallJudgement: OverallJudgement | null;
   indicationJudgement: IndicationJudgement | null;
   indicationNote: string | null;
+  otherComment: string | null;
   panels: PanelDoc[];
 }
 

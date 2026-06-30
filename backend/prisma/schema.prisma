@@ -251,6 +251,8 @@ model Review {
   overallJudgement    OverallJudgement?
   indicationJudgement IndicationJudgement?
   indicationNote      String?
+  /// 其他意見 — image-level free-form comment (選填); sanitized at boundaries like other free text.
+  otherComment        String?
   status              ReviewStatus         @default(DRAFT)
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   lastSavedAt         DateTime?            @db.Timestamptz(6)
@@ -271,6 +273,9 @@ model PanelReview {
   reviewId         String
   review           Review        @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   panelIndex       Int
+  /// 無問題 — reviewer's explicit "this panel is fine" sign-off (FR: submit requires noProblem OR
+  /// an annotation per panel). Default false so a panel must be actively addressed.
+  noProblem        Boolean       @default(false)
   requiredWarnings WarningType[] @default([])
   warningOther     String?
   problemTypes     ProblemType[] @default([])

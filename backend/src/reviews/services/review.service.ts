@@ -68,11 +68,22 @@ export const reviewService = {
     return saveSummary(review);
   },
 
-  /** Submit (and re-submit). Requires 整體判定; sets 已提交; returns the auto-advance target. */
+  /** Submit (and re-submit). Requires 整體判定 + each panel addressed; sets 已提交; returns the
+   * auto-advance target. */
   async submit(reviewerId: string, code: string, doc: ReviewDocument) {
     await requireBlueprint(code);
     const write = documentToWrite(doc);
     if (write.overallJudgement === null) throw new AppError('OVERALL_JUDGEMENT_REQUIRED');
+    // Every panel must be explicitly signed off (無問題) OR carry an annotation (FR per 2026-07-01).
+    const allPanelsAddressed = write.panels.every(
+      (p) =>
+        p.noProblem ||
+        p.problemTypes.length > 0 ||
+        p.requiredWarnings.length > 0 ||
+        Boolean(p.problemNote?.trim()) ||
+        Boolean(p.warningOther?.trim()),
+    );
+    if (!allPanelsAddressed) throw new AppError('PANEL_REVIEW_INCOMPLETE');
 
     const review = await reviewRepository.upsertReviewWithPanels({
       reviewerId,

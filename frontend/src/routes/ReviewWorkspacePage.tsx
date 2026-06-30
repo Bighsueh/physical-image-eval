@@ -5,17 +5,17 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { openReview, submitReview, type OpenReviewData, type OverallJudgement } from '../api/reviews';
 import { BlueprintMetaPanel } from '../components/review/BlueprintMetaPanel';
 import { CompletionState } from '../components/review/CompletionState';
+import { ImageLightbox } from '../components/review/ImageLightbox';
 import { IndicationField } from '../components/review/IndicationField';
 import { OverallJudgementField } from '../components/review/OverallJudgementField';
 import { PanelSwitcher } from '../components/review/PanelSwitcher';
 import type { PanelReviewHandlers } from '../components/review/PanelReviewForm';
 import { OVERALL_ERROR_ID, SubmitBar } from '../components/review/SubmitBar';
-import { ZoomableImage } from '../components/review/ZoomableImage';
 import { AppHeader, Card, HighRiskBadge, ProgressBar } from '../components/ui';
 import { useAutosaveReview } from '../hooks/useAutosaveReview';
 import { useReviewKeyboard } from '../hooks/useReviewKeyboard';
 import { REVIEW_TOUR_SEEN_KEY, startReviewTour } from '../lib/reviewTour';
-import { reviewDraftReducer, reviewToDraft } from '../state/reviewDraft';
+import { isPanelAddressed, reviewDraftReducer, reviewToDraft } from '../state/reviewDraft';
 
 /** Per-image review screen — Layout A (US1–US6). The inner editor is keyed by blueprintId so each
  * blueprint gets a fresh draft + autosave lifecycle (clean auto-advance). */
@@ -51,7 +51,11 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
   const [draft, dispatch] = useReducer(reviewDraftReducer, data.review, reviewToDraft);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [activePanel, setActivePanel] = useState(1);
+  const [panelErrors, setPanelErrors] = useState(false);
   const saveState = useAutosaveReview(bp.blueprintId, draft);
+  const draftRef = useRef(draft); // latest draft for the stable submit callback (no keyboard re-bind)
+  draftRef.current = draft;
 
   // First-ever review screen: auto-run the guided tour once (defensive — never crash on it).
   const tourTried = useRef(false);
@@ -80,14 +84,23 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
 
   const { mutate: submitMutate } = submitMutation;
   const doSubmit = useCallback(() => {
-    if (!draft.overallJudgement) {
+    const d = draftRef.current;
+    if (!d.overallJudgement) {
       setSubmitError('請先選擇整體判定');
       document.getElementById('overall-judgement-anchor')?.scrollIntoView?.({ block: 'center' });
       return;
     }
+    const unaddressed = d.panels.filter((p) => !isPanelAddressed(p)).map((p) => p.panelIndex);
+    if (unaddressed.length > 0) {
+      setSubmitError('每個分格請勾選「無問題」或標注問題');
+      setPanelErrors(true);
+      setActivePanel(unaddressed[0]); // jump to the first panel that needs handling
+      return;
+    }
     setSubmitError(null);
+    setPanelErrors(false);
     submitMutate();
-  }, [draft.overallJudgement, submitMutate]);
+  }, [submitMutate]);
 
   const onJudge = useCallback((v: OverallJudgement) => dispatch({ type: 'overall', value: v }), []);
   useReviewKeyboard({ onJudge, onSubmit: doSubmit });
@@ -95,11 +108,15 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
   if (completed) return <CompletionState total={data.progress.total} />;
 
   const handlers: PanelReviewHandlers = {
+    onToggleNoProblem: (i) => dispatch({ type: 'toggleNoProblem', panelIndex: i }),
     onToggleWarning: (i, w) => dispatch({ type: 'toggleWarning', panelIndex: i, warning: w }),
     onWarningOther: (i, v) => dispatch({ type: 'warningOther', panelIndex: i, value: v }),
     onToggleProblem: (i, p) => dispatch({ type: 'toggleProblem', panelIndex: i, problem: p }),
     onProblemNote: (i, v) => dispatch({ type: 'problemNote', panelIndex: i, value: v }),
   };
+  const invalidIndices = panelErrors
+    ? draft.panels.filter((p) => !isPanelAddressed(p)).map((p) => p.panelIndex)
+    : [];
 
   return (
     <>
@@ -144,9 +161,7 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
           <p className="text-sm text-ink-soft">
             左側為<strong className="text-ink">受審圖與藍圖企劃（唯讀）</strong>。請對照圖片與下方說明，逐項在右側填寫你的判定——右側的輸入不會改動這裡。
           </p>
-          <div data-tour="image">
-            <ZoomableImage src={bp.imageUrl} alt={`${bp.blueprintId} ${bp.exerciseName}`} />
-          </div>
+          <ImageLightbox src={bp.imageUrl} alt={`${bp.blueprintId} ${bp.exerciseName}`} />
           <Card className="p-4">
             <BlueprintMetaPanel blueprint={bp} />
           </Card>
@@ -171,12 +186,32 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
           </Card>
 
           <Card className="p-4">
-            <PanelSwitcher panels={draft.panels} handlers={handlers} />
+            <PanelSwitcher
+              panels={draft.panels}
+              handlers={handlers}
+              active={activePanel}
+              onActiveChange={setActivePanel}
+              invalidIndices={invalidIndices}
+              onAllNoProblem={() => dispatch({ type: 'allNoProblem' })}
+            />
+          </Card>
+
+          <Card className="p-4">
+            <label htmlFor="otherComment" className="text-sm font-semibold text-ink">
+              其他意見 <span className="font-normal text-ink-soft">（選填）</span>
+            </label>
+            <p className="mt-0.5 text-xs text-ink-soft">整體性的補充意見或建議，不限格式。</p>
+            <textarea
+              id="otherComment"
+              value={draft.otherComment ?? ''}
+              onChange={(e) => dispatch({ type: 'otherComment', value: e.target.value })}
+              rows={3}
+              className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
           </Card>
 
           <div data-tour="submit">
             <SubmitBar
-              doc={draft}
               saveState={saveState}
               submitting={submitMutation.isPending}
               isResubmit={data.review.status === '已提交'}

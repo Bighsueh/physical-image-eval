@@ -1,114 +1,91 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import type { PanelDoc, ReviewDoc } from '../../src/api/reviews';
+import type { PanelDoc } from '../../src/api/reviews';
 import { CompletionState } from '../../src/components/review/CompletionState';
+import { ImageLightbox } from '../../src/components/review/ImageLightbox';
 import { IndicationField } from '../../src/components/review/IndicationField';
-import { PanelReviewForm } from '../../src/components/review/PanelReviewForm';
+import { PanelReviewForm, type PanelReviewHandlers } from '../../src/components/review/PanelReviewForm';
 import { PanelSwitcher } from '../../src/components/review/PanelSwitcher';
 import { SubmitBar } from '../../src/components/review/SubmitBar';
-import { ZoomableImage } from '../../src/components/review/ZoomableImage';
 
-const docWith = (over: Partial<ReviewDoc> = {}): ReviewDoc => ({
-  overallJudgement: null,
-  indicationJudgement: null,
-  indicationNote: null,
-  panels: [1, 2, 3, 4].map((panelIndex) => ({
-    panelIndex,
-    requiredWarnings: [],
-    warningOther: null,
-    problemTypes: [],
-    problemNote: null,
-  })),
+const panel = (panelIndex: number, over: Partial<PanelDoc> = {}): PanelDoc => ({
+  panelIndex,
+  noProblem: false,
+  requiredWarnings: [],
+  warningOther: null,
+  problemTypes: [],
+  problemNote: null,
   ...over,
 });
+const noopHandlers: PanelReviewHandlers = {
+  onToggleNoProblem: vi.fn(),
+  onToggleWarning: vi.fn(),
+  onWarningOther: vi.fn(),
+  onToggleProblem: vi.fn(),
+  onProblemNote: vi.fn(),
+};
 
-describe('PanelSwitcher (FR-013 one panel at a time, knows which is active)', () => {
-  const noop = { onToggleWarning: vi.fn(), onWarningOther: vi.fn(), onToggleProblem: vi.fn(), onProblemNote: vi.fn() };
+describe('PanelSwitcher (one panel at a time, position labels, status)', () => {
+  function Harness({ panels, onAll = vi.fn() }: { panels: PanelDoc[]; onAll?: () => void }) {
+    const [active, setActive] = useState(1);
+    return (
+      <PanelSwitcher
+        panels={panels}
+        handlers={noopHandlers}
+        active={active}
+        onActiveChange={setActive}
+        onAllNoProblem={onAll}
+      />
+    );
+  }
 
-  it('shows one panel form, switches via tabs, and marks panels with content', async () => {
+  it('labels positions, marks addressed panels, switches tabs, and has a 全部無問題 shortcut', async () => {
     const user = userEvent.setup();
-    const panels: PanelDoc[] = [
-      { panelIndex: 1, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null },
-      { panelIndex: 2, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: '第2格有問題' },
-      { panelIndex: 3, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null },
-      { panelIndex: 4, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null },
-    ];
-    render(<PanelSwitcher panels={panels} handlers={noop} />);
+    const onAll = vi.fn();
+    const panels = [panel(1), panel(2, { problemNote: '第2格有問題' }), panel(3, { noProblem: true }), panel(4)];
+    render(<Harness panels={panels} onAll={onAll} />);
 
-    // active panel announced, panel 1 form shown
-    expect(screen.getByText(/正在評/)).toHaveTextContent('圖 1');
-    expect(screen.getByRole('tab', { name: /圖 1/, selected: true })).toBeInTheDocument();
-    // panel 2 carries content → "已填" indicator
-    expect(screen.getByRole('tab', { name: /圖 2/ })).toHaveTextContent('已填寫');
+    expect(screen.getByText(/正在評/)).toHaveTextContent('圖 1（左上）'); // position label
+    expect(screen.getByRole('tab', { name: /圖 2/ })).toHaveTextContent('右上');
+    expect(screen.getByRole('tab', { name: /圖 2/ })).toHaveTextContent('已處理'); // has a problem note
+    expect(screen.getByRole('tab', { name: /圖 3/ })).toHaveTextContent('已處理'); // 無問題
 
     await user.click(screen.getByRole('tab', { name: /圖 2/ }));
-    expect(screen.getByRole('tab', { name: /圖 2/, selected: true })).toBeInTheDocument();
-    expect(screen.getByText(/正在評/)).toHaveTextContent('圖 2');
+    expect(screen.getByText(/正在評/)).toHaveTextContent('圖 2（右上）');
+
+    await user.click(screen.getByRole('button', { name: '全部標示無問題' }));
+    expect(onAll).toHaveBeenCalled();
   });
 });
 
-describe('ZoomableImage (FR-006 inline, no lightbox)', () => {
-  it('zooms in/out/reset via buttons and keyboard, never opening a dialog', async () => {
+describe('ImageLightbox (FB-style full-screen preview)', () => {
+  it('opens a dialog on click and closes via the ✕ button', async () => {
     const user = userEvent.setup();
-    render(<ZoomableImage src="/x.png" alt="S1" />);
-    expect(screen.getByText('100%')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '放大' }));
-    expect(screen.getByText('125%')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '縮小' }));
-    expect(screen.getByText('100%')).toBeInTheDocument();
-
-    const group = screen.getByRole('group', { name: /受審圖/ });
-    group.focus();
-    await user.keyboard('{+}{+}');
-    expect(screen.getByText('150%')).toBeInTheDocument();
-    await user.keyboard('0');
-    expect(screen.getByText('100%')).toBeInTheDocument();
+    render(<ImageLightbox src="/x.png" alt="S1 圖" />);
+    expect(screen.queryByRole('dialog')).toBeNull(); // closed initially
+    await user.click(screen.getByRole('button', { name: /放大/ }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '關閉預覽' }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
 
-describe('SubmitBar (FR-030 soft prompt, FR-011 error)', () => {
-  it('shows a non-blocking soft prompt for 需重做 + all-empty panels, submit still fires', async () => {
-    const onSubmit = vi.fn();
+describe('PanelReviewForm (無問題 sign-off OR annotate)', () => {
+  it('toggles 無問題, and when unchecked exposes warning/problem inputs', async () => {
     const user = userEvent.setup();
-    render(
-      <SubmitBar
-        doc={docWith({ overallJudgement: '需重做' })}
-        saveState="saved"
-        submitting={false}
-        isResubmit={false}
-        error={null}
-        onSubmit={onSubmit}
-      />,
-    );
-    expect(screen.getByText(/建議至少補一處問題說明/)).toBeInTheDocument();
-    expect(screen.getByText('草稿已儲存')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /提交/ }));
-    expect(onSubmit).toHaveBeenCalled(); // non-blocking
-  });
-
-  it('renders the inline error when provided', () => {
-    render(
-      <SubmitBar doc={docWith()} saveState="idle" submitting={false} isResubmit error="請先選擇整體判定" onSubmit={vi.fn()} />,
-    );
-    expect(screen.getByRole('alert')).toHaveTextContent('請先選擇整體判定');
-    expect(screen.getByRole('button', { name: /再次提交/ })).toBeInTheDocument();
-  });
-});
-
-describe('PanelReviewForm + IndicationField (FR-013..020)', () => {
-  it('toggles a warning and a problem type and edits orphan free-text', async () => {
-    const user = userEvent.setup();
-    const handlers = {
+    const handlers: PanelReviewHandlers = {
+      onToggleNoProblem: vi.fn(),
       onToggleWarning: vi.fn(),
       onWarningOther: vi.fn(),
       onToggleProblem: vi.fn(),
       onProblemNote: vi.fn(),
     };
-    const panel: PanelDoc = { panelIndex: 2, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null };
-    render(<PanelReviewForm panel={panel} handlers={handlers} />);
+    render(<PanelReviewForm panel={panel(2)} handlers={handlers} />);
+    await user.click(screen.getByRole('checkbox', { name: /此分格無問題/ }));
+    expect(handlers.onToggleNoProblem).toHaveBeenCalledWith(2);
     await user.click(screen.getByText('注意跌倒'));
     expect(handlers.onToggleWarning).toHaveBeenCalledWith(2, '注意跌倒');
     await user.click(screen.getByText('有錯字'));
@@ -117,6 +94,31 @@ describe('PanelReviewForm + IndicationField (FR-013..020)', () => {
     expect(handlers.onProblemNote).toHaveBeenCalledWith(2, '秒');
   });
 
+  it('hides the annotation fields once 無問題 is checked, and shows the invalid hint', () => {
+    render(<PanelReviewForm panel={panel(1, { noProblem: true })} handlers={noopHandlers} />);
+    expect(screen.queryByText('問題類型')).toBeNull(); // annotation section collapsed
+
+    render(<PanelReviewForm panel={panel(1)} handlers={noopHandlers} invalid />);
+    expect(screen.getByRole('alert')).toHaveTextContent('請勾選');
+  });
+});
+
+describe('SubmitBar', () => {
+  it('renders the autosave state and an inline error', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    render(<SubmitBar saveState="saved" submitting={false} isResubmit={false} error={null} onSubmit={onSubmit} />);
+    expect(screen.getByText('草稿已儲存')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /提交/ }));
+    expect(onSubmit).toHaveBeenCalled();
+
+    render(<SubmitBar saveState="idle" submitting={false} isResubmit error="請先選擇整體判定" onSubmit={vi.fn()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('請先選擇整體判定');
+    expect(screen.getByRole('button', { name: /再次提交/ })).toBeInTheDocument();
+  });
+});
+
+describe('IndicationField + CompletionState', () => {
   it('IndicationField is optional and never forces a note', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
@@ -124,10 +126,8 @@ describe('PanelReviewForm + IndicationField (FR-013..020)', () => {
     await user.click(screen.getByRole('radio', { name: /有疑慮/ }));
     expect(onChange).toHaveBeenCalledWith('有疑慮');
   });
-});
 
-describe('CompletionState (FR-029 non-dead-end)', () => {
-  it('renders 51/51 with a back-to-progress entry point', () => {
+  it('CompletionState renders 51/51 with a back-to-progress entry point', () => {
     render(
       <MemoryRouter>
         <CompletionState total={51} />

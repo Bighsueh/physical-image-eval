@@ -22,6 +22,7 @@ export const ERRORS = {
   IMAGE_NOT_FOUND: { status: 404, message: '找不到圖檔' },
   // Review workflow (feature 003).
   OVERALL_JUDGEMENT_REQUIRED: { status: 400, message: '請先選擇整體判定' },
+  PANEL_REVIEW_INCOMPLETE: { status: 400, message: '每個分格請勾選「無問題」或標注問題' },
   // Infra codes (not in the contract table but used by the 404 / fallthrough handlers).
   NOT_FOUND: { status: 404, message: '找不到資源' },
   INTERNAL_ERROR: { status: 500, message: '伺服器發生錯誤' },

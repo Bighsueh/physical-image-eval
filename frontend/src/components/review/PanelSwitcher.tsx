@@ -1,29 +1,37 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { PanelDoc } from '../../api/reviews';
+import { isPanelAddressed } from '../../state/reviewDraft';
 import { PanelReviewForm, type PanelReviewHandlers } from './PanelReviewForm';
 
-/** A panel carries content if the reviewer marked anything on it (drives the "已填" indicator). */
-const hasContent = (p: PanelDoc): boolean =>
-  p.requiredWarnings.length > 0 || !!p.warningOther || p.problemTypes.length > 0 || !!p.problemNote;
+/** 圖N → its position in the 2×2 grid (matches the ①②③④ printed on the images, reading order). */
+const POSITION: Record<number, string> = { 1: '左上', 2: '右上', 3: '左下', 4: '右下' };
 
 /**
- * Collapses the four 圖1..圖4 forms behind a prominent accessible tab switcher, so the reviewer
- * always sees exactly one panel and knows which one they're evaluating (FR-013). Tabs show a "已填"
- * dot for panels with content; arrow keys move between tabs (WAI-ARIA tabs pattern).
+ * Collapses the four 圖1..圖4 forms behind a prominent accessible tab switcher (WAI-ARIA tabs):
+ * one panel at a time, with each tab labelled by its image position, a status dot (已處理／需處理),
+ * a 全部無問題 shortcut, and red highlighting of unaddressed panels after a blocked submit. Controlled
+ * `active` so the page can jump to the first unaddressed panel.
  */
 export function PanelSwitcher({
   panels,
   handlers,
+  active,
+  onActiveChange,
+  invalidIndices = [],
+  onAllNoProblem,
 }: {
   panels: PanelDoc[];
   handlers: PanelReviewHandlers;
+  active: number;
+  onActiveChange: (panelIndex: number) => void;
+  invalidIndices?: number[];
+  onAllNoProblem: () => void;
 }) {
-  const [active, setActive] = useState(1);
   const tabRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const activePanel = panels.find((p) => p.panelIndex === active) ?? panels[0];
 
   const focusTab = (idx: number) => {
-    setActive(idx);
+    onActiveChange(idx);
     tabRefs.current[idx]?.focus();
   };
   const onKeyDown = (e: React.KeyboardEvent, idx: number) => {
@@ -40,15 +48,23 @@ export function PanelSwitcher({
     <div data-tour="panel-switcher" className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-ink">分格審查</h3>
-        <p className="text-sm text-ink-soft">
-          正在評：<strong className="text-primary-deep">圖 {active}</strong>
-        </p>
+        <button type="button" onClick={onAllNoProblem} className="text-xs text-primary-deep hover:underline">
+          全部標示無問題
+        </button>
       </div>
+      <p className="text-xs text-ink-soft">
+        圖1～圖4 對應圖片的<strong className="text-ink">左上、右上、左下、右下</strong>四格。正在評：
+        <strong className="text-primary-deep">
+          圖 {active}（{POSITION[active]}）
+        </strong>
+      </p>
 
       <div role="tablist" aria-label="切換要審查的分格（圖1至圖4）" className="grid grid-cols-4 gap-2">
         {panels.map((p) => {
           const selected = p.panelIndex === active;
-          const filled = hasContent(p);
+          const isInvalid = invalidIndices.includes(p.panelIndex);
+          const addressed = isPanelAddressed(p);
+          const ring = isInvalid ? 'ring-1 ring-accent border-accent' : '';
           return (
             <button
               key={p.panelIndex}
@@ -59,39 +75,47 @@ export function PanelSwitcher({
               role="tab"
               id={`paneltab-${p.panelIndex}`}
               aria-selected={selected}
-              // Only the selected tab controls the single rendered panel (no dangling IDREFs).
               aria-controls={selected ? 'review-active-panel' : undefined}
               tabIndex={selected ? 0 : -1}
-              onClick={() => setActive(p.panelIndex)}
+              onClick={() => onActiveChange(p.panelIndex)}
               onKeyDown={(e) => onKeyDown(e, p.panelIndex)}
-              className={`relative min-h-[44px] rounded-xl border text-sm font-medium transition-colors ${
+              className={`relative min-h-[48px] rounded-xl border px-1 text-sm font-medium transition-colors ${ring} ${
                 selected
                   ? 'border-primary bg-primary text-white'
                   : 'border-border bg-surface text-ink hover:bg-surface-sunken'
               }`}
             >
-              圖 {p.panelIndex}
-              {filled && (
-                <span
-                  className={`absolute right-1.5 top-1.5 inline-block h-2 w-2 rounded-full ${
-                    selected ? 'bg-white' : 'bg-primary'
-                  }`}
-                >
-                  <span className="sr-only">（已填寫）</span>
+              <span className="block">圖 {p.panelIndex}</span>
+              <span className={`block text-[11px] font-normal ${selected ? 'text-white/80' : 'text-ink-soft'}`}>
+                {POSITION[p.panelIndex]}
+              </span>
+              {/* status dot: red = needs handling, green = handled */}
+              {isInvalid ? (
+                <span className="absolute right-1.5 top-1.5 inline-block h-2 w-2 rounded-full bg-accent">
+                  <span className="sr-only">（需處理）</span>
                 </span>
+              ) : (
+                addressed && (
+                  <span
+                    className={`absolute right-1.5 top-1.5 inline-block h-2 w-2 rounded-full ${
+                      selected ? 'bg-white' : 'bg-primary'
+                    }`}
+                  >
+                    <span className="sr-only">（已處理）</span>
+                  </span>
+                )
               )}
             </button>
           );
         })}
       </div>
 
-      <div
-        role="tabpanel"
-        id="review-active-panel"
-        aria-labelledby={`paneltab-${active}`}
-        tabIndex={0}
-      >
-        <PanelReviewForm panel={activePanel} handlers={handlers} />
+      <div role="tabpanel" id="review-active-panel" aria-labelledby={`paneltab-${active}`} tabIndex={0}>
+        <PanelReviewForm
+          panel={activePanel}
+          handlers={handlers}
+          invalid={invalidIndices.includes(active)}
+        />
       </div>
     </div>
   );

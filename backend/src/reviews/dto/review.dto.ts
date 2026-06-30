@@ -31,6 +31,7 @@ export const escapeHtml = (s: string | null): string | null => {
 
 export interface ReviewPanelPayload {
   panelIndex: number;
+  noProblem: boolean;
   requiredWarnings: string[];
   warningOther: string | null;
   problemTypes: string[];
@@ -42,6 +43,7 @@ export interface ReviewPayload {
   overallJudgement: string | null;
   indicationJudgement: string | null;
   indicationNote: string | null;
+  otherComment: string | null;
   panels: ReviewPanelPayload[];
   createdAt: string | null;
   lastSavedAt: string | null;
@@ -52,6 +54,7 @@ export interface ReviewPayload {
 const emptyPanels = (): ReviewPanelPayload[] =>
   [1, 2, 3, 4].map((panelIndex) => ({
     panelIndex,
+    noProblem: false,
     requiredWarnings: [],
     warningOther: null,
     problemTypes: [],
@@ -66,6 +69,7 @@ export const toReviewPayload = (review: ReviewWithPanels | null): ReviewPayload 
       overallJudgement: null,
       indicationJudgement: null,
       indicationNote: null,
+      otherComment: null,
       panels: emptyPanels(),
       createdAt: null,
       lastSavedAt: null,
@@ -84,10 +88,12 @@ export const toReviewPayload = (review: ReviewWithPanels | null): ReviewPayload 
     // notes containing < > & on every save/reload round-trip. CSV export neutralizes at its own
     // boundary (004 csv-serializer).
     indicationNote: review.indicationNote,
+    otherComment: review.otherComment,
     panels: [...review.panels]
       .sort((a, b) => a.panelIndex - b.panelIndex)
       .map((p) => ({
         panelIndex: p.panelIndex,
+        noProblem: p.noProblem,
         requiredWarnings: p.requiredWarnings.map((w) => WARNING_ID_TO_ZH[w]),
         warningOther: p.warningOther,
         problemTypes: p.problemTypes.map((t) => PROBLEM_ID_TO_ZH[t]),
@@ -107,6 +113,7 @@ export const documentToWrite = (
   overallJudgement: OverallJudgement | null;
   indicationJudgement: IndicationJudgement | null;
   indicationNote: string | null;
+  otherComment: string | null;
   panels: PanelWrite[];
 } => ({
   overallJudgement: doc.overallJudgement ? OVERALL_ZH_TO_ID[doc.overallJudgement] : null,
@@ -114,8 +121,10 @@ export const documentToWrite = (
     ? INDICATION_ZH_TO_ID[doc.indicationJudgement]
     : null,
   indicationNote: doc.indicationNote,
+  otherComment: doc.otherComment,
   panels: doc.panels.map((p) => ({
     panelIndex: p.panelIndex,
+    noProblem: p.noProblem,
     requiredWarnings: p.requiredWarnings.map((w) => WARNING_ZH_TO_ID[w]),
     warningOther: p.warningOther,
     problemTypes: p.problemTypes.map((t) => PROBLEM_ZH_TO_ID[t]),

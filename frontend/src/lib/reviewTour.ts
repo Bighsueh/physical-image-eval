@@ -28,8 +28,8 @@ export function startReviewTour(): void {
       {
         element: '[data-tour="image"]',
         popover: {
-          title: '放大檢查細節',
-          description: '用 ＋／－ 或按住 Ctrl 捲動縮放，方向鍵平移、0 還原；確認四格的文字、秒數、箭頭。',
+          title: '點圖放大預覽',
+          description: '點擊圖片可全螢幕預覽，細看四格的文字、秒數與箭頭；按 Esc 或點背景關閉。',
         },
       },
       {
@@ -49,8 +49,8 @@ export function startReviewTour(): void {
       {
         element: '[data-tour="panel-switcher"]',
         popover: {
-          title: '② 逐格標問題（選填）',
-          description: '用「圖1～圖4」切換要評的分格；填過的格子會顯示小圓點。乾淨的圖整格留空即可。',
+          title: '② 逐格檢查（圖1～圖4＝左上/右上/左下/右下）',
+          description: '每一格請勾「此分格無問題」或標注問題；都沒問題可按「全部標示無問題」。提交前四格都要處理。',
         },
       },
       {

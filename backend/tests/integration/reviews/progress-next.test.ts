@@ -3,7 +3,7 @@ import { app } from '../../../src/app';
 import { env } from '../../../src/config/env';
 import { runIngest } from '../../../src/ingestion/runner';
 import { reviewerAgent, type SeededAgent } from '../../helpers/http';
-import { emptyDoc } from '../../helpers/review';
+import { cleanDoc, emptyDoc } from '../../helpers/review';
 
 describe('progress / next / isolation (US3/US4/US7)', () => {
   let r: SeededAgent;
@@ -19,7 +19,7 @@ describe('progress / next / isolation (US3/US4/US7)', () => {
 
   it('GET /next returns S1 first, then S2 after S1 is submitted (deterministic order)', async () => {
     expect((await r.agent.get('/api/reviews/next')).body.data).toMatchObject({ next: 'S1', completed: false });
-    await submit('S1', emptyDoc({ overallJudgement: '通過' }));
+    await submit('S1', cleanDoc({ overallJudgement: '通過' }));
     expect((await r.agent.get('/api/reviews/next')).body.data.next).toBe('S2');
   });
 
@@ -32,7 +32,7 @@ describe('progress / next / isolation (US3/US4/US7)', () => {
     expect(empty.body.meta).toMatchObject({ total: 51, submitted: 0 });
 
     await patch('S1', emptyDoc()); // draft
-    await submit('H1', emptyDoc({ overallJudgement: '通過' })); // submitted
+    await submit('H1', cleanDoc({ overallJudgement: '通過' })); // submitted
     const after = await r.agent.get('/api/reviews/progress');
     expect(after.body.data).toMatchObject({ submitted: 1, draft: 1, notStarted: 49 });
 
@@ -61,7 +61,7 @@ describe('progress / next / isolation (US3/US4/US7)', () => {
     const index: Array<{ blueprintId: string }> = (await r.agent.get('/api/reviews/progress')).body.data.index;
     expect(index).toHaveLength(51);
     for (const { blueprintId } of index) {
-      const res = await submit(blueprintId, emptyDoc({ overallJudgement: '通過' }));
+      const res = await submit(blueprintId, cleanDoc({ overallJudgement: '通過' }));
       expect(res.status).toBe(200);
     }
     const next = await r.agent.get('/api/reviews/next');

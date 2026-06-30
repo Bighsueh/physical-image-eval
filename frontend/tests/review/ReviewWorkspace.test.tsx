@@ -39,8 +39,10 @@ const openData = (over: Record<string, unknown> = {}) => ({
     overallJudgement: null,
     indicationJudgement: null,
     indicationNote: null,
+    otherComment: null,
     panels: [1, 2, 3, 4].map((i) => ({
       panelIndex: i,
+      noProblem: false,
       requiredWarnings: [],
       warningOther: null,
       problemTypes: [],
@@ -94,7 +96,7 @@ describe('ReviewWorkspacePage — Layout A (US1/US2/US4/US6)', () => {
     expect(screen.getByRole('tab', { name: /圖 1/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /圖 4/ })).toBeInTheDocument();
     expect(screen.getByRole('tabpanel')).toBeInTheDocument();
-    expect(screen.queryByRole('dialog')).toBeNull(); // inline zoom, never a lightbox
+    expect(screen.queryByRole('dialog')).toBeNull(); // lightbox closed until the image is clicked
     expect(document.body.textContent).not.toContain('aiPrompt');
   });
 
@@ -108,16 +110,24 @@ describe('ReviewWorkspacePage — Layout A (US1/US2/US4/US6)', () => {
     expect(calls.some((c) => c.method === 'POST')).toBe(false); // nothing submitted
   });
 
-  it('submits with 通過 + empty panels (no warning) and POSTs the document', async () => {
+  it('blocks submit until every panel is addressed, then 全部標示無問題 lets it POST', async () => {
     const calls = installFetch();
     const user = userEvent.setup();
     renderWorkspace();
     await screen.findByText(/五十肩/);
     await user.click(screen.getByRole('radio', { name: /通過/ }));
+    // panels unaddressed → blocked with the per-panel message, nothing POSTed
+    await user.click(screen.getByRole('button', { name: /提交並前往下一張/ }));
+    expect(await screen.findByText('每個分格請勾選「無問題」或標注問題')).toBeInTheDocument();
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
+    // sign off all panels → now it submits
+    await user.click(screen.getByRole('button', { name: '全部標示無問題' }));
     await user.click(screen.getByRole('button', { name: /提交並前往下一張/ }));
     await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/submit'))).toBe(true));
     const submit = calls.find((c) => c.method === 'POST')!;
-    expect((submit.body as { overallJudgement: string }).overallJudgement).toBe('通過');
+    const body = submit.body as { overallJudgement: string; panels: { noProblem: boolean }[] };
+    expect(body.overallJudgement).toBe('通過');
+    expect(body.panels.every((p) => p.noProblem)).toBe(true);
   });
 
   it('high-risk caution (icon + text) shows only for high-risk blueprints', async () => {
