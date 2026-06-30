@@ -20,5 +20,7 @@ COPY src ./src
 
 EXPOSE 3100
 
-# Apply migrations, (idempotent) bootstrap first admin, then serve.
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run seed:bootstrap-admin && npm run start"]
+# Apply migrations, (idempotent) bootstrap first admin, ingest the read-only catalog, then serve.
+# Ingest is non-fatal: if the source mount is absent/invalid the API still starts (empty catalog);
+# re-run with: docker compose exec backend npm run ingest
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run seed:bootstrap-admin && (npm run ingest || echo '[ingest] skipped/failed — run: docker compose exec backend npm run ingest') && npm run start"]
