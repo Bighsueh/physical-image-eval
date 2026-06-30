@@ -11,3 +11,91 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+/// The two and only two roles (FR-001), strictly separated and server-enforced (FR-011).
+enum Role {
+  ADMIN // 系統管理員 — account CRUD + dashboard/export (004); never reviews images.
+  REVIEWER // 審查者 — reviews images, sees only own records (003).
+}
+
+/// Governance operations recorded in the audit trail (FR-023, research D9).
+enum AuditAction {
+  CREATE_ACCOUNT // 建立帳號
+  DISABLE_ACCOUNT // 停用帳號
+  ENABLE_ACCOUNT // 啟用帳號
+  RESET_CREDENTIAL // 重設憑證
+}
+
+// ── Models ───────────────────────────────────────────────────────────────────
+
+/// 帳號（Account）— a person who can enter the system. Exactly one Role each (data-model.md).
+model Account {
+  id                 String   @id @default(cuid())
+  /// Unique, case-insensitive: stored normalized (trim + lower-case) at the boundary (D11).
+  username           String   @unique
+  /// 顯示名稱 — free text, sanitized on output (FR-006).
+  displayName        String
+  role               Role
+  /// argon2id hash (D3). Never returned by any API, never logged.
+  passwordHash       String
+  /// false = 停用 / 非在職. Disabled ⇒ all logins fail (FR-007). Default active.
+  isActive           Boolean  @default(true)
+  /// true after create or reset; forces change on first login (FR-009, D4).
+  mustChangePassword Boolean  @default(false)
+  passwordUpdatedAt  DateTime @default(now())
+  /// The admin who created this account; null for the bootstrap admin (FR-020).
+  createdByAccountId String?
+  createdBy          Account?  @relation("AccountCreatedBy", fields: [createdByAccountId], references: [id])
+  createdAccounts    Account[] @relation("AccountCreatedBy")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  sessions        Session[]
+  auditActorLogs  AuditLog[] @relation("AuditActor")
+  auditTargetLogs AuditLog[] @relation("AuditTarget")
+
+  @@index([role])
+  @@index([isActive])
+}
+
+/// 登入狀態（Session）— one currently-or-formerly valid login. Cookie holds an opaque token
+/// whose SHA-256 hash is stored here (D1). Validity is derived, not a stored column.
+model Session {
+  id         String    @id @default(cuid())
+  /// SHA-256 of the opaque cookie token. The raw token is never stored.
+  tokenHash  String    @unique
+  accountId  String
+  account    Account   @relation(fields: [accountId], references: [id])
+  /// Per-session double-submit CSRF secret, mirrored to the pie_csrf cookie (D7).
+  csrfToken  String
+  createdAt  DateTime  @default(now())
+  /// Absolute expiry = createdAt + SESSION_ABSOLUTE_TTL (D2).
+  expiresAt  DateTime
+  /// Sliding idle marker; refreshed ≤ 1/min on authed requests (D2).
+  lastSeenAt DateTime  @default(now())
+  /// Set on logout, account disable, or credential reset (FR-017).
+  revokedAt  DateTime?
+
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
+/// 帳號操作軌跡（AuditLog）— append-only governance record (FR-023, D9). Never updated/deleted.
+model AuditLog {
+  id              String      @id @default(cuid())
+  /// Who performed it. null only for the bootstrap seed (system actor).
+  actorAccountId  String?
+  actor           Account?    @relation("AuditActor", fields: [actorAccountId], references: [id])
+  targetAccountId String
+  target          Account     @relation("AuditTarget", fields: [targetAccountId], references: [id])
+  action          AuditAction
+  createdAt       DateTime    @default(now())
+  /// Optional NON-sensitive context only. Never passwords/temp passwords/hashes/tokens.
+  meta            Json?
+
+  @@index([targetAccountId])
+  @@index([actorAccountId])
+  @@index([createdAt])
+}

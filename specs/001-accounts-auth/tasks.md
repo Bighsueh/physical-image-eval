@@ -55,50 +55,50 @@ frontend app shell + API client. Every user story depends on this.
 
 ### Data model & migration (covers all entities in data-model.md)
 
-- [ ] T013 Define enums `Role` (ADMIN | REVIEWER) and `AuditAction` (CREATE_ACCOUNT | DISABLE_ACCOUNT | ENABLE_ACCOUNT | RESET_CREDENTIAL) in `backend/prisma/schema.prisma`.
-- [ ] T014 Define `Account` model + indexes (PK cuid; unique normalized `username`; `displayName`; `role`; `passwordHash`; `isActive` default true; `mustChangePassword` default false; `passwordUpdatedAt`; self-FK `createdByAccountId` nullable; timestamps; indexes on `role`, `isActive`) in `backend/prisma/schema.prisma`.
-- [ ] T015 Define `Session` model + indexes (PK cuid; unique `tokenHash`; FK `accountId`; `csrfToken`; `createdAt`; `expiresAt`; `lastSeenAt`; `revokedAt` nullable; indexes on `accountId`, `expiresAt`) in `backend/prisma/schema.prisma`.
-- [ ] T016 Define `AuditLog` model + indexes (PK cuid; nullable FK `actorAccountId`; FK `targetAccountId`; `action`; `createdAt`; nullable `meta` json; indexes on `targetAccountId`, `actorAccountId`, `createdAt`) in `backend/prisma/schema.prisma`.
-- [ ] T017 Generate first migration `npx prisma migrate dev` creating Account / Session / AuditLog + enums; regenerate Prisma client.
+- [X] T013 Define enums `Role` (ADMIN | REVIEWER) and `AuditAction` (CREATE_ACCOUNT | DISABLE_ACCOUNT | ENABLE_ACCOUNT | RESET_CREDENTIAL) in `backend/prisma/schema.prisma`.
+- [X] T014 Define `Account` model + indexes (PK cuid; unique normalized `username`; `displayName`; `role`; `passwordHash`; `isActive` default true; `mustChangePassword` default false; `passwordUpdatedAt`; self-FK `createdByAccountId` nullable; timestamps; indexes on `role`, `isActive`) in `backend/prisma/schema.prisma`.
+- [X] T015 Define `Session` model + indexes (PK cuid; unique `tokenHash`; FK `accountId`; `csrfToken`; `createdAt`; `expiresAt`; `lastSeenAt`; `revokedAt` nullable; indexes on `accountId`, `expiresAt`) in `backend/prisma/schema.prisma`.
+- [X] T016 Define `AuditLog` model + indexes (PK cuid; nullable FK `actorAccountId`; FK `targetAccountId`; `action`; `createdAt`; nullable `meta` json; indexes on `targetAccountId`, `actorAccountId`, `createdAt`) in `backend/prisma/schema.prisma`.
+- [X] T017 Generate first migration `npx prisma migrate dev` creating Account / Session / AuditLog + enums; regenerate Prisma client.
 
 ### Shared libs & config
 
-- [ ] T018 [P] `backend/src/config/env.ts` — zod-validated env loader (DB, TTLs, cookie names/flags, argon2 params, rate-limit, bootstrap creds), fail-fast at startup if any required secret missing.
-- [ ] T019 [P] `backend/src/lib/errors.ts` — `AppError` class + the shared error-code constants with zh-TW messages from the contract table (`VALIDATION_ERROR`/輸入資料有誤, `AUTH_FAILED`/帳號或密碼錯誤, `AUTH_REQUIRED`/請先登入, `FORBIDDEN_ROLE`/權限不足, `CSRF_INVALID`/請重新整理後再試, `PASSWORD_CHANGE_REQUIRED`/首次登入請先變更密碼, `ACCOUNT_NOT_FOUND`/找不到該帳號, `USERNAME_TAKEN`/帳號識別碼已存在, `SELF_OPERATION_FORBIDDEN`/無法對自己的帳號執行此操作, `LAST_ADMIN_PROTECTED`/系統需保留至少一位啟用的管理員, `RATE_LIMITED`/嘗試次數過多，請稍後再試).
-- [ ] T020 [P] `backend/src/lib/envelope.ts` — `ok(data, meta?)` / `fail(code, message)` / list-envelope helpers producing `{ success, data, error, meta }`.
-- [ ] T021 [P] `backend/src/lib/tokens.ts` — opaque session token (`crypto.randomBytes(32)` base64url), `sha256(token)` for `tokenHash`, per-session CSRF secret, and human-deliverable temp-password generator (unambiguous alphabet, ≥ 12 chars).
-- [ ] T022 [P] `backend/src/lib/prisma.ts` — Prisma client singleton.
-- [ ] T023 [P] `backend/src/lib/validation.ts` — zod base helpers: username normalize transform (trim + lower-case, D11), `Role` enum schema, cuid id schema, password-policy schema.
+- [X] T018 [P] `backend/src/config/env.ts` — zod-validated env loader (DB, TTLs, cookie names/flags, argon2 params, rate-limit, bootstrap creds), fail-fast at startup if any required secret missing.
+- [X] T019 [P] `backend/src/lib/errors.ts` — `AppError` class + the shared error-code constants with zh-TW messages from the contract table (`VALIDATION_ERROR`/輸入資料有誤, `AUTH_FAILED`/帳號或密碼錯誤, `AUTH_REQUIRED`/請先登入, `FORBIDDEN_ROLE`/權限不足, `CSRF_INVALID`/請重新整理後再試, `PASSWORD_CHANGE_REQUIRED`/首次登入請先變更密碼, `ACCOUNT_NOT_FOUND`/找不到該帳號, `USERNAME_TAKEN`/帳號識別碼已存在, `SELF_OPERATION_FORBIDDEN`/無法對自己的帳號執行此操作, `LAST_ADMIN_PROTECTED`/系統需保留至少一位啟用的管理員, `RATE_LIMITED`/嘗試次數過多，請稍後再試).
+- [X] T020 [P] `backend/src/lib/envelope.ts` — `ok(data, meta?)` / `fail(code, message)` / list-envelope helpers producing `{ success, data, error, meta }`.
+- [X] T021 [P] `backend/src/lib/tokens.ts` — opaque session token (`crypto.randomBytes(32)` base64url), `sha256(token)` for `tokenHash`, per-session CSRF secret, and human-deliverable temp-password generator (unambiguous alphabet, ≥ 12 chars).
+- [X] T022 [P] `backend/src/lib/prisma.ts` — Prisma client singleton.
+- [X] T023 [P] `backend/src/lib/validation.ts` — zod base helpers: username normalize transform (trim + lower-case, D11), `Role` enum schema, cuid id schema, password-policy schema.
 
 ### Repositories (Prisma data access)
 
-- [ ] T024 [P] `backend/src/repositories/account.repository.ts` — `findByUsername(normalized)`, `create`, `list(filters)`, `findById`, `setActive`, `setPassword`, `countActiveAdmins`.
-- [ ] T025 [P] `backend/src/repositories/session.repository.ts` — `create`, `findByTokenHash`, `revoke(id)`, `revokeAllForAccount(accountId)`, `touchLastSeen(id)`.
-- [ ] T026 [P] `backend/src/repositories/audit.repository.ts` — `append(record, tx)` (append-only, accepts a transaction client).
+- [X] T024 [P] `backend/src/repositories/account.repository.ts` — `findByUsername(normalized)`, `create`, `list(filters)`, `findById`, `setActive`, `setPassword`, `countActiveAdmins`.
+- [X] T025 [P] `backend/src/repositories/session.repository.ts` — `create`, `findByTokenHash`, `revoke(id)`, `revokeAllForAccount(accountId)`, `touchLastSeen(id)`.
+- [X] T026 [P] `backend/src/repositories/audit.repository.ts` — `append(record, tx)` (append-only, accepts a transaction client).
 
 ### Primitive services (test-first — RED before GREEN)
 
-- [ ] T027 [P] Unit tests for password service in `backend/tests/unit/password.service.test.ts` — argon2id hash/verify roundtrip, fixed dummy-hash verify holds constant cost (D6). MUST FAIL first.
-- [ ] T028 `backend/src/services/password.service.ts` — argon2id hash/verify (params from env) + exported fixed dummy hash for unknown-user verify (makes T027 pass).
-- [ ] T029 [P] Unit tests for session service in `backend/tests/unit/session.service.test.ts` — issue; validity rule `revokedAt IS NULL AND now < expiresAt AND now < lastSeenAt + IDLE_TTL`; revoke; revokeAll. MUST FAIL first.
-- [ ] T030 `backend/src/services/session.service.ts` — issue/validate/revoke/revokeAllForAccount, idle + absolute expiry, throttled (≤ 1/min) `lastSeenAt` refresh (depends T025; makes T029 pass).
-- [ ] T031 [P] Unit tests for audit service in `backend/tests/unit/audit.service.test.ts` — append inside a transaction; rejects sensitive meta (no passwords/tokens/hashes). MUST FAIL first.
-- [ ] T032 `backend/src/services/audit.service.ts` — append-only record helper writing in the caller's transaction (depends T026; makes T031 pass).
+- [X] T027 [P] Unit tests for password service in `backend/tests/unit/password.service.test.ts` — argon2id hash/verify roundtrip, fixed dummy-hash verify holds constant cost (D6). MUST FAIL first.
+- [X] T028 `backend/src/services/password.service.ts` — argon2id hash/verify (params from env) + exported fixed dummy hash for unknown-user verify (makes T027 pass).
+- [X] T029 [P] Unit tests for session service in `backend/tests/unit/session.service.test.ts` — issue; validity rule `revokedAt IS NULL AND now < expiresAt AND now < lastSeenAt + IDLE_TTL`; revoke; revokeAll. MUST FAIL first.
+- [X] T030 `backend/src/services/session.service.ts` — issue/validate/revoke/revokeAllForAccount, idle + absolute expiry, throttled (≤ 1/min) `lastSeenAt` refresh (depends T025; makes T029 pass).
+- [X] T031 [P] Unit tests for audit service in `backend/tests/unit/audit.service.test.ts` — append inside a transaction; rejects sensitive meta (no passwords/tokens/hashes). MUST FAIL first.
+- [X] T032 `backend/src/services/audit.service.ts` — append-only record helper writing in the caller's transaction (depends T026; makes T031 pass).
 
 ### Middleware pipeline & app wiring
 
-- [ ] T033 [P] `backend/src/middleware/csrf.ts` — double-submit token check on mutations (header `X-CSRF-Token` == `pie_csrf` cookie), else `403 CSRF_INVALID` (D7).
-- [ ] T034 [P] `backend/src/middleware/rate-limit.ts` — express-rate-limit on login keyed by IP + hashed username; `429 RATE_LIMITED`, no enumeration signal (D8, FR-021).
-- [ ] T035 [P] `backend/src/middleware/require-role.ts` — ADMIN/REVIEWER gate at server boundary; `403 FORBIDDEN_ROLE` (FR-011).
-- [ ] T036 [P] `backend/src/middleware/require-password-current.ts` — block protected routes while `mustChangePassword`; `403 PASSWORD_CHANGE_REQUIRED` (allow `/api/auth/password` + `/api/auth/logout`).
-- [ ] T037 `backend/src/middleware/require-auth.ts` — resolve `pie_sid` → `session.service.validate` → account; `401 AUTH_REQUIRED` if absent/expired/revoked (depends T030).
-- [ ] T038 `backend/src/app.ts` — Express app wiring: cookie-parser, json body, mount middleware pipeline, route mounts (placeholders), central `AppError → envelope` error handler, catch-all `404` envelope handler (depends T033–T037, T019, T020).
-- [ ] T039 `backend/src/server.ts` — startup: validate env (T018), listen on :3100 (depends T038).
+- [X] T033 [P] `backend/src/middleware/csrf.ts` — double-submit token check on mutations (header `X-CSRF-Token` == `pie_csrf` cookie), else `403 CSRF_INVALID` (D7).
+- [X] T034 [P] `backend/src/middleware/rate-limit.ts` — express-rate-limit on login keyed by IP + hashed username; `429 RATE_LIMITED`, no enumeration signal (D8, FR-021).
+- [X] T035 [P] `backend/src/middleware/require-role.ts` — ADMIN/REVIEWER gate at server boundary; `403 FORBIDDEN_ROLE` (FR-011).
+- [X] T036 [P] `backend/src/middleware/require-password-current.ts` — block protected routes while `mustChangePassword`; `403 PASSWORD_CHANGE_REQUIRED` (allow `/api/auth/password` + `/api/auth/logout`).
+- [X] T037 `backend/src/middleware/require-auth.ts` — resolve `pie_sid` → `session.service.validate` → account; `401 AUTH_REQUIRED` if absent/expired/revoked (depends T030).
+- [X] T038 `backend/src/app.ts` — Express app wiring: cookie-parser, json body, mount middleware pipeline, route mounts (placeholders), central `AppError → envelope` error handler, catch-all `404` envelope handler (depends T033–T037, T019, T020).
+- [X] T039 `backend/src/server.ts` — startup: validate env (T018), listen on :3100 (depends T038).
 
 ### Frontend app shell
 
-- [ ] T040 [P] `frontend/src/main.tsx` + `frontend/src/App.tsx` — React Router + TanStack Query provider + Tailwind base shell.
-- [ ] T041 [P] `frontend/src/lib/csrf.ts` + `frontend/src/api/client.ts` — fetch wrapper (`credentials: 'include'`, parse envelope, read `pie_csrf` cookie → `X-CSRF-Token` header on mutations).
+- [X] T040 [P] `frontend/src/main.tsx` + `frontend/src/App.tsx` — React Router + TanStack Query provider + Tailwind base shell.
+- [X] T041 [P] `frontend/src/lib/csrf.ts` + `frontend/src/api/client.ts` — fetch wrapper (`credentials: 'include'`, parse envelope, read `pie_csrf` cookie → `X-CSRF-Token` header on mutations).
 
 **Checkpoint**: Foundation ready — server boots, middleware + primitives unit-green, frontend shell renders. User stories can now proceed.
 
