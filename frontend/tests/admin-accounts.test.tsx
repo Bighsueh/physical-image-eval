@@ -30,7 +30,7 @@ describe('AccountCreatePage (US2)', () => {
               mustChangePassword: true,
               createdAt: '2026-06-30T00:00:00Z',
             },
-            tempPassword: 'Hx7K-2pmQ-9rtX',
+            tempPassword: '428301',
           },
           { status: 201 },
         ),
@@ -42,7 +42,7 @@ describe('AccountCreatePage (US2)', () => {
     await userEvent.type(screen.getByLabelText('帳號識別碼'), 'dr.lin');
     await userEvent.click(screen.getByRole('button', { name: '建立帳號' }));
 
-    expect(await screen.findByText('Hx7K-2pmQ-9rtX')).toBeInTheDocument();
+    expect(await screen.findByText('428301')).toBeInTheDocument();
   });
 });
 
@@ -92,8 +92,8 @@ describe('ForcePasswordChangePage (US2)', () => {
       status: 'authenticated',
     });
 
-    await userEvent.type(screen.getByLabelText('目前密碼'), 'old-temp-pass');
-    await userEvent.type(screen.getByLabelText('新密碼'), 'A-New-Strong-Pass-9');
+    await userEvent.type(screen.getByLabelText('目前密碼'), '428301');
+    await userEvent.type(screen.getByLabelText('新密碼'), '246802');
     await userEvent.click(screen.getByRole('button', { name: '變更密碼' }));
 
     await waitFor(() =>

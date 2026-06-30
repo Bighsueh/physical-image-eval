@@ -94,7 +94,7 @@ curl -s -c $JAR -X POST $BASE/api/auth/login \
 CSRF=$(grep pie_csrf $JAR | awk '{print $7}')
 curl -s -b $JAR -c $JAR -X POST $BASE/api/auth/password \
   -H 'Content-Type: application/json' -H "X-CSRF-Token: $CSRF" \
-  -d '{"currentPassword":"change-me-on-first-login","newPassword":"S0me-Strong-Pass!"}' | jq
+  -d '{"currentPassword":"change-me-on-first-login","newPassword":"520520"}' | jq
 # expect: success=true, data.passwordChanged=true
 
 # 5.3  Admin creates a reviewer (FR-006). Returns a ONE-TIME temp password.
@@ -132,7 +132,7 @@ CSRF=$(grep pie_csrf $JAR | awk '{print $7}')
 curl -s -b $JAR -X POST $BASE/api/admin/accounts/$RID/disable \
   -H "X-CSRF-Token: $CSRF" | jq
 curl -s -o /dev/null -w "%{http_code}\n" -X POST $BASE/api/auth/login \
-  -H 'Content-Type: application/json' -d '{"username":"dr.lin","password":"S0me-Strong-Pass!"}'
+  -H 'Content-Type: application/json' -d '{"username":"dr.lin","password":"520520"}'
 # expect: disable → success; subsequent login → 401 AUTH_FAILED
 
 # 5.8  Reset credential revokes existing sessions instantly (FR-017 / SC-006).

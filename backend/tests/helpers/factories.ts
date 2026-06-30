@@ -19,7 +19,7 @@ let counter = 0;
 export const makeAccount = async (
   overrides: MakeAccountOverrides = {},
 ): Promise<{ account: Account; password: string }> => {
-  const password = overrides.password ?? 'Test-Password-123';
+  const password = overrides.password ?? '135790'; // 6-digit (matches the password policy)
   counter += 1;
   const account = await accountRepository.create({
     username: overrides.username ?? `user${counter}`,

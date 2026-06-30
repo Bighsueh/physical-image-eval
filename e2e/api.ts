@@ -10,7 +10,7 @@ import { type APIRequestContext, request } from '@playwright/test';
 export const API_URL = process.env.E2E_API_URL ?? 'http://localhost:3100';
 export const BOOTSTRAP_USER = process.env.E2E_BOOTSTRAP_USER ?? 'admin';
 export const BOOTSTRAP_PASS = process.env.E2E_BOOTSTRAP_PASS ?? 'change-me-on-first-login';
-export const ADMIN_NEW_PASS = 'Admin-Strong-Pass-1!';
+export const ADMIN_NEW_PASS = '112233';
 
 export const csrfOf = async (ctx: APIRequestContext): Promise<string> => {
   const state = await ctx.storageState();
@@ -81,7 +81,7 @@ export const seedActiveReviewer = async (
   const reviewer = await request.newContext();
   await reviewer.post(`${API_URL}/api/auth/login`, { data: { username, password: tempPassword } });
   const csrf = (await reviewer.storageState()).cookies.find((c) => c.name === 'pie_csrf')?.value ?? '';
-  const password = 'Reviewer-Strong-Pass-1!';
+  const password = '445566';
   await reviewer.post(`${API_URL}/api/auth/password`, {
     data: { currentPassword: tempPassword, newPassword: password },
     headers: { 'X-CSRF-Token': csrf },

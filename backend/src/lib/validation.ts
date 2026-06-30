@@ -29,11 +29,10 @@ export const roleSchema = z.enum(['ADMIN', 'REVIEWER'], {
 /** A Prisma cuid id (kept permissive but non-empty). */
 export const idSchema = z.string().min(1, 'ID 必填');
 
-/** New-password strength policy (used by change-password / reset flows). */
+/** New-password policy (set-new-password flows): exactly 6 digits 0–9 (2026-06-30 clarification). */
 export const passwordPolicySchema = z
   .string({ required_error: '密碼必填' })
-  .min(10, '密碼長度至少 10 碼')
-  .max(200, '密碼過長');
+  .regex(/^\d{6}$/, '密碼須為 6 位數字');
 
 /** Login/current password — presence only; never reveal policy on the login path. */
 export const presentPasswordSchema = z.string({ required_error: '密碼必填' }).min(1, '密碼必填');

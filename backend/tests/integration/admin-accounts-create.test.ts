@@ -21,8 +21,7 @@ describe('POST /api/admin/accounts (US2)', () => {
       mustChangePassword: true,
     });
     expect(res.body.data.account.passwordHash).toBeUndefined();
-    expect(typeof res.body.data.tempPassword).toBe('string');
-    expect(res.body.data.tempPassword.length).toBeGreaterThanOrEqual(12);
+    expect(res.body.data.tempPassword).toMatch(/^\d{6}$/); // 6-digit temp password
 
     const audit = await prisma.auditLog.findMany({
       where: { targetAccountId: res.body.data.account.id },

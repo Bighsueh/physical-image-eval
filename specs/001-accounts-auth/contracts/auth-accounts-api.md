@@ -137,7 +137,8 @@ Change the **caller's own** password. Used for the forced change after create/re
   ```json
   { "currentPassword": "•••••••", "newPassword": "••••••••••" }
   ```
-  (`newPassword` validated against a minimum strength policy; `currentPassword` re-verified.)
+  (`newPassword` must be **6 digits (0–9)**; `currentPassword` re-verified. Login itself applies no
+  format check — only "set a new password" enforces the 6-digit policy.)
 - 200 — password updated; `mustChangePassword` cleared; the caller's **other** sessions are
   revoked (current session kept).
   ```json
@@ -174,7 +175,7 @@ Create an account and return a one-time initial credential (FR-006; FR-020 for a
         "role": "REVIEWER", "isActive": true, "mustChangePassword": true,
         "createdAt": "2026-06-30T03:00:00Z"
       },
-      "tempPassword": "Hx7-K2pm-Q9rt"
+      "tempPassword": "428301"
     },
     "error": null
   }
@@ -238,7 +239,7 @@ Reset credentials → one-time temp password, force change, purge sessions (FR-0
     "data": {
       "account": { "id": "ckv...", "username": "dr.lin", "isActive": true,
                    "mustChangePassword": true },
-      "tempPassword": "Tg4-9bWn-Lz2c"
+      "tempPassword": "915740"
     },
     "error": null
   }

@@ -16,7 +16,7 @@ describe('POST /api/auth/password (US2)', () => {
     const change = await agent
       .post('/api/auth/password')
       .set('X-CSRF-Token', csrf)
-      .send({ currentPassword: password, newPassword: 'A-New-Strong-Pass-9' });
+      .send({ currentPassword: password, newPassword: '246802' });
     expect(change.status).toBe(200);
     expect(change.body.data.passwordChanged).toBe(true);
 
@@ -29,7 +29,7 @@ describe('POST /api/auth/password (US2)', () => {
     const res = await agent
       .post('/api/auth/password')
       .set('X-CSRF-Token', csrf)
-      .send({ currentPassword: 'not-the-password', newPassword: 'A-New-Strong-Pass-9' });
+      .send({ currentPassword: 'not-the-password', newPassword: '246802' });
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('AUTH_FAILED');
   });
@@ -45,14 +45,16 @@ describe('POST /api/auth/password (US2)', () => {
     expect(res.body.error.message).toContain('新密碼不可與目前密碼相同');
   });
 
-  it('rejects a weak new password with 400 VALIDATION_ERROR', async () => {
+  it('rejects a non-6-digit new password with 400 VALIDATION_ERROR', async () => {
     const { agent, csrf, password } = await adminAgent(app);
-    const res = await agent
-      .post('/api/auth/password')
-      .set('X-CSRF-Token', csrf)
-      .send({ currentPassword: password, newPassword: 'short' });
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    for (const bad of ['12345', '1234567', 'abcdef']) {
+      const res = await agent
+        .post('/api/auth/password')
+        .set('X-CSRF-Token', csrf)
+        .send({ currentPassword: password, newPassword: bad });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    }
   });
 
   it('revokes the caller OTHER sessions but keeps the current one', async () => {
@@ -63,7 +65,7 @@ describe('POST /api/auth/password (US2)', () => {
     const change = await session1.agent
       .post('/api/auth/password')
       .set('X-CSRF-Token', session1.csrf)
-      .send({ currentPassword: password, newPassword: 'Rotated-Strong-Pass-1' });
+      .send({ currentPassword: password, newPassword: '975310' });
     expect(change.status).toBe(200);
 
     // current session still valid

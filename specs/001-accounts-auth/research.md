@@ -68,8 +68,9 @@ the locked foundation explicitly allows argon2id/bcrypt and we pick the stronger
 ## D4 — Credential reset → one-time temp password + forced change + session purge
 
 **Decision**: Admin reset generates a cryptographically random, human-deliverable temp
-password (e.g. 12+ chars from an unambiguous alphabet), returns it **once** in the reset
-response body (never stored in plaintext, never logged), stores its argon2id hash, sets
+password — a **6-digit number (0–9, e.g. `428301`)** per the 2026-06-30 clarification — returns
+it **once** in the reset response body (never stored in plaintext, never logged), stores its
+argon2id hash, sets
 `mustChangePassword = true`, and revokes all of the target's active sessions in the same
 transaction (FR-009, FR-017). First login with the temp password succeeds but
 `require-password-current` blocks every protected route except `POST /api/auth/password`
