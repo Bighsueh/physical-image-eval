@@ -110,12 +110,15 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
   const onJudge = useCallback((v: OverallJudgement) => dispatch({ type: 'overall', value: v }), []);
   useReviewKeyboard({ onJudge, onSubmit: doSubmit });
 
-  // Clear a validation banner as soon as the form becomes valid (don't leave it stale on edit).
+  // Clear each validation banner as soon as the thing it complains about is fixed (no stale banner).
   useEffect(() => {
-    if (draft.overallJudgement && draft.panels.every(isPanelAddressed)) {
-      setPanelErrors(false);
-      setSubmitError((prev) => (prev === VALIDATION_ERRORS.judgement || prev === VALIDATION_ERRORS.panel ? null : prev));
-    }
+    const allAddressed = draft.panels.every(isPanelAddressed);
+    if (allAddressed) setPanelErrors(false);
+    setSubmitError((prev) => {
+      if (prev === VALIDATION_ERRORS.judgement && draft.overallJudgement) return null;
+      if (prev === VALIDATION_ERRORS.panel && allAddressed) return null;
+      return prev;
+    });
   }, [draft]);
 
   if (completed) return <CompletionState total={data.progress.total} />;
