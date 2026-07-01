@@ -54,6 +54,7 @@ const openData = (over: Record<string, unknown> = {}) => ({
     lastUpdatedAt: null,
   },
   progress: { submitted: 0, total: 51 },
+  neighbors: { prev: null, next: 'S2' },
 });
 
 const env = (data: unknown) => ({ ok: true, status: 200, json: async () => ({ success: true, data, error: null }) });

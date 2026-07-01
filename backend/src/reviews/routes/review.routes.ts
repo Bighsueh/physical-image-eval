@@ -8,6 +8,7 @@ import {
   nextHandler,
   openHandler,
   progressHandler,
+  resetHandler,
   submitHandler,
 } from '../controllers/review.controller';
 
@@ -25,3 +26,4 @@ reviewRouter.get('/next', ...guard, nextHandler);
 reviewRouter.get('/:blueprintId', ...guard, openHandler);
 reviewRouter.patch('/:blueprintId', ...guard, csrfProtection, autosaveHandler);
 reviewRouter.post('/:blueprintId/submit', ...guard, csrfProtection, submitHandler);
+reviewRouter.post('/:blueprintId/reset', ...guard, csrfProtection, resetHandler);

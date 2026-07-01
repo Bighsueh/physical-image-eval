@@ -82,3 +82,13 @@ export const submitHandler: RequestHandler = async (req, res, next) => {
     next(err);
   }
 };
+
+export const resetHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const code = requireBlueprintId(req.params.blueprintId);
+    const data = await reviewService.reset(reviewerId(req), code);
+    res.status(200).json(ok(data));
+  } catch (err) {
+    next(err);
+  }
+};

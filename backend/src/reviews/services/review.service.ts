@@ -40,18 +40,38 @@ const requireBlueprint = async (code: string): Promise<void> => {
 };
 
 export const reviewService = {
-  /** Open a blueprint for review (incl. reopen): read-only blueprint + my review/empty template. */
+  /** Open a blueprint for review (incl. reopen): read-only blueprint + my review/empty template +
+   * the previous/next blueprint in the catalog's deterministic order (for free browsing, US-nav). */
   async open(reviewerId: string, code: string) {
-    // The three reads are independent; getBlueprintDetail rejects with BLUEPRINT_NOT_FOUND if the
-    // code is unknown (also the orphan-review fail-safe — a retired blueprint becomes inaccessible).
-    const [detail, review, submitted] = await Promise.all([
+    // The reads are independent; getBlueprintDetail rejects with BLUEPRINT_NOT_FOUND if the code is
+    // unknown (also the orphan-review fail-safe — a retired blueprint becomes inaccessible).
+    const [detail, review, submitted, ordered] = await Promise.all([
       catalogService.getBlueprintDetail(code),
       reviewRepository.findOwnReviewWithPanels(reviewerId, code),
       reviewRepository.countSubmitted(reviewerId),
+      catalogService.listBlueprints({}),
     ]);
+    const idx = ordered.findIndex((b) => b.blueprintId === code);
+    const neighbors = {
+      prev: idx > 0 ? ordered[idx - 1].blueprintId : null,
+      next: idx >= 0 && idx < ordered.length - 1 ? ordered[idx + 1].blueprintId : null,
+    };
     return {
       blueprint: toReviewBlueprint(detail),
       review: toReviewPayload(review),
+      progress: { submitted, total: TOTAL_BLUEPRINTS },
+      neighbors,
+    };
+  },
+
+  /** Reset (初始化) my review for a blueprint — delete draft OR submitted, back to 未開始. Own data
+   * only (reviewerId from session); idempotent; the client gates this behind a reconfirm. */
+  async reset(reviewerId: string, code: string) {
+    await requireBlueprint(code);
+    await reviewRepository.deleteOwnReview(reviewerId, code);
+    const submitted = await reviewRepository.countSubmitted(reviewerId);
+    return {
+      review: toReviewPayload(null),
       progress: { submitted, total: TOTAL_BLUEPRINTS },
     };
   },

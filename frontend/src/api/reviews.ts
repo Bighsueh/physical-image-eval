@@ -71,8 +71,18 @@ export interface ReviewState extends ReviewDoc {
   submittedAt: string | null;
   lastUpdatedAt: string | null;
 }
+/** The previous/next blueprint in the catalog's deterministic order (null at the ends). */
+export interface ReviewNeighbors {
+  prev: string | null;
+  next: string | null;
+}
 export interface OpenReviewData {
   blueprint: ReviewBlueprint;
+  review: ReviewState;
+  progress: { submitted: number; total: number };
+  neighbors: ReviewNeighbors;
+}
+export interface ResetData {
   review: ReviewState;
   progress: { submitted: number; total: number };
 }
@@ -129,6 +139,10 @@ export const autosaveReview = (blueprintId: string, doc: ReviewDoc) =>
 
 export const submitReview = (blueprintId: string, doc: ReviewDoc) =>
   apiFetch<SubmitData>(`/reviews/${blueprintId}/submit`, { method: 'POST', body: doc }).then((r) => r.data);
+
+/** Reset (初始化) my review for this blueprint — delete draft OR submitted, back to 未開始. */
+export const resetReview = (blueprintId: string) =>
+  apiFetch<ResetData>(`/reviews/${blueprintId}/reset`, { method: 'POST' }).then((r) => r.data);
 
 export const getNext = () => apiFetch<NextData>('/reviews/next').then((r) => r.data);
 

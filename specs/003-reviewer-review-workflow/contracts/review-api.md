@@ -184,7 +184,8 @@ for both first-time review and reopen-to-edit (US1/US5, research D5).
       "submittedAt": null,
       "lastUpdatedAt": "2026-06-30T02:05:00Z"
     },
-    "progress": { "submitted": 10, "total": 51 }
+    "progress": { "submitted": 10, "total": 51 },
+    "neighbors": { "prev": null, "next": "S2" }
   },
   "error": null
 }
@@ -193,6 +194,10 @@ for both first-time review and reopen-to-edit (US1/US5, research D5).
 - When the reviewer has no row yet, `review` is an **empty template** (`status` omitted/`未開始`
   semantics, all fields null/`[]`, 4 empty panels) so the form renders identically (FR-023
   restore path is the same shape).
+- `neighbors.prev` / `neighbors.next` are the previous/next blueprint in the **deterministic
+  catalog order** (region S→H→E→T→P→K→L→Y, ascending serial — same order as auto-advance),
+  `null` at the first/last blueprint. Powers the 上一張／下一張 free-browse nav (FR-044), which is
+  independent of submit's auto-advance-to-next-unreviewed.
 - `blueprint` is composed from 002's `blueprint-public` projection — `aiPrompt` is structurally
   absent (FR-009). `isHighRisk` from the shared constant feeds the non-blocking badge.
 - 400 `INVALID_PARAM`, 401 `AUTH_REQUIRED`, 403 `FORBIDDEN_ROLE`, 404 `BLUEPRINT_NOT_FOUND`.
@@ -291,6 +296,42 @@ blocks here (FR-030). The high-risk caution never blocks (FR-035).
   `submittedAt` unchanged, and is **not** double-counted (FR-032).
 - 400 `VALIDATION_ERROR` / `INVALID_PARAM`, 401 `AUTH_REQUIRED`, 403 `FORBIDDEN_ROLE` /
   `CSRF_INVALID`, 404 `BLUEPRINT_NOT_FOUND`.
+
+---
+
+## 6. `POST /api/reviews/:blueprintId/reset` — 初始化本頁提交記錄 (reset own review)
+
+Delete the current reviewer's OWN review for this blueprint (draft OR submitted; panels cascade),
+returning it to `未開始` (FR-043). For the reviewer to wipe and restart a single image. The client
+gates this behind a **reconfirm**; there is no request body.
+
+- Role: `REVIEWER`. CSRF required. `reviewerId` is the session account — never from path/body.
+- Path: `:blueprintId` validated as above.
+- **Behaviour**: `deleteMany({ reviewerId, blueprintCode })` — **idempotent** (no row ⇒ no-op, still
+  200). Only the caller's own review is affected; another reviewer's row for the same blueprint is
+  untouched. Once a `已提交` review is reset, it drops out of stats/export (submitted count falls).
+
+**Response 200**
+```json
+{
+  "success": true,
+  "data": {
+    "review": {
+      "status": "未開始", "overallJudgement": null, "indicationJudgement": null,
+      "indicationNote": null, "otherComment": null,
+      "panels": [ { "panelIndex": 1, "noProblem": false, "requiredWarnings": [], "warningOther": null, "problemTypes": [], "problemNote": null } /* …2,3,4 */ ],
+      "createdAt": null, "lastSavedAt": null, "submittedAt": null, "lastUpdatedAt": null
+    },
+    "progress": { "submitted": 10, "total": 51 }
+  },
+  "error": null
+}
+```
+
+- Returns the same **empty template** shape as `GET` open, so the client re-hydrates a blank form,
+  plus the refreshed `progress` (submitted count reflects the removal).
+- 400 `INVALID_PARAM`, 401 `AUTH_REQUIRED`, 403 `FORBIDDEN_ROLE` / `CSRF_INVALID`,
+  404 `BLUEPRINT_NOT_FOUND`.
 
 ---
 

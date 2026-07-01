@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, HelpCircle, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, HelpCircle, RotateCcw, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   openReview,
+  resetReview,
   submitReview,
   type OpenReviewData,
   type OverallJudgement,
@@ -18,7 +19,7 @@ import { OverallJudgementField } from '../components/review/OverallJudgementFiel
 import { PanelSwitcher } from '../components/review/PanelSwitcher';
 import type { PanelReviewHandlers } from '../components/review/PanelReviewForm';
 import { OVERALL_ERROR_ID, SubmitBar } from '../components/review/SubmitBar';
-import { AppHeader, Card, HighRiskBadge, ProgressBar } from '../components/ui';
+import { AppHeader, Card, ConfirmDialog, HighRiskBadge, ProgressBar } from '../components/ui';
 import { useAutosaveReview } from '../hooks/useAutosaveReview';
 import { useReviewKeyboard } from '../hooks/useReviewKeyboard';
 import { REVIEW_TOUR_SEEN_KEY, startReviewTour } from '../lib/reviewTour';
@@ -65,6 +66,8 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
   const [completed, setCompleted] = useState(false);
   const [activePanel, setActivePanel] = useState(1);
   const [panelErrors, setPanelErrors] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   // Keep the cached ['review', id] payload in sync with what we persist. Without this, a quick
   // re-entry (query still fresh — staleTime) re-hydrates the reducer from the pre-edit cache and the
@@ -79,7 +82,7 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
     [queryClient, bp.blueprintId],
   );
 
-  const saveState = useAutosaveReview(bp.blueprintId, draft, (doc, res) =>
+  const { saveState, flush, skipNext } = useAutosaveReview(bp.blueprintId, draft, (doc, res) =>
     syncReviewCache(doc, {
       status: res.status,
       lastSavedAt: res.lastSavedAt,
@@ -120,6 +123,34 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
       else navigate(`/review/${res.next}`);
     },
     onError: () => setSubmitError('提交失敗，請稍後再試'),
+  });
+
+  const resetMutation = useMutation({
+    // Flush FIRST: cancel any queued autosave and wait for an in-flight one to settle, so no late
+    // PATCH can upsert-resurrect the row the reset is about to delete (irreversible-reset integrity).
+    mutationFn: async () => {
+      await flush();
+      return resetReview(bp.blueprintId);
+    },
+    onSuccess: (fresh) => {
+      // Blank the form IN PLACE (no remount → the dialog closes normally and returns focus to its
+      // trigger). skipNext suppresses exactly the one autosave this programmatic change would trigger,
+      // so the reset is not immediately re-created as an empty draft.
+      skipNext();
+      dispatch({ type: 'reset', doc: reviewToDraft(fresh.review) });
+      queryClient.setQueryData<OpenReviewData>(['review', bp.blueprintId], (old) =>
+        old ? { ...old, review: fresh.review, progress: fresh.progress } : old,
+      );
+      setActivePanel(1);
+      setSubmitError(null);
+      setPanelErrors(false);
+      setCompleted(false);
+      setResetOpen(false);
+    },
+    onError: () => {
+      setResetOpen(false);
+      setResetError('初始化失敗，請稍後再試');
+    },
   });
 
   const { mutate: submitMutate } = submitMutation;
@@ -173,9 +204,34 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
     <>
       {/* Overall progress stays fixed-visible at the top while the form scrolls (FR-041). */}
       <div className="sticky top-0 z-10 -mx-6 mb-4 flex items-center justify-between gap-4 border-b border-border bg-paper/95 px-6 py-3 backdrop-blur">
-        <Link to="/progress" className="text-sm text-primary-deep hover:underline">
-          ‹ 返回進度
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link to="/progress" className="text-sm text-primary-deep hover:underline">
+            ‹ 返回進度
+          </Link>
+          <span className="text-border" aria-hidden="true">
+            |
+          </span>
+          {/* Free browsing: previous / next blueprint in catalog order (distinct from submit's
+              auto-advance to the next UNREVIEWED one). Disabled at the ends. */}
+          <button
+            type="button"
+            onClick={() => data.neighbors.prev && navigate(`/review/${data.neighbors.prev}`)}
+            disabled={!data.neighbors.prev}
+            className="inline-flex items-center gap-0.5 text-sm text-ink hover:text-primary-deep disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+            上一張
+          </button>
+          <button
+            type="button"
+            onClick={() => data.neighbors.next && navigate(`/review/${data.neighbors.next}`)}
+            disabled={!data.neighbors.next}
+            className="inline-flex items-center gap-0.5 text-sm text-ink hover:text-primary-deep disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            下一張
+            <ChevronRight className="w-4 h-4" aria-hidden="true" />
+          </button>
+        </div>
         <div className="flex items-center gap-4">
           <button
             type="button"
@@ -270,8 +326,41 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
               onSubmit={doSubmit}
             />
           </div>
+
+          {/* Destructive, deliberately low-emphasis + reconfirm-gated: wipe this blueprint's record. */}
+          <div className="flex flex-col items-end gap-1">
+            {resetError && (
+              <p role="alert" className="text-sm text-accent-deep">
+                {resetError}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setResetError(null);
+                setResetOpen(true);
+              }}
+              className="inline-flex items-center gap-1 text-sm text-accent-deep hover:underline"
+            >
+              <RotateCcw className="w-4 h-4" aria-hidden="true" />
+              初始化本頁提交記錄
+            </button>
+          </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={resetOpen}
+        title="初始化本頁提交記錄？"
+        confirmLabel="初始化"
+        loading={resetMutation.isPending}
+        onConfirm={() => resetMutation.mutate()}
+        onCancel={() => setResetOpen(false)}
+      >
+        <p>
+          將清除你在<strong>本圖</strong>已填寫或已提交的所有內容，回到「未填寫」狀態。此動作無法復原。
+        </p>
+      </ConfirmDialog>
     </>
   );
 }

@@ -43,7 +43,65 @@ describe('useAutosaveReview (US3)', () => {
     const d2 = reviewDraftReducer(d1, { type: 'overall', value: '通過' });
     const { result, rerender } = renderHook(({ d }) => useAutosaveReview('S1', d, undefined, 10), { initialProps: { d: d1 } });
     rerender({ d: d2 });
-    await waitFor(() => expect(result.current).toBe('error')); // real timers + microtask flush
+    await waitFor(() => expect(result.current.saveState).toBe('error')); // real timers + microtask flush
+  });
+
+  it('flush() cancels a queued autosave so no PATCH is sent (reset must win)', async () => {
+    vi.useFakeTimers();
+    const calls: Array<{ method: string }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, opts: { method?: string } = {}) => {
+      calls.push({ method: opts.method ?? 'GET' });
+      return env({ status: '草稿', lastSavedAt: 'x', submittedAt: null, lastUpdatedAt: 'y' });
+    }));
+    const d1 = emptyDraft();
+    const d2 = reviewDraftReducer(d1, { type: 'overall', value: '通過' });
+    const { result, rerender } = renderHook(({ d }) => useAutosaveReview('S1', d, undefined, 800), { initialProps: { d: d1 } });
+
+    rerender({ d: d2 }); // arms the 800ms debounce
+    result.current.flush(); // cancel it before it fires
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false); // nothing sent
+  });
+
+  it('flush() resolves only after an in-flight PATCH settles (ordering before reset)', async () => {
+    let releasePatch: () => void = () => {};
+    vi.stubGlobal('fetch', vi.fn(
+      () => new Promise((resolve) => {
+        releasePatch = () => resolve(env({ status: '草稿', lastSavedAt: 'x', submittedAt: null, lastUpdatedAt: 'y' }));
+      }),
+    ));
+    const d1 = emptyDraft();
+    const d2 = reviewDraftReducer(d1, { type: 'overall', value: '通過' });
+    const { result, rerender } = renderHook(({ d }) => useAutosaveReview('S1', d, undefined, 5), { initialProps: { d: d1 } });
+
+    rerender({ d: d2 });
+    await waitFor(() => expect(result.current.saveState).toBe('saving'));
+    await new Promise((r) => setTimeout(r, 20)); // let the debounce fire → PATCH in flight (unresolved)
+
+    let flushed = false;
+    result.current.flush().then(() => (flushed = true));
+    await Promise.resolve();
+    expect(flushed).toBe(false); // still waiting on the in-flight PATCH
+
+    releasePatch();
+    await waitFor(() => expect(flushed).toBe(true)); // resolves only once the PATCH settled
+  });
+
+  it('skipNext() suppresses exactly the next autosave (the reset blanking)', async () => {
+    vi.useFakeTimers();
+    const calls: Array<{ method: string }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, opts: { method?: string } = {}) => {
+      calls.push({ method: opts.method ?? 'GET' });
+      return env({ status: '草稿', lastSavedAt: 'x', submittedAt: null, lastUpdatedAt: 'y' });
+    }));
+    const d1 = reviewDraftReducer(emptyDraft(), { type: 'overall', value: '通過' });
+    const d2 = emptyDraft(); // the "reset to blank" change
+    const { result, rerender } = renderHook(({ d }) => useAutosaveReview('S1', d, undefined, 800), { initialProps: { d: d1 } });
+
+    result.current.skipNext();
+    rerender({ d: d2 }); // this change must NOT autosave
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
   });
 });
 

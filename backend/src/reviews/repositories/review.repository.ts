@@ -125,6 +125,11 @@ export const reviewRepository = {
     });
   },
 
+  /** Delete my own review for a blueprint (panels cascade). Idempotent — no row is a no-op. */
+  async deleteOwnReview(reviewerId: string, blueprintCode: string): Promise<void> {
+    await prisma.review.deleteMany({ where: { reviewerId, blueprintCode } });
+  },
+
   /** Business blueprintCode → my review status (for progress + auto-advance ordering). */
   async ownStatusByBlueprint(reviewerId: string): Promise<Map<string, ReviewStatus>> {
     const rows = await prisma.review.findMany({
