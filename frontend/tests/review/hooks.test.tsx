@@ -25,7 +25,7 @@ describe('useAutosaveReview (US3)', () => {
 
     const d1 = emptyDraft();
     const d2 = reviewDraftReducer(d1, { type: 'overall', value: '通過' });
-    const { rerender } = renderHook(({ d }) => useAutosaveReview('S1', d, 800), { initialProps: { d: d1 } });
+    const { rerender } = renderHook(({ d }) => useAutosaveReview('S1', d, undefined, 800), { initialProps: { d: d1 } });
 
     // first run (just-loaded draft) must not fire
     await vi.advanceTimersByTimeAsync(900);
@@ -41,7 +41,7 @@ describe('useAutosaveReview (US3)', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500, json: async () => ({ success: false, data: null, error: { code: 'X', message: 'boom' } }) })));
     const d1 = emptyDraft();
     const d2 = reviewDraftReducer(d1, { type: 'overall', value: '通過' });
-    const { result, rerender } = renderHook(({ d }) => useAutosaveReview('S1', d, 10), { initialProps: { d: d1 } });
+    const { result, rerender } = renderHook(({ d }) => useAutosaveReview('S1', d, undefined, 10), { initialProps: { d: d1 } });
     rerender({ d: d2 });
     await waitFor(() => expect(result.current).toBe('error')); // real timers + microtask flush
   });

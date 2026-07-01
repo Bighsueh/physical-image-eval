@@ -2,7 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, HelpCircle, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { openReview, submitReview, type OpenReviewData, type OverallJudgement } from '../api/reviews';
+import {
+  openReview,
+  submitReview,
+  type OpenReviewData,
+  type OverallJudgement,
+  type ReviewDoc,
+  type ReviewState,
+} from '../api/reviews';
 import { BlueprintMetaPanel } from '../components/review/BlueprintMetaPanel';
 import { CompletionState } from '../components/review/CompletionState';
 import { ImageLightbox } from '../components/review/ImageLightbox';
@@ -58,7 +65,28 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
   const [completed, setCompleted] = useState(false);
   const [activePanel, setActivePanel] = useState(1);
   const [panelErrors, setPanelErrors] = useState(false);
-  const saveState = useAutosaveReview(bp.blueprintId, draft);
+
+  // Keep the cached ['review', id] payload in sync with what we persist. Without this, a quick
+  // re-entry (query still fresh — staleTime) re-hydrates the reducer from the pre-edit cache and the
+  // saved draft appears to have vanished. The draft fields ARE the ReviewState fields (same zh-TW
+  // values), so we merge them over the cached review and stamp the server-returned status/timestamps.
+  const syncReviewCache = useCallback(
+    (doc: ReviewDoc, meta: Partial<ReviewState>) => {
+      queryClient.setQueryData<OpenReviewData>(['review', bp.blueprintId], (old) =>
+        old ? { ...old, review: { ...old.review, ...doc, ...meta } } : old,
+      );
+    },
+    [queryClient, bp.blueprintId],
+  );
+
+  const saveState = useAutosaveReview(bp.blueprintId, draft, (doc, res) =>
+    syncReviewCache(doc, {
+      status: res.status,
+      lastSavedAt: res.lastSavedAt,
+      submittedAt: res.submittedAt,
+      lastUpdatedAt: res.lastUpdatedAt,
+    }),
+  );
   const draftRef = useRef(draft); // latest draft for the stable submit callback (no keyboard re-bind)
   draftRef.current = draft;
 
@@ -78,8 +106,15 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
   }, []);
 
   const submitMutation = useMutation({
-    mutationFn: () => submitReview(bp.blueprintId, draft),
+    mutationFn: () => submitReview(bp.blueprintId, draftRef.current),
     onSuccess: (res) => {
+      // Reflect the submission in the cache so re-entering this blueprint shows the submitted content
+      // (and the resubmit affordance) instead of a stale pre-submit copy.
+      syncReviewCache(draftRef.current, {
+        status: res.status,
+        submittedAt: res.submittedAt,
+        lastUpdatedAt: res.lastUpdatedAt,
+      });
       queryClient.invalidateQueries({ queryKey: ['progress'] });
       if (res.completed || !res.next) setCompleted(true);
       else navigate(`/review/${res.next}`);
