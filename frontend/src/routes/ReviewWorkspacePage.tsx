@@ -84,7 +84,19 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
   const [resetError, setResetError] = useState<string | null>(null);
   // Photos live in their own controller: writes are immediate, so they must not ride the
   // document's 800ms debounce (research D14).
-  const photoCtl = useReviewPhotos(bp.blueprintId, data.review.photos ?? []);
+  // Server-confirmed photo changes are mirrored into the ['review', id] cache. Re-entering a
+  // blueprint inside the 30s stale window does NOT refetch, so without this the page re-seeded from
+  // a payload captured before the upload and the photo looked lost (prod, 2026-08-28). A plain
+  // setQueryData, not invalidateQueries: a refetch here would fight the debounced autosave.
+  const syncPhotosCache = useCallback(
+    (photos: ReviewPhoto[]) => {
+      queryClient.setQueryData<OpenReviewData>(['review', bp.blueprintId], (old) =>
+        old ? { ...old, review: { ...old.review, photos } } : old,
+      );
+    },
+    [queryClient, bp.blueprintId],
+  );
+  const photoCtl = useReviewPhotos(bp.blueprintId, data.review.photos ?? [], syncPhotosCache);
   const [lightbox, setLightbox] = useState<{ photos: ReviewPhoto[]; index: number } | null>(null);
   const [annotating, setAnnotating] = useState<ReviewPhoto | null>(null);
 

@@ -51,6 +51,7 @@ let uploadKeySeq = 0;
 export function useReviewPhotos(
   blueprintId: string,
   initial: ReviewPhoto[],
+  onServerChange?: (photos: ReviewPhoto[]) => void,
 ): ReviewPhotosController {
   const [photos, setPhotos] = useState<ReviewPhoto[]>(initial);
   const [pending, setPending] = useState<PendingUpload[]>([]);
@@ -58,17 +59,48 @@ export function useReviewPhotos(
   // Opening another blueprint must not leak the previous one's photos into the new page.
   const blueprintRef = useRef(blueprintId);
   // `initial` is typically a fresh array on every render (`data.review.photos ?? []`), so it
-  // MUST NOT be an effect dependency — doing so re-seeds state on every render, which re-renders,
-  // which re-runs the effect. Read it through a ref and key the reset on the blueprint alone.
+  // MUST NOT itself be an effect dependency — doing so re-seeds state on every render, which
+  // re-renders, which re-runs the effect. Read it through a ref and key the seed on the blueprint
+  // plus the *identity* of the server's list (below).
   const initialRef = useRef(initial);
   initialRef.current = initial;
+  // The authoritative list, updated synchronously at each mutation so two uploads finishing in the
+  // same tick cannot overwrite each other, and so the outward notification can carry the resulting
+  // list without waiting for a render.
+  const photosRef = useRef(photos);
+
+  /**
+   * A stable identity for the server's list: it changes when the SET of server photos changes,
+   * never merely because a new array arrived. Without this the list was frozen at mount, so a
+   * background refetch that DID carry the reviewer's photos changed nothing on screen and the
+   * photos looked lost (prod regression, 2026-08-28).
+   */
+  const serverKey = initial.map((p) => p.id).join(',');
 
   useEffect(() => {
     blueprintRef.current = blueprintId;
-    setPhotos(initialRef.current);
     setPending([]);
     setStorageFull(false);
   }, [blueprintId]);
+
+  // Seeded on the blueprint AND the server list, so switching blueprints still resets (no leak
+  // between pages) and a later server payload for the SAME blueprint is adopted. Local additions
+  // are not clobbered: they leave `serverKey` untouched until the server reports them back.
+  useEffect(() => {
+    photosRef.current = initialRef.current;
+    setPhotos(initialRef.current);
+  }, [blueprintId, serverKey]);
+
+  // Held in a ref so a caller passing an inline arrow does not re-run anything.
+  const notifyRef = useRef(onServerChange);
+  notifyRef.current = onServerChange;
+
+  /** Apply a server-CONFIRMED list: local state, the synchronous mirror, and the caller. */
+  const commit = useCallback((next: ReviewPhoto[]) => {
+    photosRef.current = next;
+    setPhotos(next);
+    notifyRef.current?.(next);
+  }, []);
 
   const patchPending = useCallback((key: string, next: Partial<PendingUpload>) => {
     setPending((cur) => cur.map((p) => (p.key === key ? { ...p, ...next } : p)));
@@ -90,7 +122,7 @@ export function useReviewPhotos(
         // A late response for a blueprint the reviewer has already left is dropped rather than
         // pushed into the wrong page's list.
         if (blueprintRef.current !== forBlueprint) return;
-        setPhotos((cur) => [...cur, photo]);
+        commit([...photosRef.current, photo]);
         setPending((cur) => cur.filter((p) => p.key !== item.key));
       } catch (err) {
         if (blueprintRef.current !== forBlueprint) return;
@@ -108,7 +140,7 @@ export function useReviewPhotos(
         });
       }
     },
-    [patchPending],
+    [patchPending, commit],
   );
 
   const add = useCallback(
@@ -145,19 +177,22 @@ export function useReviewPhotos(
   const remove = useCallback(
     async (photoId: string) => {
       await deletePhoto(blueprintRef.current, photoId);
-      setPhotos((cur) => cur.filter((p) => p.id !== photoId));
+      commit(photosRef.current.filter((p) => p.id !== photoId));
     },
-    [],
+    [commit],
   );
 
   const setCaption = useCallback(async (photoId: string, caption: string) => {
     const { photo } = await updatePhotoCaption(blueprintRef.current, photoId, caption || null);
-    setPhotos((cur) => cur.map((p) => (p.id === photo.id ? photo : p)));
-  }, []);
+    commit(photosRef.current.map((p) => (p.id === photo.id ? photo : p)));
+  }, [commit]);
 
-  const replace = useCallback((photo: ReviewPhoto) => {
-    setPhotos((cur) => cur.map((p) => (p.id === photo.id ? photo : p)));
-  }, []);
+  const replace = useCallback(
+    (photo: ReviewPhoto) => {
+      commit(photosRef.current.map((p) => (p.id === photo.id ? photo : p)));
+    },
+    [commit],
+  );
 
   /**
    * Photos bound to one panel. This is what mirrors the server's submit gate client-side, so
