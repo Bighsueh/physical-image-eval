@@ -293,3 +293,138 @@ Order is **tests → models/util → services → endpoints → frontend api →
 - **P2 increment** = US4 (submit gate + 51/51) → US5 (reopen/revise + isolation) → US6 (high-risk caution).
 - **P3 increment** = US7 (personal progress page).
 - Finish with Phase 10 (sanitization, enum-wire, a11y, security, coverage ≥ 80%, quickstart validation).
+
+---
+
+# Amendment 2026-08-27 — 參考照片與標註（US8／US9）
+
+Continues the numbering above (T086+). Same rules: `[P]` = different files, no dependency on
+an unfinished task; **test tasks come first and MUST fail (RED) before the implementation
+that makes them pass**; every task names a real path.
+
+**⚠️ T088 must run BEFORE T090.** The SC-017 baseline is a snapshot of the *pre-migration*
+review corpus — once the migration is applied it cannot be taken retroactively.
+
+## Phase 11: Foundational — 照片領域基礎（Blocking）
+
+- [ ] T086 [P] Add photo error codes to `backend/src/lib/errors.ts`: `UNSUPPORTED_IMAGE_TYPE`（僅支援 JPG／PNG／WebP 格式的照片）、`IMAGE_TOO_LARGE`（照片檔案過大）、`PHOTO_NOT_FOUND`（找不到該照片）、`PHOTO_STORAGE_FULL`（照片儲存空間已滿，請聯絡管理員）— reusing the shared codes 001 already defines
+- [ ] T087 [P] Add `PHOTO_STORAGE_LIMIT_BYTES` (default `10737418240` = 10 GiB) and `PHOTO_MAX_FILE_BYTES` to `backend/src/config/env.ts`, zod-validated as positive integers, fail-fast at startup (constitution V)
+- [ ] T088 **Capture the SC-017 baseline BEFORE migrating**: add `backend/tests/regression/capture-review-corpus.ts` that dumps every scalar of `Review` + `PanelReview` per (reviewer × blueprint) in a stable order to a fixture file, and run it against the current database
+- [ ] T089 Add `ReviewPhoto` and `ReviewPhotoBlob` to `backend/prisma/schema.prisma` per data-model: `ReviewPhoto`(`reviewId` → `Review` **onDelete: Cascade**, `panelIndex Int?`, `caption`, `originalMimeType`, `originalByteSize`, `displayByteSize`, `annotatedByteSize?`, `annotationState Json?`, `annotatedAt?`, `sortOrder`, timestamps, index `[reviewId, panelIndex, sortOrder]`, CHECK `panelIndex IS NULL OR 1..4`, **no unique on (reviewId, panelIndex)** — FR-048); `ReviewPhotoBlob`(`photoId` PK+FK Cascade, `original Bytes`, `display Bytes`, `annotated Bytes?`, `originalAsJpeg Bytes?`) plus the virtual `photos ReviewPhoto[]` field on `Review`. **No other model may be edited** — depends on T088
+- [ ] T090 Generate and apply `backend/prisma/migrations/<ts>_review_photo/migration.sql` via `npx prisma migrate dev --name review_photo`, then assert the SQL contains **zero** `ALTER TABLE` statements (FR-060) — depends on T089
+- [ ] T091 [P] Write unit test `backend/tests/unit/reviews/photos/image-validation.test.ts` — magic-byte detection for JPEG/PNG/WebP/HEIC; a JPEG renamed `.png` is classified by bytes not extension; a client-sent `Content-Type` is ignored; the `original` allow-list includes HEIC while `display`/`annotated` do not — MUST fail first (RED)
+- [ ] T092 [P] Write unit test `backend/tests/unit/reviews/photos/photo-storage.test.ts` — usage sums `original + display + COALESCE(annotated,0)`; below/at/over the ceiling classify correctly; the 80 % threshold is exclusive-below and inclusive-at — MUST fail first (RED)
+- [ ] T093 [P] Write unit test `backend/tests/unit/reviews/photos/photo-schema.test.ts` — zod: `panelIndex` optional and 1..4 when present, caption length cap, `variant` enum `display|original|annotated`, unknown fields stripped — MUST fail first (RED)
+- [ ] T094 [P] Write unit test `backend/tests/unit/reviews/photos/submit-gate.test.ts` — `allPanelsAddressed` returns true for a panel that is neither `noProblem` nor annotated **but carries ≥ 1 photo**, and false for one with neither (FR-049) — MUST fail first (RED)
+- [ ] T095 Implement `backend/src/reviews/photos/services/image-validation.ts` (makes T091 pass)
+- [ ] T096 Implement `backend/src/reviews/photos/services/photo-storage.service.ts` — usage aggregate over `ReviewPhoto` byte columns only (never the blob table) + ceiling check (makes T092 pass) — depends on T090
+- [ ] T097 Implement `backend/src/reviews/photos/validation/review-photo.schema.ts` (makes T093 pass)
+- [ ] T098 Implement `backend/src/reviews/photos/repositories/review-photo.repository.ts` — **explicit `select` on every query**; expose no `findMany` over `ReviewPhotoBlob`; blob reads by primary key only (research D11) — depends on T090, T097
+- [ ] T099 Create `backend/src/reviews/photos/routes/review-photo.routes.ts` + `controllers/review-photo.controller.ts` skeletons, mounted on the existing `/api/reviews` router behind `requireAuth` + `requireRole('REVIEWER')` + `requirePasswordCurrent` (+ CSRF on mutations), with `multer` **memoryStorage** and `PHOTO_MAX_FILE_BYTES` limits — depends on T086, T087
+- [ ] T100 [P] Create `frontend/src/api/review-photos.ts` — upload (multipart) / delete / caption / annotation get+put / file URL builders, CSRF header on mutations
+- [ ] T101 [P] Write unit test `frontend/tests/review/prepareImage.test.ts` — a decodable image yields a ~1600 px JPEG display part and the original bytes are passed through **unmodified**; an undecodable-natively input triggers the lazy HEIC path — MUST fail first (RED)
+- [ ] T102 Implement `frontend/src/lib/prepareImage.ts` — canvas decode → long-edge-1600 JPEG; the original `File` is forwarded untouched (FR-052) (makes T101 pass)
+- [ ] T103 Implement `frontend/src/lib/heicDecode.lazy.ts` — dynamic-import WASM decoder used **only** when the browser cannot decode the file natively (research D16)
+
+**Checkpoint**: photo tables migrated (zero ALTER), validation/storage/schema/repository in place, guarded routes mounted, frontend can produce the display derivative.
+
+---
+
+## Phase 12: User Story 8 - 以參考照片說明正確動作 (Priority: P2)
+
+**Goal**: attach/delete/caption photos per panel and at image level; they persist immediately, survive reload, satisfy the panel gate, and never regress a submitted review.
+
+### Tests (write first — RED)
+
+- [ ] T104 [P] `backend/tests/integration/reviews/photos/upload-creates-draft.test.ts` — uploading with no existing review creates one as `草稿`; the reviewer's submitted count is unchanged (FR-050)
+- [ ] T105 [P] `backend/tests/integration/reviews/photos/submitted-no-regress.test.ts` — uploading/deleting/captioning on a `已提交` review keeps `已提交`, refreshes `lastUpdatedAt`, leaves `submittedAt` untouched, and requires no re-submit (FR-051/SC-015)
+- [ ] T106 [P] `backend/tests/integration/reviews/photos/gate-with-photo.test.ts` — a panel with **only** a photo submits successfully; **and the race case**: upload then submit immediately with no intervening autosave still succeeds (FR-049/SC-014, research D15)
+- [ ] T107 [P] `backend/tests/integration/reviews/photos/isolation.test.ts` — reviewer B gets **404 `PHOTO_NOT_FOUND`** (never 403) on every photo route for A's photo id (FR-057/SC-016)
+- [ ] T108 [P] `backend/tests/integration/reviews/photos/reset-cascade.test.ts` — after reset, the review's `ReviewPhoto` and `ReviewPhotoBlob` rows are gone and orphan blob count is 0 (FR-059)
+- [ ] T109 [P] `backend/tests/integration/reviews/photos/storage-full.test.ts` — at the ceiling, upload returns 409 `PHOTO_STORAGE_FULL` while autosave, submit, delete and file-fetch all still return 200 (FR-061/SC-020)
+- [ ] T110 [P] `backend/tests/integration/reviews/photos/upload-validation.test.ts` — non-image bytes and a spoofed `Content-Type` are rejected `UNSUPPORTED_IMAGE_TYPE`; oversize is `IMAGE_TOO_LARGE`; HEIC is accepted for `original` but rejected for `display`
+- [ ] T111 [P] `backend/tests/integration/reviews/photos/open-returns-photos.test.ts` — `GET /api/reviews/:id` returns `photos[]` with `panelIndex`, `caption`, `annotated`, `urls`; bytes are never inlined; restore after reload is complete (SC-013)
+- [ ] T112 [P] `backend/tests/integration/reviews/photos/file-serve.test.ts` — each `variant` returns the stored content type with `Content-Disposition: inline` and `Cache-Control: private`; `annotated` on an un-annotated photo is 404
+- [ ] T113 [P] `frontend/tests/review/PhotoUploadField.test.tsx` — renders idle / 準備中 / 上傳中(progress+cancel) / 失敗(retry) / 空間已滿(disabled with reason) states; **no張數上限提示** (FR-048)
+- [ ] T114 [P] `frontend/tests/review/PhotoThumb.test.tsx` — thumbnail, delete, caption edit, 「已標註」 badge as icon+text (constitution IX)
+
+### Implementation
+
+- [ ] T115 Implement `backend/src/reviews/photos/services/review-photo.service.ts` — own-review resolution from session; create-draft-if-absent (FR-050); status-preserving writes (FR-051); ceiling check before accepting bytes (FR-061) — makes T104/T105/T109 pass — depends on T096, T098
+- [ ] T116 Implement `POST /photos` + `DELETE /photos/:photoId` + `PATCH /photos/:photoId` handlers with multipart parts `original`/`display`/`originalAsJpeg`/`panelIndex`/`caption` — makes T110 pass — depends on T099, T115
+- [ ] T117 Implement `GET /photos/:photoId/file` — variant serving, stored content type, private cache — makes T112 pass — depends on T115
+- [ ] T118 Amend `backend/src/reviews/services/review.service.ts` submit gate to read per-panel photo counts **inside the submit transaction**, and `backend/src/reviews/repositories/review.repository.ts` to expose that count within the same `$transaction` — makes T094/T106 pass. **Do not restructure the surrounding autosave path** (SC-018)
+- [ ] T119 Extend the open payload in `backend/src/reviews/dto/review.dto.ts` with `photos[]`, captions sanitized on output (FR-047) — makes T111 pass
+- [ ] T120 Extend `backend/src/reviews/services/review.service.ts` reset to delete photos via cascade and confirm no orphan blobs — makes T108 pass
+- [ ] T121 [P] Implement `frontend/src/components/review/PhotoUploadField.tsx` — click + drag-drop on desktop; on mobile the plain file input so the OS offers 拍照／照片圖庫／瀏覽檔案; per-file state machine; storage-full state (makes T113 pass) — depends on T102, T103
+- [ ] T122 [P] Implement `frontend/src/components/review/PhotoThumb.tsx` — thumb, ✕ delete, inline caption, 已標註 badge (makes T114 pass)
+- [ ] T123 Implement `frontend/src/hooks/useReviewPhotos.ts` — **immediate** (non-debounced) mutations, kept structurally separate from `useAutosaveReview` (research D14)
+- [ ] T124 Wire the photo block into `frontend/src/components/review/PanelReviewForm.tsx` (per-panel) and add the image-level block beside 其他意見 in `frontend/src/routes/ReviewWorkspacePage.tsx` (FR-045/FR-046) — depends on T121, T122, T123
+- [ ] T125 Add the 📎 photo count to `frontend/src/components/review/PanelSwitcher.tsx` tabs, and mirror the photo-aware gate client-side so the UI never blocks what the server would accept (FR-049) — depends on T124
+- [ ] T126 Implement `frontend/src/components/review/PhotoCompareLightbox.tsx` — original panel crop ↔ photo side by side, ←/→ between photos, Esc to close, download current, 看原圖 toggle (D1–D4) — depends on T122
+- [ ] T127 `e2e/review-photos.spec.ts` — US8: attach a photo to 圖1 → reload and confirm restore → submit with that panel otherwise blank → verify the submitted review still shows the photo
+
+**Checkpoint**: US8 fully delivered and independently testable.
+
+---
+
+## Phase 13: User Story 9 - 在站內為照片加上標註 (Priority: P3)
+
+**Goal**: optional in-app annotation that writes a full-resolution flattened image plus re-editable state, never touching the original.
+
+### Tests (write first — RED)
+
+- [ ] T128 [P] `backend/tests/integration/reviews/photos/annotation-save.test.ts` — `PUT …/annotation` stores `annotated` + `annotationState`; the `original` bytes are **byte-identical** to what was uploaded (FR-052/SC-012); repeat saves overwrite with no version history (FR-056)
+- [ ] T129 [P] `backend/tests/integration/reviews/photos/annotation-load.test.ts` — `GET …/annotation` deep-equals the saved state; a photo listing never carries it (SC-019)
+- [ ] T130 [P] `backend/tests/integration/reviews/photos/annotation-submitted.test.ts` — annotating a photo on a `已提交` review preserves status and `submittedAt` (FR-051)
+- [ ] T131 [P] `frontend/tests/review/AnnotateEntry.test.tsx` — the annotate control is present on desktop and mobile; the editor module is **not** imported until it is activated (research D17)
+
+### Implementation
+
+- [ ] T132 Implement `GET|PUT /photos/:photoId/annotation` handlers + service methods (makes T128–T130 pass) — depends on T115
+- [ ] T133 [P] Create `frontend/src/features/annotate/filerobot-zh-TW.ts` — a project-owned zh-TW translation map covering every editor string (FR-055, constitution VIII)
+- [ ] T134 Implement `frontend/src/features/annotate/AnnotateModal.lazy.tsx` — dynamic import boundary; `useBackendTranslations: false` with T133's map; loads the **original**; low `previewPixelRatio` for interaction, high `savingPixelRatio` for output; `onSave(image, designState)` → PUT; `loadableDesignState` on re-open (research D17) — depends on T132, T133
+- [ ] T135 Implement the save-degradation path: if full-resolution output fails on a constrained device, retry at a lower ratio **while still persisting `annotationState`**, and surface a zh-TW notice (research D17, SC-019) — depends on T134
+- [ ] T136 Show the annotated variant on the thumbnail with the 已標註 badge, and add the 看原圖 toggle in the lightbox (FR-052) — depends on T126, T134
+- [ ] T137 `e2e/review-photos.spec.ts` — US9: annotate a photo → reopen and confirm the previous annotation loads → save again → original still retrievable and unchanged
+
+**Checkpoint**: US9 delivered; annotation is optional and the photo-free path is untouched.
+
+---
+
+## Phase 14: Regression, Polish & Cross-Cutting
+
+**These are the tasks that make「不影響舊資料」a test rather than a claim.**
+
+- [ ] T138 `backend/tests/regression/existing-review-data.test.ts` — re-dump the corpus with T088's helper post-migration and assert **zero** differing rows across `overallJudgement`/`indicationJudgement`/`indicationNote`/`otherComment`/`status`/`submittedAt` and all four panels' fields (SC-017)
+- [ ] T139 `backend/tests/regression/migration-additive.test.ts` — parse the new migration SQL and assert `ALTER TABLE` count is 0 and exactly two `CREATE TABLE` statements are present (FR-060)
+- [ ] T140 Re-run the **pre-existing, unmodified** 003 suites — `backend/tests/{unit,integration}/reviews/` (excluding the new `photos/` folders) and `e2e/review.spec.ts` — and require a green run with **no edits to those files**. A test that needs changing is a signal the change was not additive (SC-018)
+- [ ] T141 [P] Add photo routes to the existing rate-limit configuration in `backend/src/middleware/rate-limit.ts` (constitution V)
+- [ ] T142 [P] Verify captions are HTML-escaped on every output path alongside the existing free-text fields (FR-047, constitution V)
+- [ ] T143 [P] Keyboard operability pass: upload trigger, delete, caption, annotate entry and lightbox navigation all reachable and operable by keyboard; 已標註 and storage-full states are icon+text, never colour-only (constitution IX, FR-054)
+- [ ] T144 [P] Bundle check: confirm the Filerobot chunk is absent from the initial workspace load and only fetched on annotate; and that with the editor open **zero** requests leave the origin (FR-055, research D17)
+- [ ] T145 Coverage gate — `npm run test:coverage -w backend` and the frontend equivalent ≥ 80 % including the new photo modules (constitution VII)
+- [ ] T146 Walk `specs/003-reviewer-review-workflow/quickstart.md` §Amendment steps 1–10 end to end against a running stack and fix any drift
+
+---
+
+## Dependencies (amendment)
+
+- **T088 → T089 → T090** is a hard chain; the SC-017 baseline is unrecoverable once migrated.
+- Phase 11 blocks Phases 12 and 13.
+- **US9 (Phase 13) depends on US8 (Phase 12)** — there is nothing to annotate until photos exist.
+- T118 is the only edit inside pre-existing review code; T140 is its safety net.
+
+## Parallel Opportunities (amendment)
+
+- **Phase 11**: T086 ∥ T087 ∥ T091 ∥ T092 ∥ T093 ∥ T094 ∥ T100 ∥ T101; then the chain T089→T090→T096/T098.
+- **Phase 12 tests**: T104–T114 are all `[P]` (different files).
+- **Phase 12 impl**: T121 ∥ T122 (independent components) before T124 composes them.
+- **Phase 13**: T128–T131 all `[P]`; T133 ∥ T132.
+- **Phase 14**: T141 ∥ T142 ∥ T143 ∥ T144; T138/T139/T140 gate the release; T146 runs last.
+
+## Implementation Strategy (amendment)
+
+- **Increment 1** = Phase 11 + Phase 12 (US8). Stop and validate: a reviewer can attach photos, they survive reload, a photo alone satisfies the panel gate, and submitted reviews accept photos without regressing. This alone delivers the feature's core value.
+- **Increment 2** = Phase 13 (US9). Annotation is additive and can ship later without blocking anything.
+- **Gate before release** = Phase 14, specifically T138/T139/T140 — if any of the three fails, the change is not additive and must not ship.
