@@ -345,7 +345,7 @@ review corpus — once the migration is applied it cannot be taken retroactively
 - [ ] T110 [P] `backend/tests/integration/reviews/photos/upload-validation.test.ts` — non-image bytes and a spoofed `Content-Type` are rejected `UNSUPPORTED_IMAGE_TYPE`; oversize is `IMAGE_TOO_LARGE`; HEIC is accepted for `original` but rejected for `display`
 - [ ] T111 [P] `backend/tests/integration/reviews/photos/open-returns-photos.test.ts` — `GET /api/reviews/:id` returns `photos[]` with `panelIndex`, `caption`, `annotated`, `urls`; bytes are never inlined; restore after reload is complete (SC-013)
 - [ ] T112 [P] `backend/tests/integration/reviews/photos/file-serve.test.ts` — each `variant` returns the stored content type with `Content-Disposition: inline` and `Cache-Control: private`; `annotated` on an un-annotated photo is 404
-- [ ] T113 [P] `frontend/tests/review/PhotoUploadField.test.tsx` — renders idle / 準備中 / 上傳中(progress+cancel) / 失敗(retry) / 空間已滿(disabled with reason) states; **no張數上限提示** (FR-048)
+- [ ] T113 [P] `frontend/tests/review/PhotoUploadField.test.tsx` — renders idle / 準備中 / 上傳中(progress+cancel) / 失敗(retry) / 空間已滿(disabled with reason) states; **no張數上限提示** (FR-048). **Plus the isolation property FR-058 actually asserts**: with three files uploading and the middle one failing, the other two still complete, the failed one keeps its原檔 and offers retry in place, and the already-typed 問題說明 in that panel is untouched — the failure must be scoped to one file
 - [ ] T114 [P] `frontend/tests/review/PhotoThumb.test.tsx` — thumbnail, delete, caption edit, 「已標註」 badge as icon+text (constitution IX)
 
 ### Implementation
@@ -398,7 +398,7 @@ review corpus — once the migration is applied it cannot be taken retroactively
 
 - [ ] T138 `backend/tests/regression/existing-review-data.test.ts` — re-dump the corpus with T088's helper post-migration and assert **zero** differing rows across `overallJudgement`/`indicationJudgement`/`indicationNote`/`otherComment`/`status`/`submittedAt` and all four panels' fields (SC-017)
 - [ ] T139 `backend/tests/regression/migration-additive.test.ts` — parse the new migration SQL and assert `ALTER TABLE` count is 0 and exactly two `CREATE TABLE` statements are present (FR-060)
-- [ ] T140 Re-run the **pre-existing, unmodified** 003 suites — `backend/tests/{unit,integration}/reviews/` (excluding the new `photos/` folders) and `e2e/review.spec.ts` — and require a green run with **no edits to those files**. A test that needs changing is a signal the change was not additive (SC-018)
+- [ ] T140 Re-run the **pre-existing, unmodified** 003 suites — `backend/tests/{unit,integration}/reviews/` (excluding the new `photos/` folders) and `e2e/review.spec.ts` — and require a green run with **no edits to those files**. A test that needs changing is a signal the change was not additive (SC-018). This run is also what evidences **FR-053** — 「不使用標註功能時流程與現行完全相同」
 - [ ] T141 [P] Add photo routes to the existing rate-limit configuration in `backend/src/middleware/rate-limit.ts` (constitution V)
 - [ ] T142 [P] Verify captions are HTML-escaped on every output path alongside the existing free-text fields (FR-047, constitution V)
 - [ ] T143 [P] Keyboard operability pass: upload trigger, delete, caption, annotate entry and lightbox navigation all reachable and operable by keyboard; 已標註 and storage-full states are icon+text, never colour-only (constitution IX, FR-054)

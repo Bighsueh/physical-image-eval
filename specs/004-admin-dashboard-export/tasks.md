@@ -226,9 +226,9 @@ Continues the numbering above (T058+). Same rules: `[P]` = different files; **te
 **Prerequisite**: 003's photo tables must exist (003 T090). 004 still adds **no table, no
 migration, no mutation** — every task below is read-only.
 
-## Phase 11: Foundational — 唯讀照片存取（Blocking）
+## Phase 8: Foundational — 唯讀照片存取（Blocking）
 
-- [ ] T058 [P] Add `PHOTO_NOT_FOUND`（找不到該照片）to `backend/src/lib/errors.ts` if 003 has not already — a photo whose review is not `已提交` MUST return this, indistinguishable from an unknown id (FR-028)
+- [ ] T058 Add `PHOTO_NOT_FOUND`（找不到該照片）to `backend/src/lib/errors.ts` **only if 003 T086 has not already added it** (003 T086 owns this code; this task is a no-op when 003 lands first — sequence 003 T086 before this) — a photo whose review is not `已提交` MUST return this, indistinguishable from an unknown id (FR-028)
 - [ ] T059 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/work-table.test.ts` — grouping into exactly four `PanelGroup`s in index order even when empty; `allClear` true only when every submitting reviewer marked that panel 無問題; `flaggedReviewerCount` and `photoCount` derivation; `panelIndex = NULL` photos land in `imageLevelEntries` — MUST fail first (RED)
 - [ ] T060 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/bundle-naming.test.ts` — in-archive names encode 圖 × 分格 × 審查者 × 版本別; `panelIndex = NULL` renders as 整體; composition includes original + annotated but **never** the display derivative; a HEIC original with no annotated version is substituted by `originalAsJpeg` (FR-030, research D12) — MUST fail first (RED)
 - [ ] T061 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/storage-usage.test.ts` — `usedPercent` arithmetic; `warning` transitions none→approaching at 80 %→full at 100 %; usage **includes draft photos** (the documented exception) — MUST fail first (RED)
@@ -239,7 +239,7 @@ migration, no mutation** — every task below is read-only.
 
 ---
 
-## Phase 12: User Story 5 - 修圖工作台 (Priority: P1)
+## Phase 9: User Story 5 - 修圖工作台 (Priority: P1)
 
 **Goal**: per-image work table, photo count column + filter, per-image bundle, storage panel — all read-only.
 
@@ -249,7 +249,7 @@ migration, no mutation** — every task below is read-only.
 - [ ] T065 [P] `backend/tests/integration/admin-dashboard/photos/draft-exclusion.test.ts` — **the load-bearing test**: with a draft review carrying photos, assert 0 leakage across all four surfaces — work table entries, `photoCount`, `photos.zip` contents, and the CSV (FR-028/SC-012)
 - [ ] T066 [P] `backend/tests/integration/admin-dashboard/photos/file-route.test.ts` — route 7 serves each variant with the stored content type; a **draft** photo's id returns 404 `PHOTO_NOT_FOUND` identical to an unknown id; `annotated` on an un-annotated photo is 404
 - [ ] T067 [P] `backend/tests/integration/admin-dashboard/photos/bundle.test.ts` — route 8 returns `application/zip` with the expected entry count and names; a blueprint with no submitted photos returns a valid **empty** archive with 200; no temp file is left behind (research D12)
-- [ ] T068 [P] `backend/tests/integration/admin-dashboard/photos/storage.test.ts` — route 9 shape and thresholds; the number matches a direct `SUM` over `ReviewPhoto` byte columns
+- [ ] T068 [P] `backend/tests/integration/admin-dashboard/photos/storage.test.ts` — route 9 shape and thresholds; the number matches a direct `SUM` over `ReviewPhoto` byte columns. **Plus FR-037's second clause**: with the ceiling lowered below current usage, the work table (route 6), the file route (7), the bundle (8) and the CSV export all still return 200 — the ceiling constrains 003's upload path **only** and must never degrade an admin read path
 - [ ] T069 [P] `backend/tests/integration/admin-dashboard/photos/has-photos-filter.test.ts` — `images?hasPhotos=true` never returns a blueprint whose `photoCount` is 0, and never omits one whose count is ≥ 1 (FR-031)
 - [ ] T070 [P] `backend/tests/integration/admin-dashboard/photos/read-only.test.ts` — POST/PUT/PATCH/DELETE against every new photo route return 404/405; no mutating photo route exists (FR-036/SC-016)
 - [ ] T071 [P] `backend/tests/integration/admin-dashboard/photos/export-append.test.ts` — the previous CSV header is a **strict prefix** of the new one and every pre-existing column's values are byte-identical for the same rows (FR-035/SC-014); each row's filenames match the bundle's contents (SC-015)
@@ -276,13 +276,14 @@ migration, no mutation** — every task below is read-only.
 
 ---
 
-## Phase 13: Regression & Polish
+## Phase 10: Regression & Polish
 
 - [ ] T087 Re-run the **pre-existing, unmodified** 004 suites — `backend/tests/{unit,integration}/admin-dashboard/` excluding the new `photos/` folders — and require a green run with no edits to those files (FR-035/SC-014)
 - [ ] T088 [P] Verify captions and panel free text are sanitized on every new output path, and that bundle entry names are derived from server-side data only — never from a user-supplied filename (FR-020, constitution V)
-- [ ] T089 [P] Confirm route 4 (`images/:blueprintId`) still returns its original contract unchanged; decide with the user whether to retire it once the frontend has moved to route 6 (see plan amendment)
+- [ ] T089 [P] Confirm route 4 (`images/:blueprintId`) still returns its original contract unchanged and its existing tests still pass. **Decision: route 4 is retained.** The frontend moves to route 6, but route 4 is a tested GET with no maintenance cost, and removing a working endpoint buys nothing; retiring it stays a one-line change if it is ever wanted
 - [ ] T090 Coverage gate ≥ 80 % including the new photo modules (constitution VII)
-- [ ] T091 Walk `specs/004-admin-dashboard-export/quickstart.md` §Amendment steps 1–8 end to end and fix any drift
+- [ ] T091 [P] Keyboard & non-colour-only pass over the controls this amendment adds — 下載本圖全部材料 button, 只看有附照片 filter chip, panel-group expand/collapse, photo thumbnails and the storage panel: all reachable and operable by keyboard, and every state (全員無問題／標了問題／容量警示) conveyed by text+icon, never colour alone (constitution IX, FR-024)
+- [ ] T092 Walk `specs/004-admin-dashboard-export/quickstart.md` §Amendment steps 1–8 end to end and fix any drift
 
 ---
 
@@ -295,10 +296,10 @@ migration, no mutation** — every task below is read-only.
 
 ## Parallel Opportunities (amendment)
 
-- **Phase 11**: T058 ∥ T059 ∥ T060 ∥ T061 ∥ T062, then T063.
-- **Phase 12 tests**: T064–T072 all `[P]`.
-- **Phase 12 impl**: T073 ∥ T074 ∥ T075 ∥ T076; frontend T079 ∥ T080 ∥ T081 ∥ T082 ∥ T083 before T084 composes.
-- **Phase 13**: T088 ∥ T089 ∥ T090.
+- **Phase 8**: T058 ∥ T059 ∥ T060 ∥ T061 ∥ T062, then T063.
+- **Phase 9 tests**: T064–T072 all `[P]`.
+- **Phase 9 impl**: T073 ∥ T074 ∥ T075 ∥ T076; frontend T079 ∥ T080 ∥ T081 ∥ T082 ∥ T083 before T084 composes.
+- **Phase 10**: T088 ∥ T089 ∥ T090 ∥ T091; T092 (quickstart) runs last.
 
 ## Notes (amendment)
 
