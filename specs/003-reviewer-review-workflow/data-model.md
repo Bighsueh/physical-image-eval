@@ -184,3 +184,88 @@ Blueprint 1 ──< Review 0..n   (one per reviewer; many reviewers comparable o
 ReviewStatus = { 草稿, 已提交 }   ; 未開始 = absence of a Review row (derived)
 HighRisk badge source = HIGH_RISK_BLUEPRINT_IDS (002 single named constant)
 ```
+
+---
+
+# Amendment 2026-08-27 — 參考照片（FR-045..FR-061）
+
+Two **new** tables. **No existing table is altered** — no column added, renamed, dropped or
+retyped on `Account`, `Session`, `AuditLog`, `Region`, `Blueprint`, `Panel`, `Diagnosis`,
+`Review` or `PanelReview` (FR-060, research D19). The Prisma relation field added to
+`Review` (`photos ReviewPhoto[]`) is virtual and emits no SQL column, so the migration is
+exactly two `CREATE TABLE` statements plus their indexes and foreign keys.
+
+## Entity: `ReviewPhoto`（參考照片 — metadata）
+
+One photo a reviewer attached to their own review, either to a specific panel or to the
+image as a whole. Metadata only — the bytes live in `ReviewPhotoBlob` (research D11).
+
+| Field | Logical type | Notes / constraints |
+|-------|--------------|---------------------|
+| `id` | string (cuid) | PK. |
+| `reviewId` | string (FK → `Review.id`) | NOT NULL, **ON DELETE CASCADE**. Ownership is the Review's owner; there is no separate `reviewerId` (it would be denormalized and could drift). Deleting a Review (FR-043 初始化) removes its photos (FR-059). |
+| `panelIndex` | int \| null | `1..4` binds this photo to 圖1..圖4 (FR-045); **NULL** = 圖層級「整體參考照片」(FR-046). Photos are **not** children of `PanelReview` — that table is snapshot-replaced on every autosave (research D12). |
+| `caption` | text \| null | 說明文字. Optional free text; preserved verbatim, sanitized on output (FR-047, constitution V). |
+| `originalMimeType` | string | Validated by **magic bytes**, not the client-supplied header (research D16). |
+| `originalByteSize` | int | Used for the storage-usage aggregate (004 FR-034). |
+| `displayByteSize` | int | Size of the display derivative. |
+| `annotatedByteSize` | int \| null | NULL until annotated. |
+| `annotationState` | json \| null | Re-editable annotation content (FR-056). NULL until annotated. Small; kept here, not in the blob table, so it can be read without touching bytes. |
+| `annotatedAt` | timestamptz \| null | Set/refreshed on each annotation save; last write wins, no version history (FR-056). |
+| `sortOrder` | int | Stable display order within its panel (or within the image-level group). |
+| `createdAt` | timestamptz | default now(). |
+| `updatedAt` | timestamptz | Bumped on caption/annotation change. |
+
+**Relationships**
+- `ReviewPhoto *──1 Review` — relation field `review`, scalar `reviewId`, `onDelete: Cascade`.
+- `ReviewPhoto 1 ──1 ReviewPhotoBlob` — the bytes, split out per research D11.
+
+**Constraints / indexes**
+- Index on `(reviewId, panelIndex, sortOrder)` — the per-panel listing used by the workspace
+  and by the submit gate's photo count (FR-049, research D15).
+- CHECK `panelIndex IS NULL OR panelIndex BETWEEN 1 AND 4` (defense-in-depth, mirrors zod).
+- **No** uniqueness on `(reviewId, panelIndex)` — a panel may carry any number of photos;
+  there is deliberately no per-panel cap (FR-048).
+
+**Application-level invariants** (service layer)
+- Every read/write resolves the owning Review from the **session** reviewer; a photo id
+  belonging to another reviewer is never reachable (FR-057, mirrors research D8).
+- Uploading a photo when no `Review` row exists creates one in `草稿` (FR-050); uploading to
+  a `已提交` review keeps `已提交`, bumps `lastUpdatedAt`, and leaves `submittedAt` unchanged
+  (FR-051, research D14).
+- A panel is "已標注問題" if it carries ≥ 1 photo, evaluated **inside the submit transaction**
+  together with the document (FR-049, research D15).
+- The original is never overwritten by a derivative or by an annotation (FR-052, research D13).
+
+## Entity: `ReviewPhotoBlob`（照片位元組）
+
+The bytes for one `ReviewPhoto`, deliberately in their own table so that no metadata query
+can accidentally load them (research D11).
+
+| Field | Logical type | Notes / constraints |
+|-------|--------------|---------------------|
+| `photoId` | string (FK → `ReviewPhoto.id`) | **PK** and FK, **ON DELETE CASCADE**. One-to-one. |
+| `original` | bytes (`bytea`) | NOT NULL. The uploaded file, **never re-encoded** (FR-052). May be HEIC — the original's allow-list is wider than the display derivative's (research D16). |
+| `display` | bytes (`bytea`) | NOT NULL. ~1600 px JPEG produced client-side; every grid/lightbox/admin view reads this one (research D13). |
+| `annotated` | bytes (`bytea`) \| null | Full-resolution flattened annotation output. NULL until annotated; authoritative over `annotationState` (research D17). |
+| `originalAsJpeg` | bytes (`bytea`) \| null | Only populated when the original is HEIC **and** no annotated version exists — guarantees the download bundle always contains a universally openable file without paying ~3 MB on every photo (004 FR-030). |
+
+**Constraints / indexes**
+- PK on `photoId` only. **No other index** — this table is only ever reached by primary key
+  from a resolved, authorized `ReviewPhoto`.
+- Never selected by a list query. Repositories MUST use explicit `select` and MUST NOT
+  expose a `findMany` over this table (research D11).
+
+## Entity-relationship summary (updated)
+
+```text
+Account(REVIEWER) 1 ──< Review 0..51 ──= PanelReview ×4
+                          │
+                          ├──< ReviewPhoto 0..n ──1 ReviewPhotoBlob   (cascade on Review delete)
+                          │       panelIndex 1..4 = 分格；NULL = 圖層級
+                          │
+                          └──*:1── Blueprint (002, read-only, by business code)
+
+未開始 = absence of a Review row — now reachable in two ways in reverse: a first autosave
+         OR a first photo upload creates the row as 草稿 (FR-050, research D14).
+```

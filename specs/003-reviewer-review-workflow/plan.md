@@ -185,3 +185,136 @@ small component/hook set; the autosave hook is the single owner of the debounced
 
 No violations. No deviation from the constitution or the locked stack requires
 justification.
+
+---
+
+# Amendment 2026-08-27 — 參考照片與標註（FR-045..FR-061 / SC-012..SC-020）
+
+Additive to everything above. Nothing in the original plan is retracted; the two places
+where this change narrows an existing rule are called out explicitly.
+
+## Summary (delta)
+
+Reviewers may attach 參考照片 to any panel (圖1..圖4) and to the image as a whole, to show
+「正確動作應為何」 where prose is ambiguous. Photos are **optional**, **uncapped**, saved
+immediately through their own routes (not the debounced document `PATCH`), and survive
+reload/re-login like any other draft input. The **original file is kept byte-for-byte**; a
+client-produced ~1600 px display derivative drives every on-screen view. Annotation is an
+**optional** in-app step (Filerobot, lazily loaded) that writes a full-resolution flattened
+image **plus** re-editable annotation state, and never overwrites the original. Two new
+tables carry this; **no existing table is altered**.
+
+## Technical Context (delta)
+
+**Primary Dependencies (added)**: Backend — `multer` (memory storage; bytes go straight into
+`bytea`) and an archive streamer for 004's bundle download. **No image-processing library on
+the server** (research D16). Frontend — `react-filerobot-image-editor` via dynamic import,
+plus a lazily-loaded WASM HEIC decoder used only when the browser cannot decode HEIC itself.
+
+**Storage (delta)**: Two new tables owned by this feature — `ReviewPhoto` (metadata) and
+`ReviewPhotoBlob` (bytes as `bytea`), deliberately split (research D11). Zero `ALTER` on the
+nine existing tables; the `Review.photos` Prisma relation field emits no SQL column
+(research D19). Photo total is bounded by a configurable ceiling, default **10 GB**.
+
+**Testing (delta)**: unit — magic-byte validation, storage-ceiling arithmetic, panel-scope
+validation, the photo-aware submit gate; integration — the six new routes plus
+cross-reviewer isolation, photo-creates-draft, submitted-stays-submitted, reset-cascades,
+full-store-blocks-photos-only; RTL — upload/thumbnail/caption/delete, the annotate entry
+point, the storage-full state; Playwright — attach → annotate → submit on desktop, and the
+mobile capture path. Additionally a **regression suite** that (a) diffs the existing review
+corpus before/after migration (SC-017) and (b) re-runs the pre-existing 003 integration and
+E2E suites **unmodified** (SC-018).
+
+**Constraints (delta)**: original never replaced by a derivative (FR-052); photo count
+participates in the submit gate and is read **inside the submit transaction** (FR-049,
+research D15); upload may create a 草稿 but never regresses 已提交 (FR-050/FR-051); reset
+cascades to photos and bytes (FR-059); a full store blocks **photo uploads only** and never
+review submission (FR-061/SC-020); all editor copy is zh-TW and no runtime call leaves the
+origin (FR-055).
+
+**Two rules this narrows**
+1. 分格提交關卡 — 「已標注問題」 gains a third way to hold: the panel carries ≥ 1 photo
+   (FR-049, amending the 2026-07-01 two-way definition).
+2. 未開始 — still "no `Review` row", but a **photo upload** is now a second way for that row
+   to be created as 草稿, alongside the first autosave (FR-050).
+
+## Constitution Check (re-evaluated)
+
+| # | Principle | Delta assessment |
+|---|-----------|------------------|
+| I | Spec-First Authority | Every new table, route and rule traces to FR-045..FR-061 / SC-012..SC-020. **PASS** |
+| II | Read-Only External Image Data | Photos are reviewer-supplied and live in Postgres. The source directory is neither read nor written by this change; no filesystem write path is added at all. **PASS** |
+| III | No Open Registration | N/A. **PASS** |
+| IV | Least-Privilege, Server-Enforced Roles | Photo routes carry the same `requireAuth` + `requireRole('REVIEWER')` + CSRF chain; the owning review is resolved from the **session**, and another reviewer's photo id is indistinguishable from a nonexistent one (404, never 403 — FR-057). Admin photo access is 004's, read-only, submitted-only. **PASS** |
+| V | Security Baseline | Uploads validated by **magic bytes**, not the client's Content-Type; per-file size cap; rate-limited; storage keys are irrelevant (there are none — bytes are rows), so the traversal surface is zero; captions are free text preserved verbatim and sanitized on output; CSRF on every mutation; the ceiling is env-configured and validated at startup. **PASS** |
+| VI | Immutability & Small-File Discipline | New code lands as a sibling `reviews/photos/` slice (routes → controller → service → repository → validation), each file well under the limit; the annotation write creates new rows/values rather than mutating the original. **PASS** |
+| VII | Test-First, ≥ 80% | TDD per acceptance scenario across US8/US9, plus the SC-017/SC-018 regression suite that makes "existing data untouched" a test rather than a claim. **PASS** |
+| VIII | Traditional Chinese Only | New copy (「參考照片」「已上傳 N 張」「已標註」「照片儲存空間已滿，請聯絡管理員」) is zh-TW; the editor ships a project-owned zh-TW translation map with `useBackendTranslations` **off**, so no English default and no third-party fetch. **PASS** |
+| IX | Accessibility & Clinician Readability | Upload, delete, annotate and lightbox navigation are keyboard-operable; 「已標註」 is icon + text, never colour alone; the storage-full state explains itself in text rather than a disabled button with no reason. **PASS** |
+| X | Fixed Environment Constraints | No new port, no new container, no new volume, no compose change (research D11). **PASS** |
+| XI | Catalog / Review Domain Separation | Photos are review-domain data hanging off `Review`; nothing in the catalog or auth domain is written. **PASS** |
+
+**Result: PASS — no violations, no new complexity to justify.**
+
+## Source Code (delta) — paths this amendment adds
+
+```text
+backend/
+├── prisma/
+│   ├── schema.prisma                                  # + ReviewPhoto, ReviewPhotoBlob
+│   │                                                  #   (+ virtual Review.photos relation; zero ALTER)
+│   └── migrations/<ts>_review_photo/migration.sql     # two CREATE TABLE + indexes + FKs only
+├── src/
+│   ├── config/env.ts                                  # + PHOTO_STORAGE_LIMIT_BYTES (default 10 GiB),
+│   │                                                  #   + PHOTO_MAX_FILE_BYTES
+│   └── reviews/photos/
+│       ├── routes/review-photo.routes.ts              # POST /photos; DELETE|PATCH /photos/:id;
+│       │                                              #   GET /photos/:id/file; GET|PUT /photos/:id/annotation
+│       ├── controllers/review-photo.controller.ts     # thin: validate → service → envelope
+│       ├── services/
+│       │   ├── review-photo.service.ts                # own-data resolution; draft-create; no-regress
+│       │   ├── photo-storage.service.ts               # usage aggregate + ceiling check (FR-061)
+│       │   └── image-validation.ts                    # magic bytes; per-variant allow-lists
+│       ├── repositories/review-photo.repository.ts    # explicit select ONLY; never findMany over blobs
+│       └── validation/review-photo.schema.ts          # zod: panelIndex, caption caps, variant enum
+└── tests/
+    ├── unit/reviews/photos/                           # magic bytes, ceiling arithmetic, scope, submit gate
+    ├── integration/reviews/photos/                    # 6 routes + isolation/draft-create/no-regress/
+    │                                                  #   reset-cascade/full-store-blocks-photos-only
+    └── regression/existing-review-data.test.ts        # SC-017 corpus diff across the migration
+
+frontend/
+├── src/
+│   ├── components/review/
+│   │   ├── PhotoUploadField.tsx                       # entry + drag-drop; storage-full state (A10)
+│   │   ├── PhotoThumb.tsx                             # thumb, delete, caption, 標註 entry, 已標註 badge
+│   │   └── PhotoCompareLightbox.tsx                   # original panel crop ↔ photo; 看原圖 toggle (D1..D4)
+│   ├── features/annotate/
+│   │   ├── AnnotateModal.lazy.tsx                     # dynamic import boundary — keeps Filerobot out of
+│   │   │                                              #   the main bundle (research D17)
+│   │   └── filerobot-zh-TW.ts                         # project-owned translation map; backend translations OFF
+│   ├── lib/
+│   │   ├── prepareImage.ts                            # decode → ~1600 px display JPEG (canvas)
+│   │   └── heicDecode.lazy.ts                         # WASM fallback, loaded only on undecodable input
+│   ├── hooks/useReviewPhotos.ts                       # immediate (non-debounced) photo mutations
+│   └── api/review-photos.ts                           # upload/delete/caption/annotation/file URLs
+└── tests/                                              # RTL: upload states, thumb actions, storage-full
+
+e2e/
+└── review-photos.spec.ts                              # US8 attach→restore→gate→submit; US9 annotate→re-open
+```
+
+**Structure Decision (delta)**: photos land as a **sibling slice** under `reviews/photos/`
+rather than being folded into the existing review service. That keeps the document autosave
+path — the most safety-critical code in this feature — literally untouched, which is what
+makes SC-018 ("the photo-free flow behaves exactly as today") a realistic claim rather than
+an aspiration. The only edit inside existing review code is the submit gate's photo-count
+lookup (FR-049), which is additive and covered by its own tests.
+
+## Complexity Tracking (delta)
+
+No violations. Two deliberate departures from the obvious default, both justified in
+research: storing bytes in Postgres rather than on a volume (D11 — fewer moving parts and no
+split-restore failure mode at this scale, with a named revisit trigger), and doing all image
+decoding in the browser (D16 — `sharp`'s prebuilt binaries exclude HEIC, so server-side
+support would mean a self-compiled libvips).

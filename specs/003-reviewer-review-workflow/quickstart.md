@@ -188,3 +188,145 @@ Key test groups:
   fidelity, `aiPrompt` never present.
 - **e2e/review.spec.ts** — US1 圖文並陳, US2 鍵盤快路徑 (≤15s), US3 autosave 還原 + 不回退,
   US4 提交需整體判定 + 自動前進 + 51/51, US5 重開修訂, US6 高風險警示, US7 個人進度頁.
+
+---
+
+# Amendment 2026-08-27 — 參考照片與標註的驗證步驟
+
+Run these **after** the steps above (you need a logged-in reviewer with `pie_sid` + `pie_csrf`).
+`$B` = a blueprint code, `$CSRF` = the CSRF cookie value. Sample images: any JPEG will do for
+`original`/`display`; use a real `.heic` for the HEIC path.
+
+## 0. Apply the additive migration and prove it changed nothing
+
+```bash
+# BEFORE: snapshot every existing review row (SC-017 baseline)
+docker compose exec -T postgres psql -U pie -d physical_image_eval -Atc \
+  "COPY (SELECT r.\"reviewerId\", r.\"blueprintCode\", r.\"overallJudgement\", r.\"indicationJudgement\",
+                r.\"indicationNote\", r.\"otherComment\", r.status, r.\"submittedAt\",
+                p.\"panelIndex\", p.\"noProblem\", p.\"requiredWarnings\", p.\"warningOther\",
+                p.\"problemTypes\", p.\"problemNote\"
+         FROM \"Review\" r LEFT JOIN \"PanelReview\" p ON p.\"reviewId\" = r.id
+         ORDER BY 1,2,9) TO STDOUT" > /tmp/reviews-before.tsv
+
+npm run prisma:migrate -w backend        # two CREATE TABLE only — expect zero ALTER
+
+# AFTER: same query, must be byte-identical (SC-017)
+docker compose exec -T postgres psql -U pie -d physical_image_eval -Atc "…same COPY…" \
+  > /tmp/reviews-after.tsv
+diff /tmp/reviews-before.tsv /tmp/reviews-after.tsv && echo "SC-017 OK: 0 differing rows"
+
+# the migration must touch no existing table (FR-060)
+grep -icE '^\s*alter table' backend/prisma/migrations/*_review_photo/migration.sql   # expect 0
+```
+
+## 1. FR-045/FR-050 — attaching a photo with no prior review creates a 草稿
+
+```bash
+curl -s -b cookies.txt -H "X-CSRF-Token: $CSRF" \
+  -F original=@fixtures/hand.jpg -F display=@fixtures/hand-1600.jpg \
+  -F panelIndex=1 -F caption='正確的收拳角度' \
+  http://localhost:3100/api/reviews/$B/photos
+# 201; data.reviewStatus == "草稿"; data.photo.panelIndex == 1
+curl -s -b cookies.txt http://localhost:3100/api/reviews/progress   # submitted count UNCHANGED
+```
+
+## 2. FR-049/SC-014 — a photo alone makes a panel submittable
+
+Mark panels 2–4 `noProblem`, leave panel 1 with **only** the photo (no `problemTypes`, no
+text), then submit. Expect **200**, not `PANEL_REVIEW_INCOMPLETE`.
+
+```bash
+curl -s -b cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+  -X POST -d '{"overallJudgement":"需小修","panels":[
+     {"panelIndex":1,"noProblem":false},{"panelIndex":2,"noProblem":true},
+     {"panelIndex":3,"noProblem":true},{"panelIndex":4,"noProblem":true}]}' \
+  http://localhost:3100/api/reviews/$B/submit
+```
+
+**Race check (research D15)**: upload a photo to panel 3 and submit **immediately** (before the
+800 ms document debounce could fire) with panel 3 otherwise blank — must still be 200. This is
+the case a document-only gate gets wrong.
+
+## 3. FR-051/SC-015 — adding a photo to a submitted review does not regress it
+
+```bash
+# note submittedAt, then attach another photo
+curl -s -b cookies.txt -H "X-CSRF-Token: $CSRF" -F original=@fixtures/b.jpg \
+  -F display=@fixtures/b-1600.jpg -F panelIndex=2 http://localhost:3100/api/reviews/$B/photos
+curl -s -b cookies.txt http://localhost:3100/api/reviews/$B
+# status still 已提交; submittedAt UNCHANGED; lastUpdatedAt refreshed; no re-submit required
+```
+
+## 4. FR-052/SC-012 — the original survives annotation
+
+```bash
+curl -s -b cookies.txt -H "X-CSRF-Token: $CSRF" -X PUT \
+  -F annotated=@fixtures/hand-annotated.jpg -F 'annotationState=@fixtures/state.json;type=application/json' \
+  http://localhost:3100/api/reviews/$B/photos/$PID/annotation
+
+# all three variants resolve, and the original is byte-identical to what was uploaded
+for v in original display annotated; do
+  curl -s -b cookies.txt -o /tmp/$v.bin "http://localhost:3100/api/reviews/$B/photos/$PID/file?variant=$v"
+done
+cmp fixtures/hand.jpg /tmp/original.bin && echo "SC-012 OK: original untouched"
+```
+
+## 5. FR-056/SC-019 — annotation state round-trips
+
+```bash
+curl -s -b cookies.txt http://localhost:3100/api/reviews/$B/photos/$PID/annotation
+# data.annotationState deep-equals what was PUT — this is what lets the editor re-open it
+```
+
+## 6. FR-057/SC-016 — cross-reviewer isolation
+
+As **another** reviewer, request the same photo id on every photo route. Expect **404
+`PHOTO_NOT_FOUND`** every time (never 403 — the two must be indistinguishable, or the error
+code itself confirms the photo exists).
+
+## 7. FR-059 — reset removes photos and their bytes
+
+```bash
+curl -s -b cookies.txt -H "X-CSRF-Token: $CSRF" -X POST http://localhost:3100/api/reviews/$B/reset
+docker compose exec -T postgres psql -U pie -d physical_image_eval -Atc \
+  'SELECT count(*) FROM "ReviewPhotoBlob" b LEFT JOIN "ReviewPhoto" p ON p.id=b."photoId" WHERE p.id IS NULL'
+# expect 0 — no orphan bytes
+```
+
+## 8. FR-061/SC-020 — a full store blocks photos only
+
+Set the ceiling below current usage, then:
+
+```bash
+# upload → 409 PHOTO_STORAGE_FULL
+# but ALL of these must still succeed:
+curl -s -b cookies.txt -H "X-CSRF-Token: $CSRF" -X PATCH -H 'Content-Type: application/json' \
+  -d '{"overallJudgement":"通過","panels":[…]}' http://localhost:3100/api/reviews/$B   # autosave 200
+curl -s -b cookies.txt -H "X-CSRF-Token: $CSRF" -X POST  …/submit                      # submit  200
+curl -s -b cookies.txt -H "X-CSRF-Token: $CSRF" -X DELETE …/photos/$PID                # delete  200
+curl -s -b cookies.txt "…/photos/$PID2/file?variant=display"                           # view    200
+```
+
+## 9. SC-018 — the photo-free flow is unchanged
+
+Re-run the **pre-existing** 003 suites without editing them:
+
+```bash
+npm run test -w backend -- tests/integration/reviews tests/unit/reviews
+npx playwright test e2e/review.spec.ts
+```
+
+Both must pass unmodified. Any test that needs changing to accommodate photos is a signal the
+change was not additive.
+
+## 10. Browser-side checks (no curl equivalent)
+
+- **HEIC on desktop Chrome** (research D16): pick a `.heic` from the file dialog — the WASM
+  decoder lazy-loads, the 「準備中」 state shows, and what reaches the server is a JPEG
+  `display` part plus the untouched HEIC `original`.
+- **HEIC on iOS Safari**: same flow, decoded natively, visibly faster.
+- **Bundle check** (research D17): load the review workspace and confirm the Filerobot chunk is
+  **not** fetched until 「標註」 is clicked.
+- **No outbound calls** (research D17): with the editor open, the network panel shows zero
+  requests to any non-same-origin host — `useBackendTranslations` must be off.

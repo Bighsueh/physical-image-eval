@@ -178,3 +178,120 @@ Key test groups:
 - **integration/admin-dashboard** — envelope shape; `401` without session; `403` for reviewer;
   filter precision/recall; drafts excluded from every stat + export; 非在職 separated from active
   ratio; export header = 27 columns + BOM; review rows byte-identical after export (read-only).
+
+---
+
+# Amendment 2026-08-27 — 參考照片管理端的驗證步驟
+
+Prerequisite: 003's photo feature is running and at least one reviewer has **submitted** a
+review carrying photos, plus one reviewer holding a **draft** with photos (that draft is the
+whole point of step 2). `$A` = admin cookies.
+
+## 1. FR-026/FR-027/SC-011 — the work table groups by panel
+
+```bash
+curl -s -b $A http://localhost:3100/api/admin/dashboard/images/E3/worktable | jq '
+  {photoCount, submittedReviewerCount,
+   panels: [.panels[] | {panelIndex, flaggedReviewerCount, photoCount, allClear,
+                         reviewers: [.entries[].reviewerDisplayName]}]}'
+```
+
+Expect `panels` to be **length 4 in index order** even where empty; panels where every
+submitting reviewer signed off show `allClear: true` with `entries: []`.
+
+## 2. FR-028/SC-012 — draft photos are invisible everywhere
+
+This is the side door research D10 exists to close. With a draft that has photos attached:
+
+```bash
+# (a) work table — the draft reviewer must not appear at all
+curl -s -b $A .../images/E3/worktable | jq '[.panels[].entries[].reviewerDisplayName] | unique'
+
+# (b) count column
+curl -s -b $A '.../images?hasPhotos=true' | jq '.data[] | select(.blueprintId=="E3") | .photoCount'
+
+# (c) direct file fetch by the draft photo's id → 404 PHOTO_NOT_FOUND (same as unknown id)
+curl -s -o /dev/null -w '%{http_code}\n' -b $A ".../photos/$DRAFT_PHOTO_ID/file"
+
+# (d) bundle
+curl -s -b $A .../images/E3/photos.zip -o /tmp/e3.zip && unzip -l /tmp/e3.zip
+
+# (e) export
+curl -s -b $A .../export/reviews.csv | grep -c "$DRAFT_PHOTO_FILENAME"    # expect 0
+```
+
+All five must exclude it. Expected count in every case: **0**.
+
+## 3. FR-029/FR-030/SC-013 — bundle contents and naming
+
+```bash
+curl -s -b $A .../images/E3/photos.zip -o /tmp/e3.zip
+unzip -l /tmp/e3.zip
+# every entry matches  <blueprintId>_圖<N|整體>_<審查者>_<序號>_(原始|標註).<ext>
+# file count == submitted originals + submitted annotated versions
+# NO display-derivative files present
+```
+
+Also check the HEIC case: a submitted HEIC photo **without** an annotated version must appear
+as its `originalAsJpeg` so the archive is universally openable (research D12). And a
+blueprint with no submitted photos must return a valid **empty** zip with 200, not an error.
+
+## 4. FR-031 — the count column and its filter agree
+
+```bash
+curl -s -b $A '.../images?hasPhotos=true' | jq '[.data[] | select(.photoCount == 0)] | length'
+# expect 0 — the filter must never return a blueprint with no submitted photos
+```
+
+## 5. FR-032/FR-035/SC-014/SC-015 — export gains columns without disturbing the old ones
+
+```bash
+# capture the header BEFORE deploying this change, then after:
+head -1 /tmp/reviews-before.csv > /tmp/hdr-before
+head -1 /tmp/reviews-after.csv  > /tmp/hdr-after
+# the old header must be a strict PREFIX of the new one (append-only — SC-014)
+grep -q "^$(cat /tmp/hdr-before)" /tmp/hdr-after && echo "SC-014 OK: columns appended, none moved"
+
+# and every existing row's existing fields must be unchanged
+cut -d, -f1-40 /tmp/reviews-before.csv > /tmp/old-before
+cut -d, -f1-40 /tmp/reviews-after.csv  > /tmp/old-after
+diff /tmp/old-before /tmp/old-after && echo "SC-014 OK: 0 differing rows"
+
+# SC-015:每列的檔名欄位必須對得上 zip 的內容
+```
+
+Cross-check a row's `參考照片檔名` against `unzip -l` for that blueprint — every listed name
+must exist in the archive and vice versa.
+
+## 6. FR-034/SC-017 — storage usage and its thresholds
+
+```bash
+curl -s -b $A http://localhost:3100/api/admin/dashboard/storage | jq
+# usedBytes matches SUM over ReviewPhoto's byte columns (drafts INCLUDED — this is the one
+# documented exception; it measures disk, not review progress)
+docker compose exec -T postgres psql -U pie -d physical_image_eval -Atc \
+  'SELECT SUM("originalByteSize" + "displayByteSize" + COALESCE("annotatedByteSize",0)) FROM "ReviewPhoto"'
+```
+
+Then lower the ceiling so usage crosses 80 % and 100 %, and confirm `warning` becomes
+`approaching` then `full`. **Nothing on the dashboard may start failing** — the ceiling is
+enforced by 003's upload route alone (FR-037).
+
+## 7. FR-036/SC-016 — still read-only
+
+```bash
+for m in POST PUT PATCH DELETE; do
+  curl -s -o /dev/null -w "$m %{http_code}\n" -b $A -X $m \
+    http://localhost:3100/api/admin/dashboard/photos/$PID/file
+done
+# expect 404/405 for every one — no mutating photo route exists at all
+```
+
+## 8. Regression — the pre-existing dashboard is untouched
+
+```bash
+npm run test -w backend -- tests/integration/admin-dashboard tests/unit/admin-dashboard
+```
+
+Must pass **unmodified**. A test that needs editing to accommodate photos means the change
+was not additive (FR-035).

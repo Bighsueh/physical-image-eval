@@ -185,3 +185,132 @@ and envelope helpers, 002's `HIGH_RISK_BLUEPRINT_IDS` and image route, and 003's
 ## Complexity Tracking
 
 No violations. No deviations from the constitution or the locked stack require justification.
+
+---
+
+# Amendment 2026-08-27 — 參考照片的管理端呈現（FR-025..FR-037 / SC-011..SC-017）
+
+Additive to everything above. **004's defining property is preserved**: it still writes
+nothing — no table, no enum, no migration — and every route stays `ADMIN`-only, `GET`-only
+and CSRF-free.
+
+## Summary (delta)
+
+The per-image page becomes a **修圖工作台**: the blueprint on one side, and on the other,
+四個分格 groups where each submitting reviewer's judgement, problem annotations and photos
+for that panel sit together — because the admin's real task is deciding how to fix the image,
+panel by panel. Panels where everyone signed off collapse to a line. The image list gains a
+photo-count column and a `hasPhotos` filter so the admin can see at a glance which blueprints
+have material waiting. A per-image **ZIP** (still a `GET`, streamed, no temp files) delivers
+原檔 + 標註版 with filenames that encode 圖 × 分格 × 審查者 × 版本別. The CSV gains two
+**appended** columns so the table and the archive can be read together. A storage panel shows
+used/ceiling with an 80 % warning.
+
+**The invariant this amendment is really about**: photos reach the admin **only** through
+`已提交` reviews. Draft photos are invisible in the work table, the count column, the bundle
+and the export (FR-028) — closing a side door that FR-007 ("drafts never enter statistics or
+export") does not cover on its own.
+
+## Technical Context (delta)
+
+**Primary Dependencies (added)**: a streaming ZIP writer for route 8 — chosen so the archive
+is produced without a temporary file, keeping 004 filesystem-free (research D12). No image
+library: 004 never decodes or resizes anything, it streams stored bytes.
+
+**Storage (delta)**: still **read-only, zero migrations**. 004 additionally reads 003's
+`ReviewPhoto` (metadata + denormalized byte sizes) and, only when streaming a file or a
+bundle, `ReviewPhotoBlob` by primary key. The storage aggregate is a `SUM` over
+`ReviewPhoto`'s byte columns and never touches the blob table (003 research D11). It relies
+on — but does not create — 003's `(reviewId, panelIndex, sortOrder)` index.
+
+**Testing (delta)**: unit — work-table grouping/`allClear` derivation, bundle naming and
+composition (incl. the HEIC→`originalAsJpeg` substitution), storage-threshold arithmetic,
+the appended CSV columns' escaping and formula-neutralization (D5 unchanged); integration —
+the four new routes, plus a dedicated **draft-photo exclusion suite** asserting 0 leakage
+across all four surfaces (SC-012), `hasPhotos` filter correctness, empty-blueprint zip,
+and 405/404 for every mutating verb (SC-016); E2E — admin opens the work table, downloads
+the bundle, cross-checks a CSV row against the archive. Plus a **regression suite**: the old
+CSV header must be a strict prefix of the new one and existing columns byte-identical
+(SC-014), and the pre-existing 004 suites must pass **unmodified**.
+
+**Constraints (delta)**: every photo query joins through `Review.status = 已提交`
+(FR-028) — filtering at the join, not per caller, so the exclusion is structural; the bundle
+stays a `GET` (FR-012/SC-007); no existing CSV column is renamed, reordered or retyped
+(FR-035/SC-014); the ceiling is displayed here but enforced **only** by 003's upload route
+(FR-037) — nothing in 004 blocks anything.
+
+**One documented exception**: `PhotoStorageUsage.usedBytes` counts **all** photos, drafts
+included, because it measures disk consumption rather than review progress. Every other photo
+number on the dashboard is submitted-only. Called out here so it is not later read as an
+inconsistency with FR-028.
+
+## Constitution Check (re-evaluated)
+
+| # | Principle | Delta assessment |
+|---|-----------|------------------|
+| I | Spec-First Authority | Every new projection, route and column traces to FR-025..FR-037 / SC-011..SC-017. **PASS** |
+| II | Read-Only External Image Data | 004 reads no source file and writes none; the bundle is streamed from database rows. **PASS** |
+| III | No Open Registration | N/A. **PASS** |
+| IV | Least-Privilege, Server-Enforced Roles | New routes carry the same `adminReadRateLimiter` + `requireAuth` + `requireRole('ADMIN')` + `requirePasswordCurrent` chain; reviewers get 403. A draft photo's id returns 404, identical to an unknown id, so the error code itself confirms nothing (FR-028). **PASS** |
+| V | Security Baseline | Captions and panel free text are treated as untrusted and sanitized on output (FR-020); the CSV's new filename column goes through the same RFC-4180 escaping and formula-injection neutralization as every other free-text column (research D5); files are served with their stored, validated content type; bundle entry names are derived from server-side data, never from user-supplied filenames; admin read routes remain rate-limited. **PASS** |
+| VI | Immutability & Small-File Discipline | New code lands as a `photos/` slice beside the existing dashboard services; projections are built fresh per request and never written back. **PASS** |
+| VII | Test-First, ≥ 80% | TDD per US5 acceptance scenario, plus the draft-exclusion suite and the SC-014 append-only export regression. **PASS** |
+| VIII | Traditional Chinese Only | New copy (「附照片」「只看有附照片」「下載本圖全部材料」「已用 X GB／10 GB」) and the two new CSV headers (`參考照片張數`、`參考照片檔名`) are zh-TW verbatim. **PASS** |
+| IX | Accessibility & Clinician Readability | The work table's per-panel state is conveyed by text + icon (「3 位皆無問題」/「2 位標了問題」), never colour alone; the storage warning states the number, not just a colour change; download and filter controls are keyboard-operable (FR-024 unchanged). **PASS** |
+| X | Fixed Environment Constraints | No new port, container or volume. **PASS** |
+| XI | Catalog / Review Domain Separation | 004 reads 003's photo tables and writes nothing anywhere. **PASS** |
+
+**Result: PASS — no violations.**
+
+## Source Code (delta) — paths this amendment adds
+
+```text
+backend/
+├── prisma/schema.prisma                                # STILL UNCHANGED by 004
+├── src/
+│   ├── config/env.ts                                   # reads PHOTO_STORAGE_LIMIT_BYTES (owned by 003)
+│   └── admin-dashboard/
+│       ├── routes/admin-dashboard.routes.ts            # + GET images/:id/worktable | photos/:id/file
+│       │                                               #   | images/:id/photos.zip | storage
+│       ├── controllers/admin-photo.controller.ts       # work table, file stream, zip stream, storage
+│       ├── services/
+│       │   ├── work-table.service.ts                   # 已提交-only join → PanelGroup[4] + allClear
+│       │   ├── photo-bundle.service.ts                 # naming rule + composition (原始/標註/originalAsJpeg)
+│       │   └── photo-storage.readonly.ts               # SUM over ReviewPhoto byte columns + thresholds
+│       ├── repositories/photo-read.repository.ts       # READ-ONLY; every query starts from Review(已提交)
+│       ├── csv/export-photo-columns.ts                 # the two APPENDED columns only
+│       └── dto/work-table.dto.ts                       # ImageWorkTable / PanelGroup / ReviewerEntry / PhotoRef
+└── tests/
+    ├── unit/admin-dashboard/photos/                    # grouping, allClear, bundle naming, thresholds, csv append
+    └── integration/admin-dashboard/photos/             # 4 routes + draft-exclusion(×4 surfaces) + hasPhotos
+                                                        #   + empty zip + mutating-verb rejection + csv prefix
+
+frontend/
+├── src/
+│   ├── routes/admin/dashboard/ImageDrillDownPage.tsx   # becomes the work table (original + per-panel groups)
+│   ├── components/admin/dashboard/
+│   │   ├── PanelGroup.tsx                              # header counts + collapsed all-clear + reviewer entries
+│   │   ├── ReviewerEntry.tsx                           # judgement pills, notes, photo thumbs, per-entry download
+│   │   ├── BundleDownloadButton.tsx                    # 下載本圖全部材料
+│   │   ├── PhotoCountCell.tsx                          # 附照片 column
+│   │   └── StorageUsagePanel.tsx                       # 已用／上限 + 80% warning
+│   └── api/admin-dashboard.ts                          # + worktable / storage / bundle URL / hasPhotos filter
+└── tests/                                               # RTL: grouping, collapsed panels, storage thresholds
+
+e2e/
+└── admin-photos.spec.ts                                # US5: work table → bundle → CSV cross-check;
+                                                        #   draft photos absent everywhere
+```
+
+**Structure Decision (delta)**: the photo read paths land as a **separate `photos/` slice**
+with their own repository, whose every query starts from `Review` filtered to `已提交`.
+Concentrating that filter in one repository is what makes FR-028 structural rather than a
+rule four call sites must remember — and it is the difference between SC-012 being provable
+and being hoped for. The CSV change is confined to an append-only column module so the
+existing serializer (and therefore SC-014) is untouched.
+
+## Complexity Tracking (delta)
+
+No violations. One dependency added (a streaming ZIP writer) and justified in research D12:
+streaming keeps the archive off disk, which is what lets 004 remain a feature with no
+filesystem interaction and no state-changing route.

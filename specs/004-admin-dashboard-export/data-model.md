@@ -163,3 +163,114 @@ Review(已提交) ──1:4── PanelReview ──reads──┘
 # 004 writes NOTHING. No table, no enum, no migration. Active basis: FR-002/016/022.
 # HighRisk = single named constant HIGH_RISK_BLUEPRINT_IDS (002). Enums owned by 003 (FR-019).
 ```
+
+---
+
+# Amendment 2026-08-27 — 參考照片的唯讀投影（FR-025..FR-037）
+
+004 still **writes nothing**: no table, no enum, no migration. `ReviewPhoto` and
+`ReviewPhotoBlob` are owned by 003; everything below is a read-only projection over them,
+always joined through a `Review` whose `status = 已提交` (research D10).
+
+## Referenced entity (owned by 003 — read-only)
+
+**`ReviewPhoto`** — one photo attached by one reviewer to one review, bound to a panel
+(`panelIndex` 1..4) or to the image as a whole (`panelIndex = NULL`). 004 reads:
+`reviewId` (→ reviewer × blueprint), `panelIndex`, `caption`, `originalByteSize`,
+`annotatedByteSize`, `annotatedAt`, `sortOrder`, `createdAt`. 004 **never** reads
+`ReviewPhotoBlob` for listing or counting — only when streaming a single file or a bundle
+(research D12), and then by primary key.
+
+> **Draft exclusion is structural.** Every query below starts from `Review` filtered to
+> `已提交` and joins outward to photos — never from `ReviewPhoto` inward. A photo on a draft
+> review is unreachable by construction, not by a filter each caller must remember
+> (FR-028, research D10).
+
+## Projection: `ImageWorkTable`（修圖工作台，衍生、不可變）
+
+Replaces the flat shape of `ImageDrillDown` for the per-image view (research D11). One per
+blueprint.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `blueprintId` / `exerciseName` / `regionCode` / `isHighRisk` | — | From the catalog (002), read-only. |
+| `submittedReviewerCount` | int | Reviewers with a 已提交 review of this blueprint. |
+| `judgementDistribution` | `{通過, 需小修, 需重做}` | Unchanged from `ImageDrillDown`. |
+| `photoCount` | int | Total photos across all **submitted** reviews of this blueprint (FR-027). |
+| `panels` | `PanelGroup[4]` | One per 圖1..圖4, in index order. |
+| `imageLevelEntries` | `ReviewerEntry[]` | Entries whose photos have `panelIndex = NULL` (003 FR-046). |
+
+**`PanelGroup`**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `panelIndex` | 1..4 | — |
+| `stepName` | string | From the catalog panel (002), for orientation. |
+| `flaggedReviewerCount` | int | Submitting reviewers who did **not** mark this panel 無問題 (FR-027). |
+| `photoCount` | int | Photos on this panel across submitted reviews (FR-027). |
+| `allClear` | bool | True when every submitting reviewer marked 無問題 — the UI collapses these (research D11). |
+| `entries` | `ReviewerEntry[]` | One per submitting reviewer with something to show. |
+
+**`ReviewerEntry`**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `reviewerDisplayName` | string | — |
+| `isActive` | bool | 非在職 entries are retained and flagged, per FR-016. |
+| `overallJudgement` | enum | The image-level judgement, shown for context. |
+| `requiredWarnings` / `warningOther` / `problemTypes` / `problemNote` | — | From `PanelReview`, verbatim; free text sanitized on output (FR-020). |
+| `photos` | `PhotoRef[]` | This reviewer's photos for this panel. |
+| `submittedAt` | timestamptz | — |
+
+**`PhotoRef`**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `photoId` | string | — |
+| `caption` | string \| null | Free text, sanitized on output (FR-020). |
+| `hasAnnotated` | bool | Whether an annotated version exists. |
+| `urls` | `{ display, original, annotated? }` | Admin-scoped file routes; bytes are never inlined. |
+
+## Projection: `PhotoBundle`（照片打包，衍生）
+
+One per blueprint (research D12).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `blueprintId` | string | — |
+| `files` | `BundleFile[]` | Each with its in-archive name encoding 圖 × 分格 × 審查者 × 版本別 (FR-030). |
+| `totalFiles` / `totalBytes` | int | For the pre-download summary. |
+
+Composition rule (FR-030, research D12): for each submitted photo include the **original**
+and, when present, the **annotated** version. The display derivative is excluded. When the
+original is HEIC and no annotated version exists, 003's `originalAsJpeg` is included in its
+place so the archive always holds an openable file. `panelIndex = NULL` photos are named as
+整體 rather than a panel number.
+
+## Projection: `PhotoStorageUsage`（照片佔用空間，衍生）
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `usedBytes` | bigint | `SUM(originalByteSize + displayByteSize + COALESCE(annotatedByteSize,0))` over **all** photos — draft ones included, because disk is consumed regardless of review status. |
+| `limitBytes` | bigint | The configured ceiling; default 10 GiB (FR-037). |
+| `usedPercent` | number | — |
+| `warning` | `none` \| `approaching` \| `full` | `approaching` at ≥ 80 %, `full` at ≥ 100 % (FR-034). |
+
+> **The one place drafts are counted.** Usage measures storage consumption, not review
+> progress, so it deliberately spans drafts as well — an exception to research D10, called
+> out here so it is not read as an inconsistency. Every *other* photo number on the
+> dashboard is submitted-only. The byte columns live on `ReviewPhoto`, so this aggregate
+> never touches the blob table (003 research D11).
+
+## Relationship summary (updated)
+
+```text
+Review(已提交) 1 ──< ReviewPhoto 0..n            ← the ONLY path admin views may traverse
+Review(草稿)   1 ──< ReviewPhoto 0..n            ← invisible to 004 (FR-028) except in PhotoStorageUsage
+
+ImageWorkTable  = Blueprint(002) ⋈ Review(已提交) ⋈ PanelReview ⋈ ReviewPhoto, grouped by panelIndex
+PhotoBundle     = ImageWorkTable's photos → { original, annotated? | originalAsJpeg }
+ExportRecord    = unchanged columns + appended { photoCount, photoFilenames }   (research D13)
+
+# 004 still writes NOTHING. Photo tables are owned by 003.
+```

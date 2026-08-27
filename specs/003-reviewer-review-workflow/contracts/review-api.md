@@ -344,3 +344,144 @@ gates this behind a **reconfirm**; there is no request body.
 - **No** reviewer-facing field ever carries `aiPrompt` (FR-009).
 - **No** dashboard/aggregation/export route — cross-reviewer stats and export are **feature
   004**, out of scope here.
+
+---
+
+# Amendment 2026-08-27 — 參考照片端點（FR-045..FR-061）
+
+Six new routes under the existing `/api/reviews` router. Every one carries the same guard
+chain as routes 1–6 (`requireAuth` + `requireRole('REVIEWER')` + `requirePasswordCurrent`),
+and every mutation carries CSRF — the double-submit header check works unchanged with
+`multipart/form-data` because it reads `X-CSRF-Token`, not the body. `reviewerId` continues
+to come **only** from the session (FR-057, research D8).
+
+Photo routes are deliberately **separate from the debounced document `PATCH`** (route 4):
+they write immediately and a failed upload never endangers typed text (research D14).
+
+## New error codes
+
+| HTTP | `error.code` | zh-TW `message` | When |
+|------|--------------|-----------------|------|
+| 400 | `UNSUPPORTED_IMAGE_TYPE` | 僅支援 JPG／PNG／WebP 格式的照片 | display/annotated part fails magic-byte validation (research D16) |
+| 400 | `IMAGE_TOO_LARGE` | 照片檔案過大 | a single part exceeds the configured per-file cap |
+| 404 | `PHOTO_NOT_FOUND` | 找不到該照片 | unknown photo id, **or** a photo belonging to another reviewer (indistinguishable by design — FR-057) |
+| 409 | `PHOTO_STORAGE_FULL` | 照片儲存空間已滿，請聯絡管理員 | total photo storage is at the configured ceiling (FR-061, research D18) |
+
+> `PHOTO_STORAGE_FULL` MUST be raised **only** by the photo routes below. Routes 1–6
+> (open/autosave/submit/reset/progress/next) MUST continue to succeed when storage is full
+> (FR-061/SC-020), and deleting or annotating an existing photo MUST also still succeed.
+
+## Shared shape: `ReviewPhoto`
+
+```json
+{
+  "id": "clx…",
+  "panelIndex": 1,
+  "caption": "正確的收拳角度",
+  "annotated": true,
+  "sortOrder": 0,
+  "createdAt": "2026-08-27T01:48:00Z",
+  "urls": {
+    "display":   "/api/reviews/E3/photos/clx…/file?variant=display",
+    "original":  "/api/reviews/E3/photos/clx…/file?variant=original",
+    "annotated": "/api/reviews/E3/photos/clx…/file?variant=annotated"
+  }
+}
+```
+
+- `panelIndex` is `1..4`, or **`null`** for the image-level 整體參考照片 (FR-046).
+- `annotated` is a boolean convenience flag; `urls.annotated` is `null` when false.
+- Bytes are **never** inlined in a JSON response — always fetched through route 9.
+- The re-editable annotation content is **not** in this shape; it is fetched on demand by
+  route 11 so listing a review never carries it.
+
+## 7. `POST /api/reviews/:blueprintId/photos` — attach a photo
+
+`multipart/form-data`. CSRF required.
+
+| Part | Required | Notes |
+|------|----------|-------|
+| `original` | yes | The uploaded file, stored **byte-for-byte, never re-encoded** (FR-052). Wider allow-list than `display`: JPEG/PNG/WebP **and HEIC** (research D16). |
+| `display` | yes | Client-produced ~1600 px JPEG. Allow-list JPEG/PNG/WebP. |
+| `originalAsJpeg` | conditional | Only when `original` is HEIC; guarantees the admin bundle always contains an openable file (004 FR-030). |
+| `panelIndex` | no | `1..4`; omit for the image-level slot. |
+| `caption` | no | Free text, length-capped. |
+
+**Behaviour**: resolve (session reviewer × blueprint); if no `Review` exists, create one as
+`草稿` (FR-050); if it exists as `已提交`, keep `已提交`, refresh `lastUpdatedAt`, leave
+`submittedAt` untouched (FR-051). Validate every image part by magic bytes. Reject with
+`PHOTO_STORAGE_FULL` when the ceiling is reached (FR-061). There is **no per-panel cap**
+(FR-048).
+
+**Response 201** — `{ "success": true, "data": { "photo": ReviewPhoto, "reviewStatus": "草稿" }, "error": null }`
+
+- 400 `VALIDATION_ERROR` / `INVALID_PARAM` / `UNSUPPORTED_IMAGE_TYPE` / `IMAGE_TOO_LARGE`,
+  401 `AUTH_REQUIRED`, 403 `FORBIDDEN_ROLE` / `CSRF_INVALID`, 404 `BLUEPRINT_NOT_FOUND`,
+  409 `PHOTO_STORAGE_FULL`.
+
+## 8. `DELETE /api/reviews/:blueprintId/photos/:photoId` — remove a photo
+
+CSRF required. Own photos only; another reviewer's id returns `PHOTO_NOT_FOUND`, never 403
+(FR-057). Idempotent: deleting an already-deleted photo returns 200. Removing the last photo
+from a panel may make that panel unaddressed again — the submit gate re-evaluates at submit
+time (FR-049), this route does not block. Succeeds even when storage is full.
+
+**Response 200** — `{ "success": true, "data": { "deleted": true }, "error": null }`
+
+## 9. `GET /api/reviews/:blueprintId/photos/:photoId/file` — fetch bytes
+
+- Query `variant`: `display` (default) | `original` | `annotated`.
+- Own photos only. Serves the **stored, validated** content type; `Content-Disposition: inline`;
+  `Cache-Control: private`. Mirrors 002's read-only image route shape, but reads from the
+  database rather than the filesystem — there is no path involved and therefore no traversal
+  surface (research D11).
+- `variant=annotated` on an un-annotated photo → 404 `PHOTO_NOT_FOUND`.
+
+## 10. `PATCH /api/reviews/:blueprintId/photos/:photoId` — edit caption / order
+
+CSRF required. Body: `{ "caption": string|null, "sortOrder": number }` (both optional).
+Caption is preserved verbatim and sanitized on output (FR-047). Not part of the document
+autosave debounce.
+
+## 11. `GET /api/reviews/:blueprintId/photos/:photoId/annotation` — load annotation state
+
+Returns the re-editable annotation content for re-opening the editor (FR-056):
+`{ "success": true, "data": { "annotationState": { … } | null }, "error": null }`.
+Separate from the photo listing so the state is never carried by a workspace open.
+
+## 12. `PUT /api/reviews/:blueprintId/photos/:photoId/annotation` — save annotation
+
+`multipart/form-data`. CSRF required.
+
+| Part | Required | Notes |
+|------|----------|-------|
+| `annotated` | yes | Full-resolution flattened output. **Authoritative** artifact (research D17). |
+| `annotationState` | yes | JSON, the re-editable content. |
+
+**Behaviour**: stores both; **never** overwrites `original` or `display` (FR-052). Last write
+wins — no version history (FR-056). On an already-`已提交` review, status is preserved and
+`submittedAt` untouched (FR-051). Succeeds when storage is full **if** it does not increase
+total usage beyond the ceiling by more than the replaced artifact; a first-time annotation on
+a full store returns `PHOTO_STORAGE_FULL`.
+
+**Response 200** — `{ "success": true, "data": { "photo": ReviewPhoto }, "error": null }`
+
+## Changes to existing routes
+
+- **Route 3 `GET /api/reviews/:blueprintId`** — the `review` payload gains
+  `photos: ReviewPhoto[]` (all photos for this review, panel-bound and image-level together;
+  the client groups by `panelIndex`). No existing field changes shape.
+- **Route 5 `POST /api/reviews/:blueprintId/submit`** — `PANEL_REVIEW_INCOMPLETE` is now
+  raised only when a panel is neither `noProblem`, nor annotated in the document, **nor
+  carrying ≥ 1 photo**. The photo count is read **inside the submit transaction**, so a photo
+  uploaded moments before submit is always seen (FR-049, research D15).
+- **Route 6 `POST /api/reviews/:blueprintId/reset`** — the cascade removes the review's photos
+  and their bytes along with it (FR-059). Response shape unchanged.
+
+## Explicitly absent (by design)
+
+- No endpoint returns photo bytes inside a JSON envelope.
+- No endpoint lets a reviewer reach another reviewer's photo, by any id or filter (FR-057).
+- No per-panel photo cap is enforced anywhere (FR-048).
+- No admin-facing photo route lives here — the admin work table, counts, bundle download and
+  export belong to **004**, and read only photos of **submitted** reviews (004 FR-028).

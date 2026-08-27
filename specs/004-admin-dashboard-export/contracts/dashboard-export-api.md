@@ -279,3 +279,138 @@ There is **no** POST/PUT/PATCH/DELETE under `/api/admin/dashboard/*` or `/api/ad
 and **no** endpoint that creates, edits, or deletes a `Review`/`PanelReview`, runs a
 consensus/mediation flow (FR-018), or mutates any review judgement or note (FR-012). 004 is a
 pure read projection of the review + catalog domains (SC-007).
+
+---
+
+# Amendment 2026-08-27 — 參考照片端點（FR-025..FR-037）
+
+All new routes keep 004's defining properties: **`ADMIN`-only, GET-only, read-only, no
+CSRF** (the feature still has no state-changing request), behind the existing
+`adminReadRateLimiter` + `requireAuth` + `requireRole('ADMIN')` + `requirePasswordCurrent`
+chain. Every photo query joins through a `已提交` review, so draft photos are unreachable
+(FR-028, research D10).
+
+## New error codes
+
+| HTTP | `error.code` | zh-TW `message` | When |
+|------|--------------|-----------------|------|
+| 404 | `PHOTO_NOT_FOUND` | 找不到該照片 | unknown photo id, **or** a photo that belongs to a review that is not 已提交 (indistinguishable by design — FR-028) |
+
+## 6. `GET /api/admin/dashboard/images/:blueprintId/worktable` — 修圖工作台
+
+Returns an **`ImageWorkTable`** (see data-model). Supersedes route 4's flat shape for the
+per-image view; route 4 is retained unchanged for callers that only need the disagreement
+list (research D11).
+
+**Response 200** (abridged)
+```json
+{
+  "success": true,
+  "data": {
+    "blueprintId": "E3", "exerciseName": "媽媽手運動", "regionCode": "E", "isHighRisk": false,
+    "submittedReviewerCount": 3,
+    "judgementDistribution": { "通過": 1, "需小修": 2, "需重做": 0 },
+    "photoCount": 4,
+    "panels": [
+      {
+        "panelIndex": 1, "stepName": "Finkelstein 伸展",
+        "flaggedReviewerCount": 2, "photoCount": 2, "allClear": false,
+        "entries": [
+          {
+            "reviewerDisplayName": "審查者 A", "isActive": true,
+            "overallJudgement": "需小修",
+            "requiredWarnings": [], "warningOther": null,
+            "problemTypes": ["動作示範錯誤"],
+            "problemNote": "圖中拇指露在拳頭外面，應該要收進掌心再由四指握住。",
+            "photos": [
+              { "photoId": "clx…", "caption": "正確的收拳角度", "hasAnnotated": true,
+                "urls": { "display": "/api/admin/dashboard/photos/clx…/file?variant=display",
+                          "original": "/api/admin/dashboard/photos/clx…/file?variant=original",
+                          "annotated": "/api/admin/dashboard/photos/clx…/file?variant=annotated" } }
+            ],
+            "submittedAt": "2026-08-26T01:48:00Z"
+          }
+        ]
+      },
+      { "panelIndex": 2, "stepName": "拇指主動活動",
+        "flaggedReviewerCount": 0, "photoCount": 0, "allClear": true, "entries": [] }
+    ],
+    "imageLevelEntries": []
+  },
+  "error": null
+}
+```
+
+- `panels` is **always** length 4 in index order, even when a panel has no entries.
+- `allClear: true` means every submitting reviewer marked that panel 無問題; the UI collapses
+  it to one line (research D11).
+- Free text (`warningOther`, `problemNote`, `caption`) is sanitized on output (FR-020).
+- 非在職 reviewers' submitted entries are present and flagged `isActive: false` (FR-016).
+- Empty state: a blueprint with 0 submitted reviews returns 200 with
+  `submittedReviewerCount: 0`, `photoCount: 0`, four `allClear: false` panels with empty
+  `entries`, never an error (FR-021/SC-010).
+
+## 7. `GET /api/admin/dashboard/photos/:photoId/file` — 取得單張照片
+
+- Query `variant`: `display` (default) | `original` | `annotated`.
+- Serves the stored, validated content type; `Content-Disposition: inline`;
+  `Cache-Control: private`. Reads bytes by primary key from the blob table — no path is
+  involved, so there is no traversal surface (003 research D11).
+- A photo whose review is **not** `已提交` returns 404 `PHOTO_NOT_FOUND`, identical to an
+  unknown id (FR-028).
+- `variant=annotated` on an un-annotated photo → 404 `PHOTO_NOT_FOUND`.
+
+## 8. `GET /api/admin/dashboard/images/:blueprintId/photos.zip` — 下載本圖全部材料
+
+Streams a ZIP of every **submitted** photo for this blueprint (FR-029, research D12).
+Remains a `GET` so 004 stays CSRF-free and entirely read-only.
+
+- `Content-Type: application/zip`;
+  `Content-Disposition: attachment; filename="E3_媽媽手運動_參考照片.zip"`.
+- Contents per photo (FR-030): the **original**, plus the **annotated** version when one
+  exists. The display derivative is excluded. When the original is HEIC **and** there is no
+  annotated version, 003's `originalAsJpeg` is included in its place so the archive always
+  holds an openable file.
+- In-archive naming: `<blueprintId>_圖<panelIndex>_<審查者>_<序號>_原始.<ext>` and
+  `…_標註.jpg`; `panelIndex = NULL` photos use `整體` in place of `圖N`.
+- A blueprint with 0 submitted photos returns a valid **empty** archive with 200, not an
+  error (FR-021).
+- Streamed — no temporary file is written anywhere (research D12).
+
+## 9. `GET /api/admin/dashboard/storage` — 照片佔用空間
+
+**Response 200**
+```json
+{ "success": true,
+  "data": { "usedBytes": 3221225472, "limitBytes": 10737418240,
+            "usedPercent": 30.0, "warning": "none" },
+  "error": null }
+```
+
+- `warning`: `none` | `approaching` (≥ 80 %) | `full` (≥ 100 %) (FR-034).
+- `usedBytes` spans **all** photos including drafts — it measures disk consumption, not
+  review progress. This is the single documented exception to the submitted-only rule
+  (data-model, `PhotoStorageUsage`).
+- The ceiling is enforced by **003's upload route only**; nothing here blocks anything
+  (FR-037, 003 FR-061).
+
+## Changes to existing routes
+
+- **Route 3 `GET /api/admin/dashboard/images`** — each row gains `photoCount` (submitted-only),
+  and the query accepts `hasPhotos=true` to list only blueprints with ≥ 1 submitted photo
+  (FR-031). Existing fields and filters are unchanged.
+- **Route 5 `GET /api/admin/export/reviews.csv`** — two columns **appended after** the
+  existing ones (FR-032, research D13): `參考照片張數` and `參考照片檔名`（the same
+  delimited-set encoding as the other multi-value columns, per D4, escaped and
+  formula-neutralized per D5). **No existing column is renamed, reordered or retyped**
+  (FR-035/SC-014). Image bytes never enter the CSV; the filenames are the join key into the
+  bundle from route 8.
+- **Route 4 `GET /api/admin/dashboard/images/:blueprintId`** — unchanged; route 6 is the new
+  richer view, not a replacement of this contract.
+
+## Explicitly absent (by design)
+
+- No route mutates anything — 004 remains GET-only and CSRF-free (FR-012/FR-036/SC-007/SC-016).
+- No route exposes a photo belonging to a **draft** review, by any id or filter (FR-028).
+- No global "all 51 blueprints" bundle this round (FR-033, research D12).
+- No route returns photo bytes inside a JSON envelope.
