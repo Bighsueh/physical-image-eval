@@ -114,18 +114,60 @@ test('US8: another reviewer never sees the photo', async ({ page }) => {
 });
 
 test('US9: the annotation editor is not in the bundle until it is asked for', async ({ page }) => {
-  const editorChunks: string[] = [];
+  // Match on "a script was fetched", not on its name: a production build hashes chunk filenames,
+  // so asserting they contain "filerobot" passes in dev and silently misses in prod.
+  const scripts: string[] = [];
   page.on('request', (req) => {
-    if (/filerobot|konva/i.test(req.url())) editorChunks.push(req.url());
+    if (req.resourceType() === 'script') scripts.push(req.url());
   });
 
   await login(page, reviewer);
   await page.goto('/review/E1');
   await expect(page.getByText('已上傳 1 張').first()).toBeVisible();
-  // Opening a review with photos must not have cost anyone the editor download.
-  expect(editorChunks).toHaveLength(0);
+  const beforeClick = scripts.length;
 
   await page.getByRole('button', { name: '標註' }).first().click();
   await expect(page.getByRole('dialog', { name: '標註照片' })).toBeVisible({ timeout: 20_000 });
-  expect(editorChunks.length).toBeGreaterThan(0);
+
+  // Opening a review with photos cost nobody the editor; pressing 標註 is what fetches it.
+  expect(scripts.length).toBeGreaterThan(beforeClick);
+});
+
+test('FR-062: a blocked submit explains itself, and the inline warning survives dismissal', async ({ page }) => {
+  await login(page, reviewer);
+  await page.goto('/review/E4');
+
+  // No 整體判定 yet — the first thing that blocks.
+  await page.getByRole('button', { name: /提交並前往下一張/ }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('還不能提交');
+  await expect(dialog).toContainText('整體判定');
+  // Both at once (FR-062): the modal makes it noticed, the inline text keeps it visible.
+  // Scoped to the submit bar's own alert — the modal body repeats the same words, and the
+  // active panel shows its own alert once panels are flagged.
+  const inlineWarning = page.locator('#overall-judgement-error');
+  await expect(inlineWarning).toHaveText(/請先選擇整體判定/);
+
+  await dialog.getByRole('button', { name: '知道了' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(inlineWarning).toHaveText(/請先選擇整體判定/); // survives dismissal
+
+  // Judgement chosen; now the unhandled panels are what blocks — and the dialog NAMES them.
+  await page.getByRole('radio', { name: /需小修/ }).click();
+  await page.getByRole('button', { name: /提交並前往下一張/ }).click();
+  await expect(dialog).toContainText('尚未處理');
+  await expect(dialog).toContainText('圖 1');
+  await expect(inlineWarning).toHaveText(/每個分格請勾選/);
+
+  // The action is the way out: it takes the reviewer to the first unhandled panel.
+  await dialog.getByRole('button', { name: /前往圖 1/ }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('tab', { name: /圖 1/ })).toHaveAttribute('aria-selected', 'true');
+
+  // Fix everything; the dialog must not reappear and the submit goes through.
+  await page.getByRole('button', { name: '全部標示無問題' }).click();
+  await page.getByRole('button', { name: /提交並前往下一張/ }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page).not.toHaveURL(/\/review\/E4$/);
 });

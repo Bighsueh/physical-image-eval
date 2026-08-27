@@ -428,3 +428,14 @@ review corpus — once the migration is applied it cannot be taken retroactively
 - **Increment 1** = Phase 11 + Phase 12 (US8). Stop and validate: a reviewer can attach photos, they survive reload, a photo alone satisfies the panel gate, and submitted reviews accept photos without regressing. This alone delivers the feature's core value.
 - **Increment 2** = Phase 13 (US9). Annotation is additive and can ship later without blocking anything.
 - **Gate before release** = Phase 14, specifically T138/T139/T140 — if any of the three fails, the change is not additive and must not ship.
+
+---
+
+# Amendment 2026-08-28 — 提交被擋下時的說明對話框（FR-062）
+
+- [X] T147 Add `frontend/src/components/ui/AlertDialog.tsx` — an accessible `role="alertdialog"` modal that *explains* a refused action: focus trap, Esc/backdrop/button dismiss, scroll lock, focus returned to the trigger, and an optional action that resolves the problem
+- [X] T148 Wire it into `frontend/src/routes/ReviewWorkspacePage.tsx`: a blocked submit now raises the dialog **alongside** the existing inline warning; the panel case names the unhandled panel numbers, and the action jumps to the first of them
+- [X] T149 `frontend/tests/review/blocked-submit.test.tsx` — role/aria, focus on the action (and on dismiss when no action exists), Esc/backdrop/button dismissal, tab trap, scroll lock, focus restoration
+- [X] T150 `e2e/review-photos.spec.ts` — inline warning and dialog appear together, the inline warning survives dismissal, the panel numbers are named, the action switches to that panel, and a fixed submit raises no dialog
+
+**Found while implementing**: with no action button the dialog focused nothing, leaving a keyboard user's focus outside the modal where Tab could reach the page behind it. The dismiss button is now the fallback focus target.

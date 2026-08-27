@@ -24,7 +24,7 @@ import { useReviewPhotos } from '../hooks/useReviewPhotos';
 import type { ReviewPhoto } from '../api/review-photos';
 import type { PanelReviewHandlers } from '../components/review/PanelReviewForm';
 import { OVERALL_ERROR_ID, SubmitBar } from '../components/review/SubmitBar';
-import { AppHeader, Card, ConfirmDialog, HighRiskBadge, ProgressBar } from '../components/ui';
+import { AlertDialog, AppHeader, Card, ConfirmDialog, HighRiskBadge, ProgressBar } from '../components/ui';
 import { useAutosaveReview } from '../hooks/useAutosaveReview';
 import { useReviewKeyboard } from '../hooks/useReviewKeyboard';
 import { REVIEW_TOUR_SEEN_KEY, startReviewTour } from '../lib/reviewTour';
@@ -68,6 +68,15 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
   const bp = data.blueprint;
   const [draft, dispatch] = useReducer(reviewDraftReducer, data.review, reviewToDraft);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  /**
+   * Why a submit was refused, shown as a modal ON TOP OF the inline message (FR-062). The inline
+   * message alone is easy to miss — reviewers pressed the button, nothing visibly happened, and
+   * they had no idea what was wrong. The modal makes it noticed; the inline text keeps it visible
+   * after dismissal.
+   */
+  const [blocked, setBlocked] = useState<
+    { kind: 'judgement' } | { kind: 'panels'; panels: number[] } | null
+  >(null);
   const [completed, setCompleted] = useState(false);
   const [activePanel, setActivePanel] = useState(1);
   const [panelErrors, setPanelErrors] = useState(false);
@@ -206,7 +215,7 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
     const d = draftRef.current;
     if (!d.overallJudgement) {
       setSubmitError(VALIDATION_ERRORS.judgement);
-      document.getElementById('overall-judgement-anchor')?.scrollIntoView?.({ block: 'center' });
+      setBlocked({ kind: 'judgement' });
       return;
     }
     const unaddressed = d.panels
@@ -215,13 +224,31 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
     if (unaddressed.length > 0) {
       setSubmitError(VALIDATION_ERRORS.panel);
       setPanelErrors(true);
-      setActivePanel(unaddressed[0]); // jump to the first panel that needs handling
+      setBlocked({ kind: 'panels', panels: unaddressed });
       return;
     }
     setSubmitError(null);
     setPanelErrors(false);
+    setBlocked(null);
     submitMutate();
   }, [submitMutate, photoCtl]);
+
+  /**
+   * Dismissing the dialog leaves the inline warning standing (FR-062) and moves the reviewer to
+   * the thing that needs fixing — scrolling to 整體判定, or switching to the first unhandled panel.
+   * The jump happens on dismissal rather than on the blocked click, so the modal is read before
+   * the page moves under it.
+   */
+  const resolveBlocked = useCallback(() => {
+    const current = blocked;
+    setBlocked(null);
+    if (!current) return;
+    if (current.kind === 'judgement') {
+      document.getElementById('overall-judgement-anchor')?.scrollIntoView?.({ block: 'center' });
+    } else {
+      setActivePanel(current.panels[0]);
+    }
+  }, [blocked]);
 
   const onJudge = useCallback((v: OverallJudgement) => dispatch({ type: 'overall', value: v }), []);
   useReviewKeyboard({ onJudge, onSubmit: doSubmit });
@@ -427,6 +454,31 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
           }}
         />
       )}
+
+      <AlertDialog
+        open={blocked !== null}
+        title="還不能提交"
+        actionLabel={
+          blocked?.kind === 'panels' ? `前往圖 ${blocked.panels[0]}` : '前往選擇整體判定'
+        }
+        onAction={resolveBlocked}
+        onDismiss={resolveBlocked}
+      >
+        {blocked?.kind === 'judgement' ? (
+          <p>
+            請先選擇<strong>整體判定</strong>（通過／需小修／需重做）。這是每份審查都必須有的結論。
+          </p>
+        ) : (
+          <>
+            <p>
+              還有 <strong>圖 {blocked?.panels.join('、圖 ')}</strong> 尚未處理。
+            </p>
+            <p className="mt-2 text-ink-soft">
+              每個分格請勾選「此分格無問題」，或標注問題——警語、問題類型、問題說明、參考照片，任一項都算。
+            </p>
+          </>
+        )}
+      </AlertDialog>
 
       <ConfirmDialog
         open={resetOpen}
