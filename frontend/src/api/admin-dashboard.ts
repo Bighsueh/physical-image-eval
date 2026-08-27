@@ -33,6 +33,8 @@ export interface ImageRow {
   distribution: { 通過: number; 需小修: number; 需重做: number };
   hasRedo: boolean;
   inactiveSubmittedCount: number;
+  /** Photos on SUBMITTED reviews of this blueprint (FR-031). Optional: additive to the row. */
+  photoCount?: number;
 }
 export interface DrillDownRow {
   accountId: string;
@@ -53,6 +55,7 @@ export interface ImageFilters {
   hasRedo?: boolean;
   highRisk?: boolean;
   notFullyCovered?: boolean;
+  hasPhotos?: boolean;
 }
 
 const filterQuery = (f: ImageFilters): string => {
@@ -60,6 +63,7 @@ const filterQuery = (f: ImageFilters): string => {
   if (f.hasRedo) qs.set('hasRedo', 'true');
   if (f.highRisk) qs.set('highRisk', 'true');
   if (f.notFullyCovered) qs.set('notFullyCovered', 'true');
+  if (f.hasPhotos) qs.set('hasPhotos', 'true');
   return qs.toString() ? `?${qs.toString()}` : '';
 };
 
@@ -93,3 +97,59 @@ export const downloadExport = async (filters: ImageFilters = {}): Promise<void> 
   a.remove();
   URL.revokeObjectURL(url);
 };
+
+// ── Reference photos (2026-08-27) ────────────────────────────────────────────
+// All GET, all read-only — 004 has no mutating request.
+
+export interface AdminPhotoRef {
+  photoId: string;
+  caption: string | null;
+  hasAnnotated: boolean;
+  urls: { display: string; original: string; annotated: string | null };
+}
+export interface WorkTableEntry {
+  reviewerDisplayName: string;
+  isActive: boolean;
+  overallJudgement: string | null;
+  requiredWarnings: string[];
+  warningOther: string | null;
+  problemTypes: string[];
+  problemNote: string | null;
+  photos: AdminPhotoRef[];
+  submittedAt: string | null;
+}
+export interface WorkTablePanel {
+  panelIndex: number;
+  stepName: string;
+  flaggedReviewerCount: number;
+  photoCount: number;
+  allClear: boolean;
+  entries: WorkTableEntry[];
+}
+export interface WorkTableData {
+  blueprintId: string;
+  exerciseName: string;
+  regionCode: string;
+  isHighRisk: boolean;
+  submittedReviewerCount: number;
+  judgementDistribution: Record<string, number>;
+  photoCount: number;
+  panels: WorkTablePanel[];
+  imageLevelEntries: WorkTableEntry[];
+}
+export interface StorageUsage {
+  usedBytes: number;
+  limitBytes: number;
+  usedPercent: number;
+  warning: 'none' | 'approaching' | 'full';
+}
+
+export const getWorkTable = (blueprintId: string) =>
+  apiFetch<WorkTableData>(`/admin/dashboard/images/${blueprintId}/worktable`).then((r) => r.data);
+
+export const getStorageUsage = () =>
+  apiFetch<StorageUsage>('/admin/dashboard/storage').then((r) => r.data);
+
+/** The per-image archive is a plain GET, so the browser can fetch it directly. */
+export const bundleUrl = (blueprintId: string): string =>
+  `/api/admin/dashboard/images/${blueprintId}/photos.zip`;

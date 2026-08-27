@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, Paperclip } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { ImageRow } from '../../../api/admin-dashboard';
 import { Card, HighRiskBadge, StatusPill } from '../../ui';
@@ -13,6 +13,7 @@ export function ImageCoverageTable({ rows }: { rows: ImageRow[] }) {
             <th className="px-4 py-3 font-medium">藍圖</th>
             <th className="px-4 py-3 font-medium">覆蓋</th>
             <th className="px-4 py-3 font-medium">判定分佈（在職）</th>
+            <th className="px-4 py-3 font-medium text-right">附照片</th>
             <th className="px-4 py-3 font-medium" />
           </tr>
         </thead>
@@ -47,6 +48,17 @@ export function ImageCoverageTable({ rows }: { rows: ImageRow[] }) {
                   <span>需小修 {i.distribution.需小修}</span>
                   {i.hasRedo ? <StatusPill status="redo" size="sm" /> : <span>需重做 0</span>}
                 </span>
+              </td>
+              <td className="px-4 py-3 text-right nums">
+                {(i.photoCount ?? 0) > 0 ? (
+                  <span className="inline-flex items-center gap-0.5 rounded-full border border-warn bg-warn-tint px-2 text-xs font-semibold text-warn-deep">
+                    <Paperclip className="w-3 h-3" aria-hidden="true" />
+                    {i.photoCount}
+                    <span className="sr-only">張參考照片</span>
+                  </span>
+                ) : (
+                  <span className="text-ink-soft">—</span>
+                )}
               </td>
               <td className="px-4 py-3 text-right">
                 <Link to={`/admin/dashboard/images/${i.blueprintId}`} className="text-primary-deep hover:underline">

@@ -1,6 +1,6 @@
 import type { ImageFilters as Filters } from '../../../api/admin-dashboard';
 
-/** Combinable image filters (含需重做 / 高風險 / 尚未達全覆蓋). Keyboard-operable checkboxes. */
+/** Combinable image filters (含需重做 / 高風險 / 尚未達全覆蓋 / 只看有附照片). Keyboard-operable checkboxes. */
 export function ImageFilters({ value, onChange }: { value: Filters; onChange: (f: Filters) => void }) {
   const Toggle = ({ field, label }: { field: keyof Filters; label: string }) => (
     <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-full border border-border bg-surface px-3 py-1.5 text-sm hover:bg-surface-sunken">
@@ -18,6 +18,8 @@ export function ImageFilters({ value, onChange }: { value: Filters; onChange: (f
       <Toggle field="hasRedo" label="含需重做" />
       <Toggle field="highRisk" label="高風險" />
       <Toggle field="notFullyCovered" label="尚未達全覆蓋" />
+      {/* Rides with the 附照片 column (FR-031): which images already have material waiting. */}
+      <Toggle field="hasPhotos" label="只看有附照片" />
     </div>
   );
 }

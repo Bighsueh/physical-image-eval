@@ -8,6 +8,7 @@ import {
   type ImageFilters as Filters,
 } from '../../../api/admin-dashboard';
 import { CompletionSummary } from '../../../components/admin/dashboard/CompletionSummary';
+import { StorageUsagePanel } from '../../../components/admin/dashboard/StorageUsagePanel';
 import { ExportButton } from '../../../components/admin/dashboard/ExportButton';
 import { ImageCoverageTable } from '../../../components/admin/dashboard/ImageCoverageTable';
 import { ImageFilters } from '../../../components/admin/dashboard/ImageFilters';
@@ -35,6 +36,8 @@ export function DashboardPage() {
         <section className="space-y-3">
           <h2 className="text-2xl font-bold text-ink">整體進度</h2>
           {overview.data && <CompletionSummary data={overview.data} />}
+          {/* Capacity is close enough to plausible usage that it must be visible before it bites. */}
+          <StorageUsagePanel />
         </section>
 
         <section className="space-y-3">
