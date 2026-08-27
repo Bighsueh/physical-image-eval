@@ -46,6 +46,11 @@ services:
       ARGON2_PARALLELISM: ${ARGON2_PARALLELISM:-1}
       LOGIN_RATE_MAX: ${LOGIN_RATE_MAX:-10}
       LOGIN_RATE_WINDOW: ${LOGIN_RATE_WINDOW:-15m}
+      ADMIN_READ_RATE_MAX: ${ADMIN_READ_RATE_MAX:-200}
+      # Reference photos (2026-08-27). The ceiling constrains photo UPLOADS only — review
+      # submission must never be blocked by storage pressure.
+      PHOTO_STORAGE_LIMIT_BYTES: ${PHOTO_STORAGE_LIMIT_BYTES:-10737418240}
+      PHOTO_MAX_FILE_BYTES: ${PHOTO_MAX_FILE_BYTES:-26214400}
       BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?set a strong bootstrap admin password}
     # SEC-M1: do NOT publish 3100 to the host in prod — the frontend nginx reaches the backend over

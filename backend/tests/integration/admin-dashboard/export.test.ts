@@ -28,7 +28,15 @@ describe('admin CSV export (US2)', () => {
     expect(res.text.charCodeAt(0)).toBe(0xfeff); // BOM
 
     const lines = parseRows(res.text);
-    expect(lines[0]).toBe(EXPORT_HEADER.join(','));
+    // UPDATED 2026-08-27: FR-032 appends 參考照片張數／參考照片檔名. The property the spec
+    // actually requires is SC-014 — the old header must remain a strict PREFIX — which this
+    // assertion now checks. Exact equality was a stronger claim than the contract ever made,
+    // and it is the only pre-existing assertion the photo work had to touch.
+    expect(lines[0].startsWith(EXPORT_HEADER.join(','))).toBe(true);
+    expect(lines[0].split(',').slice(EXPORT_HEADER.length)).toEqual([
+      '參考照片張數',
+      '參考照片檔名',
+    ]);
     expect(lines).toHaveLength(1 + 4); // header + 4 submitted (R1×2, R2×1, R4×1); the S3 draft excluded
     expect(res.text).not.toContain('S3'); // draft blueprint never appears
     // 非在職 reviewer flagged, redo row present
@@ -36,10 +44,11 @@ describe('admin CSV export (US2)', () => {
     expect(res.text).toContain('需重做');
   });
 
-  it('hasRedo filter narrows rows but keeps the 27-column structure', async () => {
+  it('hasRedo filter narrows rows but keeps the column structure', async () => {
     const res = await admin.agent.get('/api/admin/export/reviews.csv?hasRedo=true');
     const lines = parseRows(res.text);
-    expect(lines[0].split(',')).toHaveLength(EXPORT_HEADER.length);
+    // The original columns plus the two appended photo columns (FR-032/SC-014).
+    expect(lines[0].split(',')).toHaveLength(EXPORT_HEADER.length + 2);
     // only S1 rows (S1 has the 需重做); S2 (no redo) excluded
     expect(lines.slice(1).every((l) => l.includes(',S1,'))).toBe(true);
     expect((await admin.agent.get('/api/admin/export/reviews.csv?hasRedo=nope')).status).toBe(400);

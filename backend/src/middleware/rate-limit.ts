@@ -42,7 +42,10 @@ export const loginRateLimiter = makeLoginRateLimiter(env.LOGIN_RATE_MAX, env.LOG
  */
 export const adminReadRateLimiter: RequestHandler = rateLimit({
   windowMs: 60_000,
-  max: 200,
+  // Env-driven for the same reason the login limiter is (001): every request in a test run
+  // shares one IP, so a fixed ceiling turns into intermittent 429s that look like auth bugs.
+  // Production keeps the 200/min default.
+  max: env.ADMIN_READ_RATE_MAX,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {

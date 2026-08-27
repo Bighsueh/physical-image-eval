@@ -9,6 +9,8 @@ export interface ImageFilters {
   hasRedo?: boolean;
   highRisk?: boolean;
   notFullyCovered?: boolean;
+  /** Only blueprints carrying ≥1 photo on a SUBMITTED review (FR-031, 2026-08-27). */
+  hasPhotos?: boolean;
 }
 
 export const applyImageFilters = (images: ImageProgress[], f: ImageFilters): ImageProgress[] =>
@@ -16,5 +18,6 @@ export const applyImageFilters = (images: ImageProgress[], f: ImageFilters): Ima
     (i) =>
       (!f.hasRedo || i.hasRedo) &&
       (!f.highRisk || i.isHighRisk) &&
-      (!f.notFullyCovered || i.missingReviewers.length > 0),
+      (!f.notFullyCovered || i.missingReviewers.length > 0) &&
+      (!f.hasPhotos || (i.photoCount ?? 0) > 0),
   );

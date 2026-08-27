@@ -24,7 +24,11 @@ const runSerializable = async <T>(fn: (tx: Prisma.TransactionClient) => Promise<
       });
     } catch (err) {
       const conflict = err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034';
-      if (conflict && attempt < 3) continue;
+      // Raised from 3 (2026-08-27): the submit path now also reads per-panel photo counts
+      // inside this transaction (FR-049), which widens the window in which a concurrent
+      // autosave can lose the serialization race. Retrying is always safe here — the whole
+      // body re-reads committed state.
+      if (conflict && attempt < 6) continue;
       throw err;
     }
   }

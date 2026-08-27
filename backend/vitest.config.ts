@@ -34,6 +34,8 @@ export default defineConfig({
       // High max so functional tests never trip the limiter; the limiter's 429 path is tested
       // in isolation with its own low-max instance.
       LOGIN_RATE_MAX: '1000',
+      // Same rationale as LOGIN_RATE_MAX above: one IP for the whole suite.
+      ADMIN_READ_RATE_MAX: '100000',
       LOGIN_RATE_WINDOW: '15m',
       BOOTSTRAP_ADMIN_USERNAME: 'bootstrap-admin',
       BOOTSTRAP_ADMIN_PASSWORD: 'bootstrap-pass-123',

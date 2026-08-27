@@ -1,6 +1,8 @@
 import { catalogService } from '../../catalog/services/catalog.service';
 import { HIGH_RISK_BLUEPRINT_IDS } from '../constants/dashboard-constants';
 import { buildExportRow, type ExportBlueprintRef } from '../dto/export-record.dto';
+import { photoColumnsFor } from '../csv/export-photo-columns';
+import { photoReadRepository, type AdminPhotoRow } from '../repositories/photo-read.repository';
 import { reviewReadRepository, type SubmittedReview } from '../repositories/review-read.repository';
 
 /**
@@ -20,6 +22,13 @@ export const exportService = {
       reviewReadRepository.listSubmittedReviews(),
       catalogService.listBlueprints({}),
     ]);
+
+    // Photos for every blueprint that appears in the export, fetched once. The repository joins
+    // through submitted reviews only, so a draft's photos can never leak into a row (FR-028).
+    const photosByBlueprint = new Map<string, AdminPhotoRow[]>();
+    for (const code of new Set(subs.map((s) => s.blueprintCode))) {
+      photosByBlueprint.set(code, await photoReadRepository.listForBlueprint(code));
+    }
 
     const refByCode = new Map<string, ExportBlueprintRef>(
       blueprints.map((b) => [b.blueprintId, { exerciseName: b.exerciseName, regionCode: b.regionCode, isHighRisk: b.isHighRisk }]),
@@ -43,8 +52,13 @@ export const exportService = {
       return a.reviewer.displayName.localeCompare(b.reviewer.displayName, 'zh-Hant');
     });
 
-    return sorted.map((s) =>
-      buildExportRow(s, refByCode.get(s.blueprintCode) ?? { exerciseName: '', regionCode: '', isHighRisk: false }),
-    );
+    return sorted.map((s) => [
+      ...buildExportRow(
+        s,
+        refByCode.get(s.blueprintCode) ?? { exerciseName: '', regionCode: '', isHighRisk: false },
+      ),
+      // Appended, so the existing columns keep their positions and values exactly (SC-014).
+      ...photoColumnsFor(s.blueprintCode, s.reviewer.id, photosByBlueprint),
+    ]);
   },
 };

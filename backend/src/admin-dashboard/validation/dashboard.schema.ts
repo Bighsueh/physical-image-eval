@@ -10,6 +10,7 @@ export const imageFilterSchema = z.object({
   hasRedo: boolFlag,
   highRisk: boolFlag,
   notFullyCovered: boolFlag,
+  hasPhotos: boolFlag,
 });
 
 export const exportFilterSchema = z.object({

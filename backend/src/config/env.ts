@@ -47,6 +47,8 @@ const envSchema = z.object({
 
   LOGIN_RATE_MAX: z.coerce.number().int().positive(),
   LOGIN_RATE_WINDOW: durationSchema, // rate-limit window (ms)
+  /** Per-IP cap for the ADMIN read/export routes (defense-in-depth against bulk exfiltration). */
+  ADMIN_READ_RATE_MAX: z.coerce.number().int().positive().default(200),
 
   // Reference photos (003 amendment). Total-store ceiling and per-file cap. The ceiling
   // constrains ONLY the photo upload path — never review submission (FR-061/SC-020).

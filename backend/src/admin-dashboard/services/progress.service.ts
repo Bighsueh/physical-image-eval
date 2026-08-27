@@ -2,6 +2,7 @@ import { catalogService } from '../../catalog/services/catalog.service';
 import { AppError } from '../../lib/errors';
 import { INDICATION_ID_TO_ZH, OVERALL_ID_TO_ZH } from '../../reviews/dto/enum-maps';
 import { HIGH_RISK_BLUEPRINT_IDS, TOTAL_BLUEPRINTS } from '../constants/dashboard-constants';
+import { photoReadRepository } from '../repositories/photo-read.repository';
 import {
   reviewReadRepository,
   type ReviewerAccount,
@@ -34,6 +35,12 @@ export interface ImageProgress {
   distribution: Distribution;
   hasRedo: boolean;
   inactiveSubmittedCount: number;
+  /**
+   * Reference photos on SUBMITTED reviews of this blueprint (FR-031, 2026-08-27). Optional so
+   * the field is additive: the projection builder fills it, but nothing that predates photos
+   * has to know about it.
+   */
+  photoCount?: number;
 }
 
 const subsFor = (subs: SubmittedReview[], code: string) => subs.filter((s) => s.blueprintCode === code);
@@ -163,7 +170,11 @@ export const progressService = {
       reviewReadRepository.listSubmittedReviews(),
       catalogService.listBlueprints({}),
     ]);
-    const all = buildImageProgress(reviewers, subs, blueprints.map(toRef));
+    const photoCounts = await photoReadRepository.countsByBlueprint();
+    const all = buildImageProgress(reviewers, subs, blueprints.map(toRef)).map((i) => ({
+      ...i,
+      photoCount: photoCounts.get(i.blueprintId) ?? 0,
+    }));
     return { all, filtered: applyImageFilters(all, filters) };
   },
 

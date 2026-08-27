@@ -13,7 +13,7 @@ import { JPEG_BYTES, JPEG_BYTES_2, NOT_AN_IMAGE, PNG_BYTES, uploadPhoto } from '
  */
 describe('reference photos — annotation (US9)', () => {
   let r: SeededAgent;
-  const DESIGN_STATE = {
+  const DESIGN_STATE: Record<string, unknown> = {
     annotations: {
       'arrow-1': { name: 'Arrow', x: 76, y: 17, stroke: '#E0483C', strokeWidth: 6 },
     },
@@ -27,7 +27,12 @@ describe('reference photos — annotation (US9)', () => {
     r = await reviewerAgent(app);
   });
 
-  const annotate = (code: string, photoId: string, annotated = PNG_BYTES, state = DESIGN_STATE) =>
+  const annotate = (
+    code: string,
+    photoId: string,
+    annotated = PNG_BYTES,
+    state: Record<string, unknown> = DESIGN_STATE,
+  ) =>
     r.agent
       .put(`/api/reviews/${code}/photos/${photoId}/annotation`)
       .set('X-CSRF-Token', r.csrf)
