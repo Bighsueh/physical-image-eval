@@ -24,6 +24,16 @@ export const ERRORS = {
   // Review workflow (feature 003).
   OVERALL_JUDGEMENT_REQUIRED: { status: 400, message: '請先選擇整體判定' },
   PANEL_REVIEW_INCOMPLETE: { status: 400, message: '每個分格請勾選「無問題」或標注問題' },
+  // Reference photos (feature 003 amendment 2026-08-27).
+  UNSUPPORTED_IMAGE_TYPE: { status: 400, message: '僅支援 JPG／PNG／WebP 格式的照片' },
+  IMAGE_TOO_LARGE: { status: 400, message: '照片檔案過大' },
+  // A photo belonging to another reviewer MUST be indistinguishable from a nonexistent one —
+  // returning 403 would confirm the id exists (FR-057). Same code serves 004's admin routes,
+  // where a photo on a non-submitted review is likewise reported as absent (004 FR-028).
+  PHOTO_NOT_FOUND: { status: 404, message: '找不到該照片' },
+  // Raised ONLY by the photo upload/annotation routes — review submission must never be
+  // blocked by storage pressure (FR-061/SC-020).
+  PHOTO_STORAGE_FULL: { status: 409, message: '照片儲存空間已滿，請聯絡管理員' },
   // Infra codes (not in the contract table but used by the 404 / fallthrough handlers).
   NOT_FOUND: { status: 404, message: '找不到資源' },
   INTERNAL_ERROR: { status: 500, message: '伺服器發生錯誤' },

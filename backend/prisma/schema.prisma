@@ -263,6 +263,7 @@ model Review {
   submittedAt         DateTime?            @db.Timestamptz(6)
   lastUpdatedAt       DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
   panels              PanelReview[]
+  photos              ReviewPhoto[] // 2026-08-27 amendment — virtual relation, emits no column
 
   @@unique([reviewerId, blueprintCode])
   // No standalone @@index([reviewerId]) — the unique + [reviewerId, status] indexes already cover
@@ -287,4 +288,66 @@ model PanelReview {
   createdAt        DateTime      @default(now()) @db.Timestamptz(6)
 
   @@unique([reviewId, panelIndex])
+}
+
+// ── Reference photos (feature 003 amendment 2026-08-27) ─────────────────────
+// Purely ADDITIVE: two new tables, no column added/renamed/dropped on any existing model.
+// The `Review.photos` field above is a Prisma relation field only — it produces no SQL column.
+
+/// 參考照片 — one photo a reviewer attached to their own review, to show 「正確動作應為何」
+/// where prose is ambiguous. Metadata only; the bytes live in `ReviewPhotoBlob`.
+///
+/// Hangs off `Review`, NOT `PanelReview`: the autosave writer snapshot-replaces all four
+/// `PanelReview` rows (deleteMany + createMany) on every debounced draft save, so anything
+/// parented there would be destroyed the first time the reviewer typed (research D12).
+model ReviewPhoto {
+  id         String  @id @default(cuid())
+  reviewId   String
+  review     Review  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  /// 1..4 binds the photo to 圖1..圖4; NULL = 圖層級「整體參考照片」(FR-045/FR-046).
+  panelIndex Int?
+  /// 說明文字 — optional free text, preserved verbatim, sanitized on output (FR-047).
+  caption    String?
+
+  /// Detected from magic bytes, never from the client-supplied header (research D16).
+  originalMimeType  String
+  /// Denormalized sizes so the storage aggregate never touches the blob table (research D11).
+  originalByteSize  Int
+  displayByteSize   Int
+  annotatedByteSize Int?
+
+  /// Re-editable annotation content (FR-056). Small — kept here so it is readable without bytes.
+  annotationState Json?
+  annotatedAt     DateTime? @db.Timestamptz(6)
+
+  /// Stable display order within its panel (or within the image-level group).
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  blob ReviewPhotoBlob?
+
+  // The per-panel listing used by the workspace and by the submit gate's photo count (FR-049).
+  @@index([reviewId, panelIndex, sortOrder])
+  // Deliberately NO @@unique([reviewId, panelIndex]) — a panel may carry any number of
+  // photos; there is no per-panel cap (FR-048).
+}
+
+/// 照片位元組 — split into its own table so that no metadata query can accidentally load
+/// them: Prisma's findMany selects every scalar column by default, which on a single-table
+/// design would pull every photo's bytes into process memory (research D11).
+/// Reached ONLY by primary key, from an already-authorized ReviewPhoto.
+model ReviewPhotoBlob {
+  photoId String      @id
+  photo   ReviewPhoto @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  /// The uploaded file, byte-for-byte, never re-encoded (FR-052). May be HEIC.
+  original Bytes
+  /// ~1600px JPEG produced client-side; every grid/lightbox/admin view reads this one.
+  display  Bytes
+  /// Full-resolution flattened annotation output; authoritative over annotationState.
+  annotated Bytes?
+  /// Populated when the original is HEIC, so a download bundle always contains an openable
+  /// file without paying ~3MB on every photo (004 FR-030).
+  originalAsJpeg Bytes?
 }

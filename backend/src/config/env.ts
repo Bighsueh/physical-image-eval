@@ -48,6 +48,11 @@ const envSchema = z.object({
   LOGIN_RATE_MAX: z.coerce.number().int().positive(),
   LOGIN_RATE_WINDOW: durationSchema, // rate-limit window (ms)
 
+  // Reference photos (003 amendment). Total-store ceiling and per-file cap. The ceiling
+  // constrains ONLY the photo upload path — never review submission (FR-061/SC-020).
+  PHOTO_STORAGE_LIMIT_BYTES: z.coerce.number().int().positive().default(10_737_418_240), // 10 GiB
+  PHOTO_MAX_FILE_BYTES: z.coerce.number().int().positive().default(26_214_400), // 25 MiB
+
   BOOTSTRAP_ADMIN_USERNAME: z.string().min(1, 'BOOTSTRAP_ADMIN_USERNAME 必填'),
   BOOTSTRAP_ADMIN_PASSWORD: z.string().min(1, 'BOOTSTRAP_ADMIN_PASSWORD 必填'),
 });
