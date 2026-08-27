@@ -16,11 +16,23 @@ import {
  */
 let reviewer: SeededReviewer;
 
-const emptyDoc = (overall: string) => ({
+/**
+ * A clean-image submission. Every panel must be explicitly signed off — since the 2026-07-01
+ * per-panel gate, a document with four blank panels is rejected with PANEL_REVIEW_INCOMPLETE,
+ * so the earlier all-blank version of this helper silently produced zero submitted reviews.
+ */
+const cleanDoc = (overall: string) => ({
   overallJudgement: overall,
   indicationJudgement: null,
   indicationNote: null,
-  panels: [1, 2, 3, 4].map((panelIndex) => ({ panelIndex, requiredWarnings: [], warningOther: null, problemTypes: [], problemNote: null })),
+  panels: [1, 2, 3, 4].map((panelIndex) => ({
+    panelIndex,
+    noProblem: true,
+    requiredWarnings: [],
+    warningOther: null,
+    problemTypes: [],
+    problemNote: null,
+  })),
 });
 
 test.beforeAll(async () => {
@@ -32,7 +44,7 @@ test.beforeAll(async () => {
   const ctx = await pwRequest.newContext({ baseURL: API_URL });
   await ctx.post('/api/auth/login', { data: { username: reviewer.username, password: reviewer.password } });
   const csrf = await csrfOf(ctx);
-  await ctx.post('/api/reviews/S1/submit', { data: emptyDoc('通過'), headers: { 'X-CSRF-Token': csrf } });
+  await ctx.post('/api/reviews/S1/submit', { data: cleanDoc('通過'), headers: { 'X-CSRF-Token': csrf } });
   await ctx.dispose();
 });
 

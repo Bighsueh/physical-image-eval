@@ -352,6 +352,8 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
               onActiveChange={setActivePanel}
               invalidIndices={invalidIndices}
               onAllNoProblem={() => dispatch({ type: 'allNoProblem' })}
+              photoCounts={(i) => photoCtl.countFor(i)}
+              renderPhotoSlot={(i) => renderPhotoField(i)}
             />
           </Card>
 

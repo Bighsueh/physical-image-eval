@@ -100,7 +100,9 @@ export const updatePhotoCaption = (
 ): Promise<{ photo: ReviewPhoto }> =>
   apiFetch<{ photo: ReviewPhoto }>(`/reviews/${blueprintId}/photos/${photoId}`, {
     method: 'PATCH',
-    body: { caption },
+    // Normalize here as well as in the hook: an empty caption means "no caption", and relying
+    // on the server's coercion to say so would leave the intent implicit at this boundary.
+    body: { caption: caption === '' ? null : caption },
   }).then((r) => r.data);
 
 export const getAnnotation = (

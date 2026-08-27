@@ -1,3 +1,4 @@
+import type request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { app } from '../../../../src/app';
 import { env } from '../../../../src/config/env';
@@ -26,12 +27,16 @@ export function zipEntryNames(buf: Buffer): string[] {
   return names;
 }
 
-/** supertest parses bodies as JSON/text by default; a zip needs the raw bytes. */
-const binary = (res: NodeJS.ReadableStream & { setEncoding: (e: string) => void }, cb: (err: Error | null, body: Buffer) => void) => {
-  res.setEncoding('binary');
+/**
+ * supertest parses bodies as JSON/text by default; a zip needs the raw bytes. Typed against
+ * supertest's own parser signature (it declares `Response`, not a plain stream).
+ */
+const binary: Parameters<request.Test['parse']>[0] = (res, cb) => {
+  const stream = res as unknown as NodeJS.ReadableStream & { setEncoding: (e: string) => void };
+  stream.setEncoding('binary');
   let data = '';
-  res.on('data', (chunk: string) => (data += chunk));
-  res.on('end', () => cb(null, Buffer.from(data, 'binary')));
+  stream.on('data', (chunk: string) => (data += chunk));
+  stream.on('end', () => cb(null, Buffer.from(data, 'binary')));
 };
 
 /**

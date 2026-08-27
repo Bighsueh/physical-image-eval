@@ -125,12 +125,15 @@ test.describe('US2 — admin account lifecycle', () => {
 
     await page.goto('/admin/accounts/new');
     const username = `e2e_made_${Date.now()}`;
-    await page.getByLabel('顯示名稱').fill('新審查員');
-    await page.getByLabel('帳號識別碼').fill(username);
+    // The batch-create panel added per-row inputs labelled 「第 N 列 顯示名稱」, so the bare
+    // label is ambiguous; target the single-account form's field by its id.
+    await page.getByRole('textbox', { name: '顯示名稱', exact: true }).fill('新審查員');
+    await page.getByRole('textbox', { name: '帳號識別碼', exact: true }).fill(username);
     await page.getByRole('button', { name: '建立帳號' }).click();
 
-    // one-time temp password surfaced for hand-off
-    await expect(page.getByText('一次性臨時密碼')).toBeVisible();
+    // One-time temp password surfaced for hand-off. Match the delivery sentence rather than the
+    // bare phrase: the batch-create panel's help text on the same page also mentions it.
+    await expect(page.getByText(/當面／私訊交付對方/)).toBeVisible();
   });
 
   test('disabling a reviewer blocks subsequent login', async ({ page }) => {

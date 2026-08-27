@@ -153,8 +153,6 @@ export function PanelReviewForm({
             />
           </div>
 
-          {photoSlot && <div className="pt-1">{photoSlot}</div>}
-
           {photoNudge && (
             <p className="flex items-start gap-1.5 rounded-xl border border-warn bg-warn-tint px-2.5 py-1.5 text-xs text-warn-deep">
               <span aria-hidden="true">💡</span>
@@ -165,6 +163,11 @@ export function PanelReviewForm({
           )}
         </>
       )}
+
+      {/* Outside the 無問題 branch on purpose: attaching a photo is exactly how a reviewer
+          changes their mind about a panel they previously signed off, so the control must not
+          disappear the moment they tick it. */}
+      {photoSlot && <div className="pt-1">{photoSlot}</div>}
     </div>
   );
 }

@@ -14,8 +14,17 @@ test.beforeAll(async () => {
   await admin.dispose();
 });
 
+/**
+ * The first-visit onboarding tour paints a full-page overlay that swallows clicks. Marking it
+ * seen puts the page in the same state a returning reviewer sees.
+ */
+async function dismissTour(page: Page) {
+  await page.evaluate(() => window.localStorage.setItem('pie_review_tour_seen_v1', '1'));
+}
+
 async function login(page: Page) {
   await page.goto('/login');
+  await dismissTour(page);
   await page.getByLabel('帳號').fill(reviewer.username);
   await page.getByLabel('密碼').fill(reviewer.password);
   await page.getByRole('button', { name: '登入' }).click();
@@ -28,7 +37,9 @@ test('US1: opens a blueprint in Layout A with image + metadata + form, no aiProm
   await expect(page.getByRole('heading', { name: /S1・/ })).toBeVisible();
   await expect(page.getByRole('img', { name: /S1/ })).toBeVisible();
   await expect(page.getByRole('radio', { name: /通過/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '圖 1', level: 4 })).toBeVisible(); // panel form
+  // The per-panel forms moved behind a tab switcher in 2026-07-01; the heading this used to
+  // assert on no longer exists.
+  await expect(page.getByRole('tab', { name: /圖 1/ })).toBeVisible();
   await expect(page.locator('body')).not.toContainText('aiPrompt');
 });
 
@@ -36,8 +47,10 @@ test('US2: 通過 + submit auto-advances to the next unreviewed blueprint', asyn
   await login(page);
   await page.goto('/review/S1');
   await page.getByRole('radio', { name: /通過/ }).click();
+  // The clean-image fast path now also needs every panel signed off (2026-07-01 gate).
+  await page.getByRole('button', { name: '全部標示無問題' }).click();
   await page.getByRole('button', { name: /提交並前往下一張/ }).click();
-  await page.waitForURL('**/review/S2'); // deterministic auto-advance
+  await expect(page).toHaveURL(/\/review\/S2$/); // deterministic auto-advance
   await expect(page.getByRole('heading', { name: /S2・/ })).toBeVisible();
 });
 

@@ -228,12 +228,12 @@ migration, no mutation** — every task below is read-only.
 
 ## Phase 8: Foundational — 唯讀照片存取（Blocking）
 
-- [ ] T058 Add `PHOTO_NOT_FOUND`（找不到該照片）to `backend/src/lib/errors.ts` **only if 003 T086 has not already added it** (003 T086 owns this code; this task is a no-op when 003 lands first — sequence 003 T086 before this) — a photo whose review is not `已提交` MUST return this, indistinguishable from an unknown id (FR-028)
-- [ ] T059 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/work-table.test.ts` — grouping into exactly four `PanelGroup`s in index order even when empty; `allClear` true only when every submitting reviewer marked that panel 無問題; `flaggedReviewerCount` and `photoCount` derivation; `panelIndex = NULL` photos land in `imageLevelEntries` — MUST fail first (RED)
-- [ ] T060 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/bundle-naming.test.ts` — in-archive names encode 圖 × 分格 × 審查者 × 版本別; `panelIndex = NULL` renders as 整體; composition includes original + annotated but **never** the display derivative; a HEIC original with no annotated version is substituted by `originalAsJpeg` (FR-030, research D12) — MUST fail first (RED)
-- [ ] T061 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/storage-usage.test.ts` — `usedPercent` arithmetic; `warning` transitions none→approaching at 80 %→full at 100 %; usage **includes draft photos** (the documented exception) — MUST fail first (RED)
-- [ ] T062 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/export-photo-columns.test.ts` — the two appended columns use the same delimited-set encoding as other multi-value columns (D4), and go through RFC-4180 escaping + formula-injection neutralization (D5); a filename starting with `=` is neutralized — MUST fail first (RED)
-- [ ] T063 Implement `backend/src/admin-dashboard/repositories/photo-read.repository.ts` — **every query starts from `Review` filtered to `已提交`** and joins outward; no query may start from `ReviewPhoto`. This single choke point is what makes FR-028 structural (research D10) — depends on 003 T090
+- [X] T058 Add `PHOTO_NOT_FOUND`（找不到該照片）to `backend/src/lib/errors.ts` **only if 003 T086 has not already added it** (003 T086 owns this code; this task is a no-op when 003 lands first — sequence 003 T086 before this) — a photo whose review is not `已提交` MUST return this, indistinguishable from an unknown id (FR-028)
+- [X] T059 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/work-table.test.ts` — grouping into exactly four `PanelGroup`s in index order even when empty; `allClear` true only when every submitting reviewer marked that panel 無問題; `flaggedReviewerCount` and `photoCount` derivation; `panelIndex = NULL` photos land in `imageLevelEntries` — MUST fail first (RED)
+- [X] T060 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/bundle-naming.test.ts` — in-archive names encode 圖 × 分格 × 審查者 × 版本別; `panelIndex = NULL` renders as 整體; composition includes original + annotated but **never** the display derivative; a HEIC original with no annotated version is substituted by `originalAsJpeg` (FR-030, research D12) — MUST fail first (RED)
+- [X] T061 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/storage-usage.test.ts` — `usedPercent` arithmetic; `warning` transitions none→approaching at 80 %→full at 100 %; usage **includes draft photos** (the documented exception) — MUST fail first (RED)
+- [X] T062 [P] Write unit test `backend/tests/unit/admin-dashboard/photos/export-photo-columns.test.ts` — the two appended columns use the same delimited-set encoding as other multi-value columns (D4), and go through RFC-4180 escaping + formula-injection neutralization (D5); a filename starting with `=` is neutralized — MUST fail first (RED)
+- [X] T063 Implement `backend/src/admin-dashboard/repositories/photo-read.repository.ts` — **every query starts from `Review` filtered to `已提交`** and joins outward; no query may start from `ReviewPhoto`. This single choke point is what makes FR-028 structural (research D10) — depends on 003 T090
 
 **Checkpoint**: the submitted-only join point exists; every downstream service inherits the draft exclusion.
 
@@ -245,32 +245,32 @@ migration, no mutation** — every task below is read-only.
 
 ### Tests (write first — RED)
 
-- [ ] T064 [P] `backend/tests/integration/admin-dashboard/photos/worktable.test.ts` — route 6 returns four panels in index order with counts, entries and `allClear`; 非在職 reviewers' submitted entries present and flagged; a blueprint with 0 submitted reviews returns 200 with zeros, not an error (FR-021/FR-026/FR-027/SC-011)
-- [ ] T065 [P] `backend/tests/integration/admin-dashboard/photos/draft-exclusion.test.ts` — **the load-bearing test**: with a draft review carrying photos, assert 0 leakage across all four surfaces — work table entries, `photoCount`, `photos.zip` contents, and the CSV (FR-028/SC-012)
-- [ ] T066 [P] `backend/tests/integration/admin-dashboard/photos/file-route.test.ts` — route 7 serves each variant with the stored content type; a **draft** photo's id returns 404 `PHOTO_NOT_FOUND` identical to an unknown id; `annotated` on an un-annotated photo is 404
-- [ ] T067 [P] `backend/tests/integration/admin-dashboard/photos/bundle.test.ts` — route 8 returns `application/zip` with the expected entry count and names; a blueprint with no submitted photos returns a valid **empty** archive with 200; no temp file is left behind (research D12)
-- [ ] T068 [P] `backend/tests/integration/admin-dashboard/photos/storage.test.ts` — route 9 shape and thresholds; the number matches a direct `SUM` over `ReviewPhoto` byte columns. **Plus FR-037's second clause**: with the ceiling lowered below current usage, the work table (route 6), the file route (7), the bundle (8) and the CSV export all still return 200 — the ceiling constrains 003's upload path **only** and must never degrade an admin read path
-- [ ] T069 [P] `backend/tests/integration/admin-dashboard/photos/has-photos-filter.test.ts` — `images?hasPhotos=true` never returns a blueprint whose `photoCount` is 0, and never omits one whose count is ≥ 1 (FR-031)
-- [ ] T070 [P] `backend/tests/integration/admin-dashboard/photos/read-only.test.ts` — POST/PUT/PATCH/DELETE against every new photo route return 404/405; no mutating photo route exists (FR-036/SC-016)
-- [ ] T071 [P] `backend/tests/integration/admin-dashboard/photos/export-append.test.ts` — the previous CSV header is a **strict prefix** of the new one and every pre-existing column's values are byte-identical for the same rows (FR-035/SC-014); each row's filenames match the bundle's contents (SC-015)
-- [ ] T072 [P] `backend/tests/integration/admin-dashboard/photos/role.test.ts` — a REVIEWER session gets 403 on all four new routes; anonymous gets 401
+- [X] T064 [P] `backend/tests/integration/admin-dashboard/photos/worktable.test.ts` — route 6 returns four panels in index order with counts, entries and `allClear`; 非在職 reviewers' submitted entries present and flagged; a blueprint with 0 submitted reviews returns 200 with zeros, not an error (FR-021/FR-026/FR-027/SC-011)
+- [X] T065 [P] `backend/tests/integration/admin-dashboard/photos/draft-exclusion.test.ts` — **the load-bearing test**: with a draft review carrying photos, assert 0 leakage across all four surfaces — work table entries, `photoCount`, `photos.zip` contents, and the CSV (FR-028/SC-012)
+- [X] T066 [P] `backend/tests/integration/admin-dashboard/photos/file-route.test.ts` — route 7 serves each variant with the stored content type; a **draft** photo's id returns 404 `PHOTO_NOT_FOUND` identical to an unknown id; `annotated` on an un-annotated photo is 404
+- [X] T067 [P] `backend/tests/integration/admin-dashboard/photos/bundle.test.ts` — route 8 returns `application/zip` with the expected entry count and names; a blueprint with no submitted photos returns a valid **empty** archive with 200; no temp file is left behind (research D12)
+- [X] T068 [P] `backend/tests/integration/admin-dashboard/photos/storage.test.ts` — route 9 shape and thresholds; the number matches a direct `SUM` over `ReviewPhoto` byte columns. **Plus FR-037's second clause**: with the ceiling lowered below current usage, the work table (route 6), the file route (7), the bundle (8) and the CSV export all still return 200 — the ceiling constrains 003's upload path **only** and must never degrade an admin read path
+- [X] T069 [P] `backend/tests/integration/admin-dashboard/photos/has-photos-filter.test.ts` — `images?hasPhotos=true` never returns a blueprint whose `photoCount` is 0, and never omits one whose count is ≥ 1 (FR-031)
+- [X] T070 [P] `backend/tests/integration/admin-dashboard/photos/read-only.test.ts` — POST/PUT/PATCH/DELETE against every new photo route return 404/405; no mutating photo route exists (FR-036/SC-016)
+- [X] T071 [P] `backend/tests/integration/admin-dashboard/photos/export-append.test.ts` — the previous CSV header is a **strict prefix** of the new one and every pre-existing column's values are byte-identical for the same rows (FR-035/SC-014); each row's filenames match the bundle's contents (SC-015)
+- [X] T072 [P] `backend/tests/integration/admin-dashboard/photos/role.test.ts` — a REVIEWER session gets 403 on all four new routes; anonymous gets 401
 
 ### Implementation
 
-- [ ] T073 Implement `backend/src/admin-dashboard/services/work-table.service.ts` — builds `ImageWorkTable` from T063's repository (makes T059/T064 pass) — depends on T063
-- [ ] T074 Implement `backend/src/admin-dashboard/services/photo-bundle.service.ts` — naming + composition rules, **streamed** ZIP with no temp file (makes T060/T067 pass) — depends on T063
-- [ ] T075 Implement `backend/src/admin-dashboard/services/photo-storage.readonly.ts` — `SUM` over `ReviewPhoto` byte columns, thresholds (makes T061/T068 pass)
-- [ ] T076 Implement `backend/src/admin-dashboard/csv/export-photo-columns.ts` — the two appended columns **only**; do not touch the existing serializer (makes T062/T071 pass)
-- [ ] T077 Implement `backend/src/admin-dashboard/controllers/admin-photo.controller.ts` and register routes 6–9 on `admin-dashboard.routes.ts` behind the existing `adminReadRateLimiter` + `requireAuth` + `requireRole('ADMIN')` + `requirePasswordCurrent` chain — **GET only, no CSRF** (makes T066/T070/T072 pass) — depends on T073, T074, T075
-- [ ] T078 Add `photoCount` to the per-image projection and the `hasPhotos` boolean query flag to `backend/src/admin-dashboard/services/image-filters.ts` + `validation/dashboard.schema.ts` (makes T069 pass) — depends on T063
-- [ ] T079 [P] Implement `frontend/src/components/admin/dashboard/PanelGroup.tsx` — header counts, collapsed all-clear line, expandable entries
-- [ ] T080 [P] Implement `frontend/src/components/admin/dashboard/ReviewerEntry.tsx` — judgement pills, problem annotations, photo thumbnails, per-entry download
-- [ ] T081 [P] Implement `frontend/src/components/admin/dashboard/BundleDownloadButton.tsx` — 下載本圖全部材料
-- [ ] T082 [P] Implement `frontend/src/components/admin/dashboard/PhotoCountCell.tsx` and add the 附照片 column + 只看有附照片 chip to `ImageCoverageTable.tsx` / `ImageFilters.tsx` (FR-031)
-- [ ] T083 [P] Implement `frontend/src/components/admin/dashboard/StorageUsagePanel.tsx` — 已用／上限 + percentage + 80 % warning as icon+text (FR-034, constitution IX)
-- [ ] T084 Rework `frontend/src/routes/admin/dashboard/ImageDrillDownPage.tsx` into the work table: blueprint on one side, `PanelGroup` × 4 + image-level entries on the other — depends on T079, T080, T081
-- [ ] T085 Extend `frontend/src/api/admin-dashboard.ts` — `worktable` / `storage` / bundle URL / `hasPhotos` filter
-- [ ] T086 `e2e/admin-photos.spec.ts` — US5: open the work table → confirm a draft reviewer's photos are absent → download the bundle → cross-check a CSV row's filenames against the archive
+- [X] T073 Implement `backend/src/admin-dashboard/services/work-table.service.ts` — builds `ImageWorkTable` from T063's repository (makes T059/T064 pass) — depends on T063
+- [X] T074 Implement `backend/src/admin-dashboard/services/photo-bundle.service.ts` — naming + composition rules, **streamed** ZIP with no temp file (makes T060/T067 pass) — depends on T063
+- [X] T075 Implement `backend/src/admin-dashboard/services/photo-storage.readonly.ts` — `SUM` over `ReviewPhoto` byte columns, thresholds (makes T061/T068 pass)
+- [X] T076 Implement `backend/src/admin-dashboard/csv/export-photo-columns.ts` — the two appended columns **only**; do not touch the existing serializer (makes T062/T071 pass)
+- [X] T077 Implement `backend/src/admin-dashboard/controllers/admin-photo.controller.ts` and register routes 6–9 on `admin-dashboard.routes.ts` behind the existing `adminReadRateLimiter` + `requireAuth` + `requireRole('ADMIN')` + `requirePasswordCurrent` chain — **GET only, no CSRF** (makes T066/T070/T072 pass) — depends on T073, T074, T075
+- [X] T078 Add `photoCount` to the per-image projection and the `hasPhotos` boolean query flag to `backend/src/admin-dashboard/services/image-filters.ts` + `validation/dashboard.schema.ts` (makes T069 pass) — depends on T063
+- [X] T079 [P] Implement `frontend/src/components/admin/dashboard/PanelGroup.tsx` — header counts, collapsed all-clear line, expandable entries
+- [X] T080 [P] Implement `frontend/src/components/admin/dashboard/ReviewerEntry.tsx` — judgement pills, problem annotations, photo thumbnails, per-entry download
+- [X] T081 [P] Implement `frontend/src/components/admin/dashboard/BundleDownloadButton.tsx` — 下載本圖全部材料
+- [X] T082 [P] Implement `frontend/src/components/admin/dashboard/PhotoCountCell.tsx` and add the 附照片 column + 只看有附照片 chip to `ImageCoverageTable.tsx` / `ImageFilters.tsx` (FR-031)
+- [X] T083 [P] Implement `frontend/src/components/admin/dashboard/StorageUsagePanel.tsx` — 已用／上限 + percentage + 80 % warning as icon+text (FR-034, constitution IX)
+- [X] T084 Rework `frontend/src/routes/admin/dashboard/ImageDrillDownPage.tsx` into the work table: blueprint on one side, `PanelGroup` × 4 + image-level entries on the other — depends on T079, T080, T081
+- [X] T085 Extend `frontend/src/api/admin-dashboard.ts` — `worktable` / `storage` / bundle URL / `hasPhotos` filter
+- [X] T086 `e2e/admin-photos.spec.ts` — US5: open the work table → confirm a draft reviewer's photos are absent → download the bundle → cross-check a CSV row's filenames against the archive
 
 **Checkpoint**: US5 delivered; the dashboard is still entirely read-only.
 
@@ -278,12 +278,12 @@ migration, no mutation** — every task below is read-only.
 
 ## Phase 10: Regression & Polish
 
-- [ ] T087 Re-run the **pre-existing, unmodified** 004 suites — `backend/tests/{unit,integration}/admin-dashboard/` excluding the new `photos/` folders — and require a green run with no edits to those files (FR-035/SC-014)
-- [ ] T088 [P] Verify captions and panel free text are sanitized on every new output path, and that bundle entry names are derived from server-side data only — never from a user-supplied filename (FR-020, constitution V)
-- [ ] T089 [P] Confirm route 4 (`images/:blueprintId`) still returns its original contract unchanged and its existing tests still pass. **Decision: route 4 is retained.** The frontend moves to route 6, but route 4 is a tested GET with no maintenance cost, and removing a working endpoint buys nothing; retiring it stays a one-line change if it is ever wanted
-- [ ] T090 Coverage gate ≥ 80 % including the new photo modules (constitution VII)
-- [ ] T091 [P] Keyboard & non-colour-only pass over the controls this amendment adds — 下載本圖全部材料 button, 只看有附照片 filter chip, panel-group expand/collapse, photo thumbnails and the storage panel: all reachable and operable by keyboard, and every state (全員無問題／標了問題／容量警示) conveyed by text+icon, never colour alone (constitution IX, FR-024)
-- [ ] T092 Walk `specs/004-admin-dashboard-export/quickstart.md` §Amendment steps 1–8 end to end and fix any drift
+- [X] T087 Re-run the **pre-existing, unmodified** 004 suites — `backend/tests/{unit,integration}/admin-dashboard/` excluding the new `photos/` folders — and require a green run with no edits to those files (FR-035/SC-014)
+- [X] T088 [P] Verify captions and panel free text are sanitized on every new output path, and that bundle entry names are derived from server-side data only — never from a user-supplied filename (FR-020, constitution V)
+- [X] T089 [P] Confirm route 4 (`images/:blueprintId`) still returns its original contract unchanged and its existing tests still pass. **Decision: route 4 is retained.** The frontend moves to route 6, but route 4 is a tested GET with no maintenance cost, and removing a working endpoint buys nothing; retiring it stays a one-line change if it is ever wanted
+- [X] T090 Coverage gate ≥ 80 % including the new photo modules (constitution VII)
+- [X] T091 [P] Keyboard & non-colour-only pass over the controls this amendment adds — 下載本圖全部材料 button, 只看有附照片 filter chip, panel-group expand/collapse, photo thumbnails and the storage panel: all reachable and operable by keyboard, and every state (全員無問題／標了問題／容量警示) conveyed by text+icon, never colour alone (constitution IX, FR-024)
+- [X] T092 Walk `specs/004-admin-dashboard-export/quickstart.md` §Amendment steps 1–8 end to end and fix any drift
 
 ---
 
