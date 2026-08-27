@@ -129,8 +129,15 @@ export const reviewToDraft = (review: ReviewState): ReviewDoc => ({
 });
 
 /** A panel is "addressed" for submit iff explicitly 無問題 OR it carries any annotation. */
-export const isPanelAddressed = (p: PanelDoc): boolean =>
+/**
+ * Mirrors the server's submit gate exactly (003 `panel-gate.ts`, FR-049). `photoCount` is the
+ * number of reference photos bound to THIS panel — a photo is the reviewer saying「這個動作不對，
+ * 正確的長這樣」, which is an annotation whether or not anything was ticked. Keeping the two in
+ * step is what stops the UI from blocking a submit the server would accept.
+ */
+export const isPanelAddressed = (p: PanelDoc, photoCount = 0): boolean =>
   p.noProblem ||
+  photoCount > 0 ||
   p.requiredWarnings.length > 0 ||
   p.problemTypes.length > 0 ||
   Boolean(p.warningOther && p.warningOther.trim()) ||

@@ -19,6 +19,8 @@ export function PanelSwitcher({
   onActiveChange,
   invalidIndices = [],
   onAllNoProblem,
+  photoCounts,
+  renderPhotoSlot,
 }: {
   panels: PanelDoc[];
   handlers: PanelReviewHandlers;
@@ -26,6 +28,10 @@ export function PanelSwitcher({
   onActiveChange: (panelIndex: number) => void;
   invalidIndices?: number[];
   onAllNoProblem: () => void;
+  /** Photos per panel — drives the 📎 badge and the photo-aware addressed state (FR-049). */
+  photoCounts?: (panelIndex: number) => number;
+  /** Renders the 參考照片 block for the active panel. */
+  renderPhotoSlot?: (panelIndex: number) => React.ReactNode;
 }) {
   const tabRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const activePanel = panels.find((p) => p.panelIndex === active) ?? panels[0];
@@ -63,7 +69,8 @@ export function PanelSwitcher({
         {panels.map((p) => {
           const selected = p.panelIndex === active;
           const isInvalid = invalidIndices.includes(p.panelIndex);
-          const addressed = isPanelAddressed(p);
+          const photoCount = photoCounts?.(p.panelIndex) ?? 0;
+          const addressed = isPanelAddressed(p, photoCount);
           const ring = isInvalid ? 'ring-1 ring-accent border-accent' : '';
           return (
             <button
@@ -89,6 +96,14 @@ export function PanelSwitcher({
               <span className={`block text-[11px] font-normal ${selected ? 'text-white/80' : 'text-ink-soft'}`}>
                 {POSITION[p.panelIndex]}
               </span>
+              {photoCount > 0 && (
+                <span
+                  className={`absolute left-1.5 top-1 text-[10px] ${selected ? 'text-white/90' : 'text-ink-soft'}`}
+                >
+                  📎{photoCount}
+                  <span className="sr-only">（已附 {photoCount} 張參考照片）</span>
+                </span>
+              )}
               {/* status dot: red = needs handling, green = handled */}
               {isInvalid ? (
                 <span className="absolute right-1.5 top-1.5 inline-block h-2 w-2 rounded-full bg-accent">
@@ -115,6 +130,10 @@ export function PanelSwitcher({
           panel={activePanel}
           handlers={handlers}
           invalid={invalidIndices.includes(active)}
+          photoSlot={renderPhotoSlot?.(active)}
+          photoNudge={
+            (photoCounts?.(active) ?? 0) > 0 && activePanel.problemTypes.length === 0
+          }
         />
       </div>
     </div>

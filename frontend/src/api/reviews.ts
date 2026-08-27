@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import type { ReviewPhoto } from './review-photos';
 
 /** Wire types for the review API (zh-TW enum values verbatim, per the 003 contract). */
 export type OverallJudgement = '通過' | '需小修' | '需重做';
@@ -70,6 +71,16 @@ export interface ReviewState extends ReviewDoc {
   lastSavedAt: string | null;
   submittedAt: string | null;
   lastUpdatedAt: string | null;
+  /**
+   * Reference photos attached to this review (2026-08-27). Deliberately NOT part of `ReviewDoc`:
+   * the document is what the debounced autosave PATCHes, and photos are written by their own
+   * immediate endpoints — folding them in would make a keystroke save try to re-send megabytes.
+   *
+   * Optional so the addition stays additive: the server always sends it, but making it required
+   * would break every existing fixture that predates photos, and SC-018 requires the
+   * pre-existing suites to pass **unmodified**.
+   */
+  photos?: ReviewPhoto[];
 }
 /** The previous/next blueprint in the catalog's deterministic order (null at the ends). */
 export interface ReviewNeighbors {

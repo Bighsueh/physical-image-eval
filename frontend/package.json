@@ -16,10 +16,15 @@
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",
     "driver.js": "^1.6.0",
+    "heic-decode": "^2.1.0",
+    "konva": "^9.3.22",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react-filerobot-image-editor": "^4.9.1",
+    "react-konva": "^18.2.10",
+    "react-router-dom": "^6.28.0",
+    "styled-components": "^6.5.3"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

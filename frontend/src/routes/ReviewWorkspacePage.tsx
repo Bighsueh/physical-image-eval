@@ -17,6 +17,11 @@ import { ImageLightbox } from '../components/review/ImageLightbox';
 import { IndicationField } from '../components/review/IndicationField';
 import { OverallJudgementField } from '../components/review/OverallJudgementField';
 import { PanelSwitcher } from '../components/review/PanelSwitcher';
+import { PhotoCompareLightbox } from '../components/review/PhotoCompareLightbox';
+import { PhotoUploadField } from '../components/review/PhotoUploadField';
+import { AnnotateModal } from '../features/annotate/AnnotateModal.lazy';
+import { useReviewPhotos } from '../hooks/useReviewPhotos';
+import type { ReviewPhoto } from '../api/review-photos';
 import type { PanelReviewHandlers } from '../components/review/PanelReviewForm';
 import { OVERALL_ERROR_ID, SubmitBar } from '../components/review/SubmitBar';
 import { AppHeader, Card, ConfirmDialog, HighRiskBadge, ProgressBar } from '../components/ui';
@@ -68,6 +73,49 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
   const [panelErrors, setPanelErrors] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  // Photos live in their own controller: writes are immediate, so they must not ride the
+  // document's 800ms debounce (research D14).
+  const photoCtl = useReviewPhotos(bp.blueprintId, data.review.photos ?? []);
+  const [lightbox, setLightbox] = useState<{ photos: ReviewPhoto[]; index: number } | null>(null);
+  const [annotating, setAnnotating] = useState<ReviewPhoto | null>(null);
+
+  const panelPhotos = useCallback(
+    (panelIndex: number | null) => photoCtl.photos.filter((p) => p.panelIndex === panelIndex),
+    [photoCtl.photos],
+  );
+  const openLightbox = useCallback(
+    (photo: ReviewPhoto) => {
+      const group = photoCtl.photos.filter((p) => p.panelIndex === photo.panelIndex);
+      setLightbox({ photos: group, index: Math.max(0, group.findIndex((p) => p.id === photo.id)) });
+    },
+    [photoCtl.photos],
+  );
+
+  /** The 參考照片 block, rendered for a panel (1..4) or for the image as a whole (null). */
+  const renderPhotoField = useCallback(
+    (panelIndex: number | null) => (
+      <PhotoUploadField
+        label={panelIndex === null ? '整體參考照片' : '參考照片'}
+        hint={
+          panelIndex === null
+            ? '不屬於某一格、想補充整體姿勢或器材時放這裡。'
+            : '用照片說明正確動作，張數不限。桌機點「上傳照片」開檔案選擇器，也可以直接把照片拖進這一區。'
+        }
+        photos={panelPhotos(panelIndex)}
+        pending={photoCtl.pending.filter((u) => u.panelIndex === panelIndex)}
+        panelIndex={panelIndex}
+        storageFull={photoCtl.storageFull}
+        onAdd={photoCtl.add}
+        onOpen={openLightbox}
+        onDelete={(id) => void photoCtl.remove(id)}
+        onCaption={(id, caption) => void photoCtl.setCaption(id, caption)}
+        onAnnotate={setAnnotating}
+        onRetry={photoCtl.retry}
+        onDismiss={photoCtl.dismiss}
+      />
+    ),
+    [panelPhotos, photoCtl, openLightbox],
+  );
 
   // Keep the cached ['review', id] payload in sync with what we persist. Without this, a quick
   // re-entry (query still fresh — staleTime) re-hydrates the reducer from the pre-edit cache and the
@@ -161,7 +209,9 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
       document.getElementById('overall-judgement-anchor')?.scrollIntoView?.({ block: 'center' });
       return;
     }
-    const unaddressed = d.panels.filter((p) => !isPanelAddressed(p)).map((p) => p.panelIndex);
+    const unaddressed = d.panels
+      .filter((p) => !isPanelAddressed(p, photoCtl.countFor(p.panelIndex)))
+      .map((p) => p.panelIndex);
     if (unaddressed.length > 0) {
       setSubmitError(VALIDATION_ERRORS.panel);
       setPanelErrors(true);
@@ -171,21 +221,21 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
     setSubmitError(null);
     setPanelErrors(false);
     submitMutate();
-  }, [submitMutate]);
+  }, [submitMutate, photoCtl]);
 
   const onJudge = useCallback((v: OverallJudgement) => dispatch({ type: 'overall', value: v }), []);
   useReviewKeyboard({ onJudge, onSubmit: doSubmit });
 
   // Clear each validation banner as soon as the thing it complains about is fixed (no stale banner).
   useEffect(() => {
-    const allAddressed = draft.panels.every(isPanelAddressed);
+    const allAddressed = draft.panels.every((p) => isPanelAddressed(p, photoCtl.countFor(p.panelIndex)));
     if (allAddressed) setPanelErrors(false);
     setSubmitError((prev) => {
       if (prev === VALIDATION_ERRORS.judgement && draft.overallJudgement) return null;
       if (prev === VALIDATION_ERRORS.panel && allAddressed) return null;
       return prev;
     });
-  }, [draft]);
+  }, [draft, photoCtl]);
 
   if (completed) return <CompletionState total={data.progress.total} />;
 
@@ -197,7 +247,9 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
     onProblemNote: (i, v) => dispatch({ type: 'problemNote', panelIndex: i, value: v }),
   };
   const invalidIndices = panelErrors
-    ? draft.panels.filter((p) => !isPanelAddressed(p)).map((p) => p.panelIndex)
+    ? draft.panels
+        .filter((p) => !isPanelAddressed(p, photoCtl.countFor(p.panelIndex)))
+        .map((p) => p.panelIndex)
     : [];
 
   return (
@@ -315,6 +367,8 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
               rows={3}
               className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            {/* Image-level photos: the same component, unbound to any panel (FR-046). */}
+            <div className="mt-4 border-t border-border pt-3">{renderPhotoField(null)}</div>
           </Card>
 
           <div data-tour="submit">
@@ -348,6 +402,29 @@ function ReviewEditor({ data }: { data: OpenReviewData }) {
           </div>
         </div>
       </div>
+
+      {lightbox && (
+        <PhotoCompareLightbox
+          photos={lightbox.photos}
+          index={lightbox.index}
+          blueprintImageUrl={bp.imageUrl}
+          panelLabel={`${bp.blueprintId} · ${bp.exerciseName}`}
+          onClose={() => setLightbox(null)}
+          onIndexChange={(index) => setLightbox((cur) => (cur ? { ...cur, index } : cur))}
+        />
+      )}
+
+      {annotating && (
+        <AnnotateModal
+          blueprintId={bp.blueprintId}
+          photo={annotating}
+          onClose={() => setAnnotating(null)}
+          onSaved={(photo) => {
+            photoCtl.replace(photo);
+            setAnnotating(null);
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={resetOpen}

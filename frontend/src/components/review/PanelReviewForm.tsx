@@ -67,10 +67,16 @@ export function PanelReviewForm({
   panel,
   handlers,
   invalid = false,
+  photoSlot,
+  photoNudge = false,
 }: {
   panel: PanelDoc;
   handlers: PanelReviewHandlers;
   invalid?: boolean;
+  /** The 參考照片 block for this panel; injected so this form stays presentational. */
+  photoSlot?: React.ReactNode;
+  /** Shown when a photo is attached but no problem type is ticked — encouragement, not a gate. */
+  photoNudge?: boolean;
 }) {
   const i = panel.panelIndex;
   const textBox =
@@ -146,6 +152,17 @@ export function PanelReviewForm({
               className={textBox}
             />
           </div>
+
+          {photoSlot && <div className="pt-1">{photoSlot}</div>}
+
+          {photoNudge && (
+            <p className="flex items-start gap-1.5 rounded-xl border border-warn bg-warn-tint px-2.5 py-1.5 text-xs text-warn-deep">
+              <span aria-hidden="true">💡</span>
+              <span>
+                已附參考照片，這一格視為<strong>已標注問題</strong>、可以提交。建議一併勾選「動作示範錯誤」，之後統計比較好抓。
+              </span>
+            </p>
+          )}
         </>
       )}
     </div>
