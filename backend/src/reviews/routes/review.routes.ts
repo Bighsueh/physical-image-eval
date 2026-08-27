@@ -3,6 +3,7 @@ import { csrfProtection } from '../../middleware/csrf';
 import { requireAuth } from '../../middleware/require-auth';
 import { requirePasswordCurrent } from '../../middleware/require-password-current';
 import { requireRole } from '../../middleware/require-role';
+import { reviewPhotoRouter } from '../photos/routes/review-photo.routes';
 import {
   autosaveHandler,
   nextHandler,
@@ -20,6 +21,10 @@ import {
 export const reviewRouter = Router();
 
 const guard = [requireAuth, requireRole('REVIEWER'), requirePasswordCurrent];
+
+// Photo routes share the guard chain; mounted before the parameterized review routes so
+// `/:blueprintId/photos/...` is not swallowed by `/:blueprintId`.
+reviewRouter.use(...guard, reviewPhotoRouter);
 
 reviewRouter.get('/progress', ...guard, progressHandler);
 reviewRouter.get('/next', ...guard, nextHandler);

@@ -6,6 +6,7 @@ import { STATUS_ID_TO_ZH } from '../dto/enum-maps';
 import { documentToWrite, toReviewPayload } from '../dto/review.dto';
 import { reviewRepository, type ReviewWithPanels } from '../repositories/review.repository';
 import type { ReviewDocument } from '../validation/review.schema';
+import { reviewPhotoService } from '../photos/services/review-photo.service';
 import { nextUnreviewed } from './review-ordering';
 
 /**
@@ -45,11 +46,13 @@ export const reviewService = {
   async open(reviewerId: string, code: string) {
     // The reads are independent; getBlueprintDetail rejects with BLUEPRINT_NOT_FOUND if the code is
     // unknown (also the orphan-review fail-safe — a retired blueprint becomes inaccessible).
-    const [detail, review, submitted, ordered] = await Promise.all([
+    const [detail, review, submitted, ordered, photos] = await Promise.all([
       catalogService.getBlueprintDetail(code),
       reviewRepository.findOwnReviewWithPanels(reviewerId, code),
       reviewRepository.countSubmitted(reviewerId),
       catalogService.listBlueprints({}),
+      // Own photos only — resolved from the session reviewer, like every other read (FR-057).
+      reviewPhotoService.list(reviewerId, code),
     ]);
     const idx = ordered.findIndex((b) => b.blueprintId === code);
     const neighbors = {
@@ -58,7 +61,7 @@ export const reviewService = {
     };
     return {
       blueprint: toReviewBlueprint(detail),
-      review: toReviewPayload(review),
+      review: { ...toReviewPayload(review), photos },
       progress: { submitted, total: TOTAL_BLUEPRINTS },
       neighbors,
     };
@@ -71,7 +74,7 @@ export const reviewService = {
     await reviewRepository.deleteOwnReview(reviewerId, code);
     const submitted = await reviewRepository.countSubmitted(reviewerId);
     return {
-      review: toReviewPayload(null),
+      review: { ...toReviewPayload(null), photos: [] },
       progress: { submitted, total: TOTAL_BLUEPRINTS },
     };
   },
@@ -94,16 +97,11 @@ export const reviewService = {
     await requireBlueprint(code);
     const write = documentToWrite(doc);
     if (write.overallJudgement === null) throw new AppError('OVERALL_JUDGEMENT_REQUIRED');
-    // Every panel must be explicitly signed off (無問題) OR carry an annotation (FR per 2026-07-01).
-    const allPanelsAddressed = write.panels.every(
-      (p) =>
-        p.noProblem ||
-        p.problemTypes.length > 0 ||
-        p.requiredWarnings.length > 0 ||
-        Boolean(p.problemNote?.trim()) ||
-        Boolean(p.warningOther?.trim()),
-    );
-    if (!allPanelsAddressed) throw new AppError('PANEL_REVIEW_INCOMPLETE');
+    // The per-panel gate is NOT evaluated here. As of the 2026-08-27 amendment a panel can also
+    // hold by carrying a reference photo (FR-049), and that count is only consistent with the
+    // document inside the submit transaction — a reviewer may upload a photo and submit before
+    // the 800ms debounce fires. The repository evaluates it there and raises the same
+    // PANEL_REVIEW_INCOMPLETE, rolling the transaction back (research D15).
 
     const review = await reviewRepository.upsertReviewWithPanels({
       reviewerId,

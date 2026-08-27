@@ -421,8 +421,15 @@ they write immediately and a failed upload never endangers typed text (research 
 
 ## 8. `DELETE /api/reviews/:blueprintId/photos/:photoId` — remove a photo
 
-CSRF required. Own photos only; another reviewer's id returns `PHOTO_NOT_FOUND`, never 403
-(FR-057). Idempotent: deleting an already-deleted photo returns 200. Removing the last photo
+CSRF required. Own photos only. A photo that is not yours **and** a photo that no longer
+exists both return `PHOTO_NOT_FOUND`, never 403 (FR-057).
+
+> *Corrected during implementation*: an earlier draft of this contract also promised
+> idempotence (a repeat delete returning 200). The two cannot both hold — being able to tell
+> 「已刪除」 apart from 「不是你的」 is exactly the existence oracle FR-057 forbids. Isolation
+> wins; a client that double-clicks delete sees a 404 for something that is in fact gone.
+
+Removing the last photo
 from a panel may make that panel unaddressed again — the submit gate re-evaluates at submit
 time (FR-049), this route does not block. Succeeds even when storage is full.
 
