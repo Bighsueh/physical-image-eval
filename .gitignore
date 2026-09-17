@@ -57,3 +57,6 @@ backend/tests/fixtures/source/
 
 # Regenerable UI preview screenshots (design reference, not committed)
 specs/design/preview/
+
+# Local-only tooling (image text-repair pipeline etc.) — not part of the published app
+tools/

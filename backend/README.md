@@ -48,7 +48,7 @@ npm run ingest -- --check # dry-run: parse + validate + report only; writes 0 ro
 
 Exit codes: `0` success / `--check` passed · `1` validation failure (0 rows persisted) · `2`
 source unreadable / missing `IMAGE_SOURCE_DIR` · `3` DB transaction error (rolled back, prior
-catalog intact). The zh-TW report (totals, per-region counts, 134-diagnosis reconciliation,
+catalog intact). The zh-TW report (totals, per-region counts, diagnosis reconciliation,
 high-risk set, re-run diff, warnings) prints to **stdout only**. Re-running on unchanged source is
 idempotent. Read it back via `GET /api/regions|blueprints|blueprints/:id|diagnoses` and
 `GET /api/blueprints/:id/image` (any authenticated role).

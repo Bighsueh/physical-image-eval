@@ -1,6 +1,6 @@
 # physical-image-eval
 
-物理治療衛教 **AIGC 運動衛教圖審查工具**。給物理治療師／醫師逐張把關 51 張四格漫畫運動衛教圖的臨床正確性與安全性。
+物理治療衛教 **AIGC 運動衛教圖審查工具**。給物理治療師／醫師逐張把關四格漫畫運動衛教圖的臨床正確性與安全性。
 
 > 開發方法：**Spec Driven Design**（GitHub Spec Kit）。spec 是唯一真實來源 — 先改 spec、再讓 code 跟上。治理原則見 [`.specify/memory/constitution.md`](.specify/memory/constitution.md)。
 
@@ -22,7 +22,7 @@ specs/      四個 feature 的 spec / plan / tasks（001 帳號認證 … 004 �
 | 後端 (Node.js) | `3100` |
 | PostgreSQL (Docker) | `5433` → 容器 `5432` |
 
-生產經 **Cloudflared** 託管於 `https://your-domain.example.com`。
+生產經 **Cloudflared** 託管；正式網域以 `COOKIE_DOMAIN` 設定（見 `backend/.env.example`）。
 
 ## 快速開始（feature 001）
 

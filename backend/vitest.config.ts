@@ -18,9 +18,9 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
       DATABASE_URL: 'postgresql://pie:pie@localhost:5433/physical_image_eval_test?schema=public',
-      // The valid synthetic source tree the global-setup generates (feature 002).
-      IMAGE_SOURCE_DIR:
-        '/path/to/physical-image-eval/backend/tests/fixtures/source/valid',
+      // The valid synthetic source tree the global-setup generates (feature 002). Relative to
+      // backend/, where vitest runs.
+      IMAGE_SOURCE_DIR: 'tests/fixtures/source/valid',
       PORT: '3100',
       SESSION_ABSOLUTE_TTL: '12h',
       SESSION_IDLE_TTL: '60m',
