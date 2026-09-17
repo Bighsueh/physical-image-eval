@@ -11,7 +11,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pie}
       POSTGRES_DB: ${POSTGRES_DB:-physical_image_eval}
     ports:
-      - '5433:5432'
+      # Loopback only: host tools/tests reach it on :5433, other machines cannot.
+      - '127.0.0.1:5433:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
