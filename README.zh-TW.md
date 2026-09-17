@@ -6,7 +6,7 @@
 
 ![審查工作區——左側是受審圖與原始企劃，右側是結構化的臨床判定](docs/screenshots/review.png)
 
-<sub>截圖取自正式環境。衛教圖、參考照片與數量資訊皆刻意模糊處理——圖像資產屬於臨床團隊，不包含在這個 repo 內。</sub>
+<sub>截圖取自正式環境。衛教圖、企劃內文、參考照片與進度數字皆刻意模糊處理——圖像資產屬於臨床團隊，不包含在這個 repo 內。</sub>
 
 <details>
 <summary>審查工作區整頁截圖</summary>
@@ -181,4 +181,4 @@ cp .env.example .env            # 設定 BOOTSTRAP_ADMIN_PASSWORD；本機 http 
 docker compose up -d --build    # postgres + backend + frontend → http://localhost:5180
 ```
 
-你需要自備圖像來源目錄（目錄結構見開發文件）；臨床圖像不隨此 repo 散佈。
+範本預設指向 **`demo/source/`** 這份合成示範資料（佔位圖，加上通過所有匯入檢查的企劃與總索引），所以可以直接跑起來：以 `admin` 和 bootstrap 密碼登入，再建立審查者帳號即可體驗。臨床圖像不隨此 repo 散佈；要審真實圖時，把 `IMAGE_SOURCE` 指向你自己的來源目錄。

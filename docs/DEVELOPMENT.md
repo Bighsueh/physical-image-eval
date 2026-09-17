@@ -23,19 +23,21 @@ specs/      四個 feature 的 spec / plan / tasks（001 帳號認證 … 004 �
 |------|-----------|
 | 前端（Vite dev／Docker nginx） | `5180` |
 | 後端（Node.js，僅 host 開發模式） | `3100` |
-| PostgreSQL（Docker） | `5433` → 容器 `5432` |
+| PostgreSQL（Docker） | `127.0.0.1:5433` → 容器 `5432`（只綁本機） |
 
 Docker 模式下後端**不對 host 開放**，只經由前端 nginx 的 `/api` 反向代理存取。
 生產經 **Cloudflared** 託管；正式網域以 `COOKIE_DOMAIN` 設定，不寫進 repo。
 
 ## 圖像來源目錄
 
-臨床圖像不隨 repo 散佈，需自備來源目錄。它是**唯讀外部資產**，任何程式都不得寫入。
+臨床圖像不隨 repo 散佈。repo 附一份**合成示範資料** `demo/source/`（佔位圖＋通過所有匯入檢查的企劃與總索引），兩份 `.env.example` 預設就指向它，複製後即可跑起來。要審真實圖時，把變數改指向你的來源目錄——它是**唯讀外部資產**，任何程式都不得寫入。
+
+示範資料可用 `npm run demo:source` 重新產生；腳本只會覆寫帶有 `.demo-source` 標記的目錄，不會動到真實來源。
 
 | 變數 | 檔案 | 用途 |
 |------|------|------|
-| `IMAGE_SOURCE_DIR` | `backend/.env` | 後端在 host 上直接跑時讀取的目錄。絕對路徑，或相對 `backend/`（預設 `../images`）。 |
-| `IMAGE_SOURCE` | 根目錄 `.env` | docker compose 唯讀掛載進容器的 host 目錄（預設 `./images`）；容器內固定為 `/data/blueprints`。 |
+| `IMAGE_SOURCE_DIR` | `backend/.env` | 後端在 host 上直接跑時讀取的目錄。絕對路徑，或相對 `backend/`（範本預設 `../demo/source`）。 |
+| `IMAGE_SOURCE` | 根目錄 `.env` | docker compose 唯讀掛載進容器的 host 目錄（compose 預設 `./images`，範本設為 `./demo/source`）；容器內固定為 `/data/blueprints`。 |
 
 預期結構：
 

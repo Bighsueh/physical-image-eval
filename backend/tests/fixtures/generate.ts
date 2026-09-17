@@ -143,6 +143,9 @@ const pngPath = (dir: string, code: RegionCode, id: string): string =>
 
 export const codeOf = (id: string): RegionCode => id[0] as RegionCode;
 
+/** `S1_運動S1.png` → `S1` (same rule as the source reader). */
+export const idFromImageName = (fileName: string): string => fileName.split('_')[0];
+
 /** Rewrite a blueprint to have `n` panels (n ≠ 4 ⇒ FR-004). */
 export const mutatePanelCount = (dir: string, id: string, n: number): void => {
   const code = codeOf(id);

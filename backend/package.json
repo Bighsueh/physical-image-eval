@@ -15,6 +15,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "seed:bootstrap-admin": "tsx prisma/seed/bootstrap-admin.ts",
+    "demo:source": "tsx scripts/build-demo-source.ts",
     "ingest": "tsx src/ingestion/ingest.command.ts"
   },
   "dependencies": {

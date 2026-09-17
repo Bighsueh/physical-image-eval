@@ -36,10 +36,10 @@ AIGC 圖像來源目錄（**唯讀，不得修改或寫入**）以環境變數�
 
 | 變數 | 檔案 | 用途 |
 |------|------|------|
-| `IMAGE_SOURCE_DIR` | `backend/.env` | 後端在 host 上直接跑時讀取的來源目錄。可用絕對路徑，或相對 `backend/` 的路徑（預設 `../images`）。 |
-| `IMAGE_SOURCE` | 根目錄 `.env` | docker compose 唯讀掛載進容器的 host 目錄（預設 `./images`）；容器內固定為 `/data/blueprints`。 |
+| `IMAGE_SOURCE_DIR` | `backend/.env` | 後端在 host 上直接跑時讀取的來源目錄。可用絕對路徑，或相對 `backend/` 的路徑（範本預設 `../demo/source` 示範資料）。 |
+| `IMAGE_SOURCE` | 根目錄 `.env` | docker compose 唯讀掛載進容器的 host 目錄（compose 預設 `./images`，範本設為 `./demo/source`）；容器內固定為 `/data/blueprints`。 |
 
-`images/` 是來源的本機副本，已 gitignore。實際路徑寫在各自的 `.env`（gitignored），範本見 `.env.example`。
+`images/` 是真實來源的本機副本，已 gitignore；`demo/source/` 是合成示範資料（`npm run demo:source` 產生，已提交，勿放真實圖）。實際路徑寫在各自的 `.env`（gitignored），範本見 `.env.example`。
 
 結構重點：
 

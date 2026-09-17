@@ -6,7 +6,7 @@
 
 ![Review workspace — the image under review on the left, structured clinical judgement on the right](docs/screenshots/review.png)
 
-<sub>Screenshot from the production deployment. The education image, reference photo and corpus counts are deliberately blurred — the image assets belong to the clinical team and are not part of this repository.</sub>
+<sub>Screenshot from the production deployment. The education image, its storyboard text, the reference photo and progress figures are deliberately blurred — the image assets belong to the clinical team and are not part of this repository.</sub>
 
 <details>
 <summary>Full-page view of the review workspace</summary>
@@ -175,4 +175,4 @@ cp .env.example .env            # set BOOTSTRAP_ADMIN_PASSWORD, COOKIE_SECURE=fa
 docker compose up -d --build    # postgres + backend + frontend → http://localhost:5180
 ```
 
-You need your own image source directory (see the development guide for the expected layout); the clinical image set is not distributed with this repository.
+The template points at **`demo/source/`**, a synthetic image set (placeholder comics plus storyboards and a master index that pass every ingestion check), so this runs as-is: log in as `admin` with the bootstrap password and create a reviewer account. The clinical image set is not distributed; point `IMAGE_SOURCE` at your own source to review real images.
