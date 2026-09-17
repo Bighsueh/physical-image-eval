@@ -52,7 +52,7 @@ const cases: Array<[string, (dir: string) => void, string]> = [
   ['orphan image', (d) => mutateOrphanImage(d, 'S', 'S99'), 'FR-005'],
   ['recon mismatch', (d) => mutateDropDiagnosis(d), 'FR-008'],
   ['duplicate id', (d) => mutateDuplicateId(d, 'S1'), 'FR-022'],
-  ['region count off', (d) => mutateDeleteBlueprint(d, 'S1'), 'FR-003'],
+  ['blueprint missing', (d) => mutateDeleteBlueprint(d, 'S1'), 'FR-002'],
 ];
 
 describe('fail-fast on broken source (US2)', () => {

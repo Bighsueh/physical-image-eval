@@ -7,7 +7,7 @@ const POSITION: Record<number, string> = { 1: '左上', 2: '右上', 3: '左下'
 
 /**
  * One panel of the work table. Panels every submitting reviewer signed off collapse to a single
- * line — with 51 images to work through, the ones that need nothing must not cost any reading.
+ * line — with a whole catalog to work through, the ones that need nothing must not cost any reading.
  *
  * State is conveyed by icon + text, never colour alone (constitution IX).
  */

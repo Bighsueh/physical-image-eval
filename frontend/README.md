@@ -19,7 +19,7 @@ npm run build      # production build (served by nginx in the Docker image)
 
 - `/login` — the **only** public screen (constitution III; no registration anywhere).
 - `/password/change` — forced/voluntary password change (FR-009).
-- `/progress` — reviewer landing, 0／51 start (placeholder owned by feature 003).
+- `/progress` — reviewer landing, 0／N start (placeholder owned by feature 003).
 - `/admin/accounts`, `/admin/accounts/new` — admin account management (ADMIN only).
 
 Routing guards (`ProtectedRoute`, `RoleGate`) are **defense-in-depth only** — the server

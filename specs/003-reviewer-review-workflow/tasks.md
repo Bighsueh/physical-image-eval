@@ -78,7 +78,7 @@ description: "Task list for feature 003 — Reviewer Review Workflow"
 - [ ] T025 [P] [US1] Implement `frontend/src/components/review/OverallJudgementField.tsx` — single-select radio 通過／需小修／需重做 (FR-010)
 - [ ] T026 [P] [US1] Implement `frontend/src/components/review/IndicationField.tsx` — single-select 合理／有疑慮 + optional 適應症說明 free text (FR-012)
 - [ ] T027 [P] [US1] Implement `frontend/src/components/review/PanelReviewForm.tsx` — per-panel 需要添加的警語 (multi) + 警語－其它 + 問題類型 (multi) + 問題說明, all optional, bound to the immutable draft reducer (FR-013–FR-020)
-- [ ] T028 [P] [US1] Implement `frontend/src/components/review/TopProgressBar.tsx` — fixed-top 已提交 x／51 fed by `open`'s `progress` (FR-041)
+- [ ] T028 [P] [US1] Implement `frontend/src/components/review/TopProgressBar.tsx` — fixed-top 已提交 x／N fed by `open`'s `progress` (FR-041)
 - [ ] T029 [US1] Implement `frontend/src/components/review/ReviewLayout.tsx` — left/right split with the left column sticky (FR-004/FR-005), composing T023–T028 — depends on T023–T028
 - [ ] T030 [US1] Implement `frontend/src/routes/ReviewWorkspacePage.tsx` + register the `/review/:blueprintId` React Router route; render Layout A from `openReview` data into the draft reducer — depends on T022, T029
 
@@ -94,7 +94,7 @@ description: "Task list for feature 003 — Reviewer Review Workflow"
 
 ### Tests for User Story 2 (write first — RED) ⚠️
 
-- [ ] T031 [P] [US2] Unit test `backend/tests/unit/reviews/review-ordering.test.ts`: next-unreviewed sorts by Region `displayOrder` then numeric blueprint suffix (`S2` before `S10`; regions S→H→E→T→P→K→L→Y), skips `已提交`, and returns `null` when all 51 are `已提交` — MUST fail first
+- [ ] T031 [P] [US2] Unit test `backend/tests/unit/reviews/review-ordering.test.ts`: next-unreviewed sorts by Region `displayOrder` then numeric blueprint suffix (`S2` before `S10`; regions S→H→E→T→P→K→L→Y), skips `已提交`, and returns `null` when all catalog blueprints are `已提交` — MUST fail first
 - [ ] T032 [P] [US2] Integration test `backend/tests/integration/reviews/submit-review.test.ts`: `POST /api/reviews/:blueprintId/submit` with `overallJudgement:"通過"` and 4 all-empty panels → `200` `status:"已提交"`, **no warning**, `next` set, `progress` incremented; CSRF enforced — MUST fail first (covers FR-018/SC-004)
 - [ ] T033 [P] [US2] RTL test `frontend/tests/review/useReviewKeyboard.test.tsx`: the full single-image path (focus 整體判定 → choose 通過 → trigger submit) is reachable by keyboard with predictable focus order; `SubmitBar` triggers submit + auto-advance — MUST fail first
 - [ ] T034 [P] [US2] Playwright E2E in `e2e/review.spec.ts` (US2 block): keyboard-only clean-image review completes in ≤ 15 s with no mouse and auto-advances to the next unreviewed image (SC-001/SC-011) — MUST fail first
@@ -123,7 +123,7 @@ description: "Task list for feature 003 — Reviewer Review Workflow"
 
 - [ ] T042 [P] [US3] Unit test `backend/tests/unit/reviews/status-machine.test.ts`: no row + autosave → 草稿; 草稿 + autosave → 草稿 (never 已提交); 已提交 + autosave → 已提交 (never 草稿), `submittedAt` unchanged, not double-counted; timestamps set correctly (FR-024–FR-026) — MUST fail first
 - [ ] T043 [P] [US3] Integration test `backend/tests/integration/reviews/autosave-review.test.ts`: `PATCH /api/reviews/:blueprintId` → `200` `status:"草稿"`; orphan `warningOther`/`problemNote` preserved when their set/checkbox is empty (FR-019); re-open restores every field exactly (SC-002); PATCH on a `已提交` row keeps `已提交` (no regress, SC-006); draft not counted in progress; CSRF required — MUST fail first
-- [ ] T044 [P] [US3] Integration test `backend/tests/integration/reviews/next-review.test.ts`: `GET /api/reviews/next` returns the deterministic first 未審 (繼續審查) and `{next:null, completed:true}` when 51/51 — MUST fail first
+- [ ] T044 [P] [US3] Integration test `backend/tests/integration/reviews/next-review.test.ts`: `GET /api/reviews/next` returns the deterministic first 未審 (繼續審查) and `{next:null, completed:true}` when N/N — MUST fail first
 - [ ] T045 [P] [US3] RTL test `frontend/tests/review/useAutosaveReview.test.tsx`: edits trigger a debounced `PATCH` (never `submit`), and the draft is restored from the server on mount — MUST fail first
 - [ ] T046 [P] [US3] Playwright E2E in `e2e/review.spec.ts` (US3 block): partial fill → reload → fields (incl. orphan text) fully restored and still 草稿; submit then autosave → remains 已提交 (US3 acceptance) — MUST fail first
 
@@ -140,26 +140,26 @@ description: "Task list for feature 003 — Reviewer Review Workflow"
 
 ---
 
-## Phase 6: User Story 4 - 提交需整體判定、行內擋下、自動前進、51/51 完成 (Priority: P2)
+## Phase 6: User Story 4 - 提交需整體判定、行內擋下、自動前進、N/N 完成 (Priority: P2)
 
-**Goal**: submit requires 整體判定 — null is blocked inline with 請先選擇整體判定 and not sent; valid submit auto-advances to the next unreviewed; 51/51 shows a completion state with review/revise entry points (never a dead end).
+**Goal**: submit requires 整體判定 — null is blocked inline with 請先選擇整體判定 and not sent; valid submit auto-advances to the next unreviewed; N/N shows a completion state with review/revise entry points (never a dead end).
 
-**Independent Test**: submit without 整體判定 → blocked inline, nothing sent; select then submit → advances to the correct next unreviewed; simulate 51 submitted → completion state.
+**Independent Test**: submit without 整體判定 → blocked inline, nothing sent; select then submit → advances to the correct next unreviewed; simulate all N submitted → completion state.
 
 ### Tests for User Story 4 (write first — RED) ⚠️
 
-- [ ] T053 [P] [US4] Integration test `backend/tests/integration/reviews/submit-validation.test.ts`: submit with `overallJudgement:null` → `400 OVERALL_JUDGEMENT_REQUIRED` message `請先選擇整體判定`, nothing persisted as 已提交 (SC-003); valid submit returns `next` skipping 已提交; submitting the last image → `next:null, completed:true, progress 51/51` (SC-008) — MUST fail first
-- [ ] T054 [P] [US4] RTL test `frontend/tests/review/CompletionState.test.tsx`: missing 整體判定 shows the inline `請先選擇整體判定` and blocks the call; the 51/51 completion view renders review/revise entry points (not a dead end) — MUST fail first
-- [ ] T055 [P] [US4] Playwright E2E in `e2e/review.spec.ts` (US4 block): null-judgement submit blocked inline; valid submit auto-advances; reaching 51/51 shows the completion state — MUST fail first
+- [ ] T053 [P] [US4] Integration test `backend/tests/integration/reviews/submit-validation.test.ts`: submit with `overallJudgement:null` → `400 OVERALL_JUDGEMENT_REQUIRED` message `請先選擇整體判定`, nothing persisted as 已提交 (SC-003); valid submit returns `next` skipping 已提交; submitting the last image → `next:null, completed:true, progress N/N` (SC-008) — MUST fail first
+- [ ] T054 [P] [US4] RTL test `frontend/tests/review/CompletionState.test.tsx`: missing 整體判定 shows the inline `請先選擇整體判定` and blocks the call; the N/N completion view renders review/revise entry points (not a dead end) — MUST fail first
+- [ ] T055 [P] [US4] Playwright E2E in `e2e/review.spec.ts` (US4 block): null-judgement submit blocked inline; valid submit auto-advances; reaching N/N shows the completion state — MUST fail first
 
 ### Implementation for User Story 4 (GREEN)
 
 - [ ] T056 [US4] Add the submit guard to `submit(...)` in `backend/src/reviews/services/review.service.ts`: if `overallJudgement === null` throw `OVERALL_JUDGEMENT_REQUIRED` before any status change (FR-011) — depends on T036
 - [ ] T057 [US4] Add the inline `請先選擇整體判定` block (validate before calling submit) in `frontend/src/components/review/SubmitBar.tsx` / `OverallJudgementField.tsx` — depends on T040
-- [ ] T058 [US4] Implement `frontend/src/components/review/CompletionState.tsx` (51/51 with review/revise entry points) and render it in `ReviewWorkspacePage.tsx`/progress when `completed:true` (FR-029) — depends on T041
+- [ ] T058 [US4] Implement `frontend/src/components/review/CompletionState.tsx` (N/N with review/revise entry points) and render it in `ReviewWorkspacePage.tsx`/progress when `completed:true` (FR-029) — depends on T041
 - [ ] T059 [US4] Add the client-only non-blocking soft prompt (需小修／需重做 + 四格全空 → suggest at least one 問題說明, still allow submit) in `frontend/src/components/review/SubmitBar.tsx` (FR-030) — depends on T040
 
-**Checkpoint**: submit is gated on 整體判定 server-side, auto-advance is deterministic, and 51/51 is a real completion state.
+**Checkpoint**: submit is gated on 整體判定 server-side, auto-advance is deterministic, and N/N is a real completion state.
 
 ---
 
@@ -208,15 +208,15 @@ description: "Task list for feature 003 — Reviewer Review Workflow"
 
 ## Phase 9: User Story 7 - 個人審查進度頁 (Priority: P3)
 
-**Goal**: a personal progress page showing 已提交 x／51, draft count, per-region (S/H/E/T/P/K/L/Y) distribution, and a region/status-filterable index with jump-to-blueprint — reflecting only the caller.
+**Goal**: a personal progress page showing 已提交 x／N, draft count, per-region (S/H/E/T/P/K/L/Y) distribution, and a region/status-filterable index with jump-to-blueprint — reflecting only the caller.
 
 **Independent Test**: with some reviews done, open the progress page → counts and per-region distribution are correct; region/status filters and jump work; data is the caller's only.
 
 ### Tests for User Story 7 (write first — RED) ⚠️
 
-- [ ] T071 [P] [US7] Unit test `backend/tests/unit/reviews/review-progress.test.ts`: aggregation computes `submitted`/`draft`/`notStarted`/`total=51`, per-region buckets, and derives 未開始 = no row; only the caller's rows are counted (SC-009/FR-042) — MUST fail first
-- [ ] T072 [P] [US7] Integration test `backend/tests/integration/reviews/progress.test.ts`: `GET /api/reviews/progress` returns counts + `meta` + ordered `perRegion` + `index`; `region`/`status` filter only the `index`; bad filter → `400 INVALID_PARAM`; another reviewer's data never appears; empty reviewer → 0/51 with empty index — MUST fail first
-- [ ] T073 [P] [US7] RTL test `frontend/tests/review/ReviewProgressPage.test.tsx`: renders 已提交 x／51 + draft + per-region; region/status filter narrows the index; clicking a 草稿 jumps to it; empty state shows 0/51 without error — MUST fail first
+- [ ] T071 [P] [US7] Unit test `backend/tests/unit/reviews/review-progress.test.ts`: aggregation computes `submitted`/`draft`/`notStarted`/`total` = blueprints in the catalog (N), per-region buckets, and derives 未開始 = no row; only the caller's rows are counted (SC-009/FR-042) — MUST fail first
+- [ ] T072 [P] [US7] Integration test `backend/tests/integration/reviews/progress.test.ts`: `GET /api/reviews/progress` returns counts + `meta` + ordered `perRegion` + `index`; `region`/`status` filter only the `index`; bad filter → `400 INVALID_PARAM`; another reviewer's data never appears; empty reviewer → 0/N with empty index — MUST fail first
+- [ ] T073 [P] [US7] RTL test `frontend/tests/review/ReviewProgressPage.test.tsx`: renders 已提交 x／N + draft + per-region; region/status filter narrows the index; clicking a 草稿 jumps to it; empty state shows 0/N without error — MUST fail first
 - [ ] T074 [P] [US7] Playwright E2E in `e2e/review.spec.ts` (US7 block): progress counts match, filter by 區域＝膝(K)+狀態＝未開始, click a 草稿 → jumps with draft restored (US7 acceptance) — MUST fail first
 
 ### Implementation for User Story 7 (GREEN)
@@ -290,7 +290,7 @@ Order is **tests → models/util → services → endpoints → frontend api →
 
 - **MVP** = Phase 1 + Phase 2 + Phase 3 (US1). Stop and validate: a reviewer can open any blueprint in Layout A with all four gate fields, source data read-only.
 - **P1 increment** = add US2 (fast keyboard submit + auto-advance) and US3 (autosave/restore/no-regress) → the complete, reliable single-pass review loop.
-- **P2 increment** = US4 (submit gate + 51/51) → US5 (reopen/revise + isolation) → US6 (high-risk caution).
+- **P2 increment** = US4 (submit gate + N/N) → US5 (reopen/revise + isolation) → US6 (high-risk caution).
 - **P3 increment** = US7 (personal progress page).
 - Finish with Phase 10 (sanitization, enum-wire, a11y, security, coverage ≥ 80%, quickstart validation).
 

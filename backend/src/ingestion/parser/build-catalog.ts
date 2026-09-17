@@ -1,5 +1,5 @@
 import { readSource, type SourceData } from '../source/source-reader';
-import { parseIndex } from './index-parser';
+import { parseIndex, parseIndexBlueprintIds } from './index-parser';
 import { parseBlueprintMarkdown } from './markdown-parser';
 import type { ParsedBlueprint, ParsedCatalog } from './types';
 
@@ -30,6 +30,7 @@ export const buildCatalog = (source: SourceData): ParsedCatalog => {
   return {
     blueprints,
     diagnoses: parseIndex(source.indexContent),
+    indexBlueprintIds: parseIndexBlueprintIds(source.indexContent),
     imageInventory: source.imageFiles.map((i) => i.blueprintId),
     unknownFolders: source.unknownFolders,
   };

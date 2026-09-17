@@ -35,7 +35,7 @@ runners. No business logic yet.
 - [X] T006 [P] Configure backend test tooling: `backend/vitest.config.ts` (coverage provider, lines/branches gate ≥ 80%), add supertest dev dep, `test` / `test:coverage` scripts in `backend/package.json`.
 - [X] T007 [P] Configure frontend test tooling: `frontend/vitest.config.ts` (jsdom env), `frontend/tests/setup.ts` (@testing-library/react + jest-dom), `test` script in `frontend/package.json`.
 - [X] T008 [P] Configure Playwright: `playwright.config.ts` at repo root (baseURL `http://localhost:5180`, webServer hooks), `e2e/` folder, `e2e` npm script.
-- [X] T009 [P] Author `docker-compose.yml` at repo root: `postgres` (5433→5432, volume), `backend` (3100), `frontend` (5180), and a **read-only** bind mount of the external image source dir `/path/to/image-source` into the backend container (constitution II — read-only; auth itself never reads it, but 001 owns this mount for 002/003).
+- [X] T009 [P] Author `docker-compose.yml` at repo root: `postgres` (5433→5432, volume), `backend` (3100), `frontend` (5180), and a **read-only** bind mount of the external image source dir configured by `IMAGE_SOURCE_DIR` (conventionally the gitignored repo-root `images/`) into the backend container (constitution II — read-only; auth itself never reads it, but 001 owns this mount for 002/003).
 - [X] T010 [P] Container build files: `backend/Dockerfile` (Node 22, build + run), `frontend/Dockerfile` (Vite build + static serve).
 - [X] T011 [P] Author `backend/.env.example` with every variable from quickstart (`DATABASE_URL`, `SESSION_ABSOLUTE_TTL`, `SESSION_IDLE_TTL`, `COOKIE_SECURE`, `COOKIE_DOMAIN`, `COOKIE_SID_NAME`, `COOKIE_CSRF_NAME`, `ARGON2_*`, `LOGIN_RATE_MAX`, `LOGIN_RATE_WINDOW`, `BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_PASSWORD`); confirm `backend/.env` is gitignored.
 - [X] T012 Initialize Prisma: `backend/prisma/schema.prisma` datasource (postgresql) + generator (prisma-client-js), wire `DATABASE_URL` (depends on T002).
@@ -107,10 +107,10 @@ frontend app shell + API client. Every user story depends on this.
 ## Phase 3: User Story 1 — 審查者登入並落在個人進度頁 (Priority: P1) 🎯 MVP
 
 **Goal**: A reviewer logs in with admin-issued credentials and lands on their personal
-progress page (0／51 start). Wrong credentials return one generic failure that never reveals
+progress page (0／N start). Wrong credentials return one generic failure that never reveals
 whether the account exists.
 
-**Independent Test**: Log in with a valid reviewer account → `redirect=/progress` + 0／51
+**Independent Test**: Log in with a valid reviewer account → `redirect=/progress` + 0／N
 landing; log in with any wrong credentials → identical `401 AUTH_FAILED / 帳號或密碼錯誤`.
 
 ### Tests (write first, MUST FAIL)
@@ -119,7 +119,7 @@ landing; log in with any wrong credentials → identical `401 AUTH_FAILED / 帳�
 - [X] T043 [P] [US1] Integration test in `backend/tests/integration/auth-login-parity.test.ts` — unknown username / wrong password / disabled account ALL return identical `401 { code:"AUTH_FAILED", message:"帳號或密碼錯誤" }`, no cookies (FR-004, SC-004).
 - [X] T044 [P] [US1] Unit test in `backend/tests/unit/auth.service.test.ts` — `auth.service.login` runs dummy-verify on unknown user, collapses disabled account into generic failure, issues session on success.
 - [X] T045 [P] [US1] Frontend test in `frontend/tests/LoginPage.test.tsx` — required fields, submit invokes login hook, shows `帳號或密碼錯誤` on 401, and asserts NO registration/signup link is present (cross-checks US3).
-- [X] T046 [P] [US1] E2E in `e2e/auth.spec.ts` (US1 block) — valid reviewer login → lands `/progress` showing 0／51; wrong creds → generic message, stays on login.
+- [X] T046 [P] [US1] E2E in `e2e/auth.spec.ts` (US1 block) — valid reviewer login → lands `/progress` showing 0／N; wrong creds → generic message, stays on login.
 
 ### Implementation
 
@@ -130,7 +130,7 @@ landing; log in with any wrong credentials → identical `401 AUTH_FAILED / 帳�
 - [X] T051 [US1] `frontend/src/routes/LoginPage.tsx` — the only public screen; zh-TW labels, keyboard-operable, text (not color) error state (depends T050).
 - [X] T052 [US1] `frontend/src/components/ProtectedRoute.tsx` + router config — public `/login`, role-based landing redirect (reviewer → `/progress`), client guard is defense-in-depth only.
 
-**Checkpoint**: US1 independently demoable — reviewer login → 0／51, generic-failure parity holds.
+**Checkpoint**: US1 independently demoable — reviewer login → 0／N, generic-failure parity holds.
 
 ---
 

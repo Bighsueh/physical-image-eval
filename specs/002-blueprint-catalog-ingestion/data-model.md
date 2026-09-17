@@ -16,7 +16,7 @@ One of: `S` (肩部), `H` (頭頸部), `E` (肘腕手), `T` (脊椎軀幹), `P` 
 - `TEMPLATE`（通用處方模板）— abstract systemic diagnosis covered by a Y-series general-prescription blueprint.
 - `REFERRAL`（轉介）— non-PT / ophthalmology / GI diagnosis, produces no blueprint, maps to nothing.
 
-`MAPPED ∪ TEMPLATE` = the 128 "對應到藍圖"; `REFERRAL` = the 6. Total 134 (FR-008).
+`MAPPED ∪ TEMPLATE` = "對應到藍圖"; `REFERRAL` = "轉介". Together they are every diagnosis listed in the index; the counts are computed from the source and reported, not fixed (FR-008).
 
 ---
 
@@ -29,14 +29,14 @@ The 8 anatomical regions. Seeded entirely by ingestion.
 | `id` | string (cuid) | PK |
 | `regionCode` | enum `RegionCode` | **unique**. Business key. |
 | `nameZh` | string | e.g. 肩部. zh-TW (constitution VIII). |
-| `nameEn` | string | e.g. SHOULDER. From a constant `regionCode → nameEn` map in `catalog-constants.ts` (co-located with `REGION_COUNTS` and the folder map), NOT parsed from the Chinese source folder name. |
+| `nameEn` | string | e.g. SHOULDER. From a constant `regionCode → nameEn` map in `catalog-constants.ts` (co-located with the folder map), NOT parsed from the Chinese source folder name. |
 | `displayOrder` | int (1..8) | **unique**. Drives stable region ordering in UI. |
 
 **Relationships**: `Region` 1 ──< `Blueprint` (many).
 
 **Constraints / indexes**:
 - `UNIQUE(regionCode)`, `UNIQUE(displayOrder)`.
-- Cardinality invariant (enforced by ingestion, FR-003): blueprint count per region must be exactly `S=4, H=4, E=6, T=8, P=5, K=7, L=5, Y=12` (sum 51).
+- Cardinality invariant (enforced by ingestion, FR-003): every region must contain at least one blueprint (`FR-003:empty-region`); membership comes from the index's per-region mapping tables.
 
 ---
 
@@ -69,7 +69,7 @@ One 2×2 four-panel exercise-education image's reference unit. The catalog's cen
 **Constraints / indexes**:
 - `UNIQUE(blueprintId)`, `UNIQUE(imagePath)`.
 - Index on `regionId`; index on `isHighRisk` (badge/filter queries).
-- Application invariant: exactly 51 `Blueprint` rows after ingestion (FR-002).
+- Application invariant (FR-002): the set of `Blueprint` rows equals exactly the blueprint IDs listed in the index's per-region mapping tables — no listed blueprint missing from source (`FR-002:missing-blueprint`), no source blueprint unlisted (`FR-002:unlisted-blueprint`).
 - The set `{ blueprintId : isHighRisk = true }` must equal `{S4,T8,P1,P4,P5,K2,K3,K5,L3}` exactly (FR-010, SC-006).
 
 ---
@@ -99,12 +99,12 @@ One cell of a blueprint's 2×2 grid. Exactly four per blueprint.
 
 ## Entity: `Diagnosis`（診斷）
 
-One row of the 134-diagnosis mapping matrix. Sourced authoritatively from `00_藍圖總索引與設計規範.md` (D2).
+One row of the diagnosis mapping matrix. Sourced authoritatively from `00_藍圖總索引與設計規範.md` (D2).
 
 | Field | Logical type | Notes |
 |-------|--------------|-------|
 | `id` | string (cuid) | PK |
-| `matrixNo` | int (1..134) | **unique**. Business key — the parenthesized matrix number from the index. |
+| `matrixNo` | int (1..N, N = diagnoses listed in the index) | **unique**. Business key — the parenthesized matrix number from the index. |
 | `nameZh` | string | 診斷中文名. zh-TW. |
 | `mappingKind` | enum `MappingKind` | `MAPPED` / `TEMPLATE` / `REFERRAL`. |
 | `mappedBlueprintId` | string (FK → `Blueprint.id`) \| null | NOT NULL for `MAPPED`/`TEMPLATE`; NULL for `REFERRAL`. `TEMPLATE` points to a Y-series blueprint. |
@@ -115,7 +115,7 @@ One row of the 134-diagnosis mapping matrix. Sourced authoritatively from `00_�
 - `UNIQUE(matrixNo)`.
 - Index on `mappedBlueprintId`.
 - Conditional invariant: `mappingKind = REFERRAL ⇔ mappedBlueprintId IS NULL` (FR-009, edge case in spec §Edge Cases).
-- Reconciliation invariant (FR-008): `count(*) = 134`, `count(MAPPED)+count(TEMPLATE) = 128`, `count(REFERRAL) = 6`.
+- Reconciliation invariant (FR-008): `matrixNo` values are unique (`FR-008:dup-matrixNo`) and contiguous from 1 to `count(*)` with no gaps (`FR-008:gap`), and at least one diagnosis is listed (`FR-008:empty`); `count(*)`, `count(MAPPED)+count(TEMPLATE)` and `count(REFERRAL)` are computed from the source and reported, not compared to constants.
 - Referential invariant (FR-009): every non-referral `mappedBlueprintId` resolves to an existing `Blueprint`.
 
 ---
@@ -128,9 +128,9 @@ One row of the 134-diagnosis mapping matrix. Sourced authoritatively from `00_�
 ## Entity-relationship summary
 
 ```text
-Region (8) ──1:N── Blueprint (51) ──1:4── Panel (204)
+Region (8) ──1:N── Blueprint (≥1 per region, set = index) ──1:4── Panel
                         │
-                        └──1:N── Diagnosis (128 mapped/template; 6 referral have NULL blueprint)
-Diagnosis total = 134 = 128 (MAPPED+TEMPLATE) + 6 (REFERRAL)
+                        └──1:N── Diagnosis (mapped/template; referral have NULL blueprint)
+Diagnosis total = (MAPPED+TEMPLATE) + (REFERRAL); matrixNo unique, contiguous 1..total
 HighRisk Blueprints = { S4, T8, P1, P4, P5, K2, K3, K5, L3 }  (single named constant)
 ```

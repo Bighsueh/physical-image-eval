@@ -6,7 +6,7 @@
 
 ## Summary
 
-Feature 002 owns the **catalog domain**: the read-only reference data every later feature reviews against. An idempotent, all-or-nothing ingestion command parses the READ-ONLY source dir (51 blueprint `.md`, the `00_藍圖總索引與設計規範.md` index, and 51 `.png`), validates a fixed set of fail-fast invariants, and writes four catalog tables — `Region`, `Blueprint`, `Panel`, `Diagnosis` — inside a single Prisma transaction. The source dir is never written. A read API (Express + Prisma) exposes regions, blueprints (metadata + 4 panels + covered diagnoses + `isHighRisk`), and a read-only image route; the internal-only `aiPrompt` is stored but never serialized into any API response. The technical approach: parse-and-validate entirely in memory (pure functions), emit a structured + human-readable report, and only on a fully-valid result open one transaction that snapshot-replaces the catalog (guaranteeing idempotent re-run and no half-written state).
+Feature 002 owns the **catalog domain**: the read-only reference data every later feature reviews against. An idempotent, all-or-nothing ingestion command parses the READ-ONLY source dir (the blueprint `.md` files, the `00_藍圖總索引與設計規範.md` index, and the blueprint `.png` files), validates a fixed set of fail-fast invariants, and writes four catalog tables — `Region`, `Blueprint`, `Panel`, `Diagnosis` — inside a single Prisma transaction. The source dir is never written. A read API (Express + Prisma) exposes regions, blueprints (metadata + 4 panels + covered diagnoses + `isHighRisk`), and a read-only image route; the internal-only `aiPrompt` is stored but never serialized into any API response. The technical approach: parse-and-validate entirely in memory (pure functions), emit a structured + human-readable report, and only on a fully-valid result open one transaction that snapshot-replaces the catalog (guaranteeing idempotent re-run and no half-written state).
 
 ## Technical Context
 
@@ -18,21 +18,21 @@ Feature 002 owns the **catalog domain**: the read-only reference data every late
 
 **Testing**: Vitest (unit: parser, index-parser, invariants, diff, high-risk derivation), supertest (catalog read API integration), a test Postgres (Testcontainers or a disposable compose DB) for repository/transaction tests. Fixtures: one synthetic valid source tree plus several each-broken trees (one invariant violated each). TDD, coverage ≥ 80%.
 
-**Target Platform**: Linux server container (Docker). Backend container receives a **read-only bind mount** of the external source image dir. Prod via Cloudflared at `https://your-domain.example.com`.
+**Target Platform**: Linux server container (Docker). Backend container receives a **read-only bind mount** of the external source image dir. Prod via Cloudflared at the production domain (set via `COOKIE_DOMAIN`).
 
 **Project Type**: web (monorepo `backend/` + `frontend/`). This feature touches `backend/` only.
 
-**Performance Goals**: Ingestion of the full corpus (51 blueprints ≈ 204 panels + 134 diagnoses) completes in < 5 s wall-clock on a dev laptop. Catalog read endpoints respond < 50 ms p95 (single-digit-thousand rows, served from Postgres). Image route streams 1–2 MB PNGs read-only.
+**Performance Goals**: Ingestion of the full corpus (all blueprints × 4 panels + all diagnoses) completes in < 5 s wall-clock on a dev laptop. Catalog read endpoints respond < 50 ms p95 (single-digit-thousand rows, served from Postgres). Image route streams 1–2 MB PNGs read-only.
 
 **Constraints**: Strictly read-only source access (no write/rename/move/delete at any code path); fail-fast all-or-nothing (0 rows persisted on any invariant failure); idempotent re-run (identical source ⇒ equivalent catalog, no duplicates/drift); high-risk set referenced from a single named constant; `aiPrompt` never exposed to reviewers.
 
-**Scale/Scope**: Fixed, small, authoritative corpus — 8 regions, 51 blueprints, exactly 4 panels each, 134 diagnoses (128 mapped + 6 referral). Scope does not grow with users; it changes only when the source dir is updated and re-ingested.
+**Scale/Scope**: Small, authoritative corpus — 8 regions, the blueprints listed in the source index, exactly 4 panels each, and the index's diagnoses (mapped + referral); cardinalities are derived from the index, not hard-coded. Scope does not grow with users; it changes only when the source dir is updated and re-ingested.
 
 ## Constitution Check
 
 *GATE: evaluated before Phase 0 research and re-checked after Phase 1 design. No violations.*
 
-- **I. Spec-First Authority**: Every entity, invariant, and endpoint below traces to a numbered FR/SC in `spec.md` (e.g. counts → FR-002/FR-003, 4 panels → FR-004, reconciliation → FR-008/FR-009, high-risk → FR-010, fail-fast → FR-011/FR-017, idempotency → FR-013, internal aiPrompt → FR-020). No design element exists without a spec line. **PASS**
+- **I. Spec-First Authority**: Every entity, invariant, and endpoint below traces to a numbered FR/SC in `spec.md` (e.g. blueprint set vs index → FR-002, non-empty regions → FR-003, 4 panels → FR-004, reconciliation → FR-008/FR-009, high-risk → FR-010, fail-fast → FR-011/FR-017, idempotency → FR-013, internal aiPrompt → FR-020). No design element exists without a spec line. **PASS**
 - **II. Read-Only External Image Data**: Ingestion opens source files read-only, performs all parsing/validation in memory, and writes only to Postgres + a report sink **outside** the source dir. The image route resolves a blueprint-keyed path and streams bytes read-only; no client-supplied path reaches the filesystem. Tests assert source file content + mtime are unchanged after both success and failure runs (SC-005). **PASS**
 - **III. No Open Registration**: N/A to catalog domain — this feature creates no account/registration surface of any kind. **PASS (not applicable)**
 - **IV. Least-Privilege, Server-Enforced Roles**: Catalog reads require an authenticated session (either role); enforced by the same server-side session middleware defined in 001. Ingestion is an operator CLI, not a user-facing route, and exposes no privilege escalation. **PASS**
@@ -75,14 +75,14 @@ backend/
 │   │   ├── services/catalog.service.ts
 │   │   ├── repositories/catalog.repository.ts # Prisma read access
 │   │   ├── dto/blueprint-public.dto.ts        # public projection — EXCLUDES aiPrompt
-│   │   └── constants/catalog-constants.ts     # HIGH_RISK_BLUEPRINT_IDS, REGION_COUNTS, REGION_FOLDER_MAP
+│   │   └── constants/catalog-constants.ts     # HIGH_RISK_BLUEPRINT_IDS, REGION_FOLDER_MAP
 │   ├── ingestion/
 │   │   ├── ingest.command.ts                  # `npm run ingest` entry; exit codes; report sink
 │   │   ├── source/source-reader.ts            # read-only dir walk (open with read flag only)
 │   │   ├── parser/markdown-parser.ts          # remark mdast → ParsedBlueprint (metadata + 4 panels + aiPrompt)
 │   │   ├── parser/index-parser.ts             # 00 index tables → ParsedDiagnosis[] + mapping
 │   │   ├── parser/id-region.ts                # ID regex, region-letter ↔ folder cross-check
-│   │   ├── validation/invariants.ts           # all fail-fast checks (counts, panels, orphans, reconciliation, high-risk)
+│   │   ├── validation/invariants.ts           # all fail-fast checks (blueprint set vs index, non-empty regions, panels, orphans, reconciliation, high-risk)
 │   │   ├── validation/report.ts               # structured report builder + human-readable renderer
 │   │   ├── diff/snapshot-diff.ts              # added/modified/removed vs existing catalog
 │   │   └── persistence/catalog-writer.ts      # single Prisma $transaction snapshot-replace

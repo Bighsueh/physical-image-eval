@@ -1,11 +1,10 @@
-import { TOTAL_BLUEPRINTS } from '../../catalog/constants/catalog-constants';
 import { catalogService } from '../../catalog/services/catalog.service';
 import { reviewRepository } from '../repositories/review.repository';
 
 /**
  * Auto-advance ordering (research D7, FR-028). The next "unreviewed" blueprint is the first one —
  * in the catalog's deterministic order (Region displayOrder → numeric serial, already applied by
- * 002's listBlueprints) — whose status is NOT 已提交 (i.e. 未開始 or 草稿). null when all 51 submitted.
+ * 002's listBlueprints) — whose status is NOT 已提交 (i.e. 未開始 or 草稿). null when all are submitted.
  */
 export interface NextResult {
   next: string | null;
@@ -28,5 +27,5 @@ export const nextUnreviewed = async (reviewerId: string): Promise<NextResult> =>
     else if (next === null) next = b.blueprintId; // first non-submitted in deterministic order
   }
 
-  return { next, completed: next === null, submitted, total: TOTAL_BLUEPRINTS };
+  return { next, completed: next === null, submitted, total: ordered.length };
 };

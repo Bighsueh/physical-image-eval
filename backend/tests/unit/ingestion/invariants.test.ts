@@ -18,7 +18,7 @@ describe('invariants', () => {
     valid = readAndBuildCatalog(env.IMAGE_SOURCE_DIR);
   });
 
-  it('PASS — the valid catalog has zero errors (51, region counts, 4 panels, 134, high-risk)', () => {
+  it('PASS — the valid catalog has zero errors (index-declared set, regions, 4 panels, diagnoses, high-risk)', () => {
     expect(collectErrors(valid)).toEqual([]);
   });
 
@@ -53,18 +53,50 @@ describe('invariants', () => {
     expect(invariants(collectErrors(c))).toContain('FR-005:orphan-image');
   });
 
-  it('FR-002/FR-003 — removing a blueprint breaks the count + region count', () => {
+  it('FR-002 — a blueprint the index lists but the source lacks', () => {
     const c = clone(valid);
-    c.blueprints.shift();
-    const ids = invariants(collectErrors(c));
-    expect(ids).toContain('FR-002:count');
-    expect(ids).toContain('FR-003:region-count');
+    const [removed] = c.blueprints.splice(0, 1);
+    const errors = collectErrors(c);
+    expect(errors).toContainEqual(
+      expect.objectContaining({ invariant: 'FR-002:missing-blueprint', blueprintId: removed.blueprintId }),
+    );
   });
 
-  it('FR-008 — dropping a diagnosis breaks reconciliation', () => {
+  it('FR-002 — a source blueprint the index does not list', () => {
     const c = clone(valid);
-    c.diagnoses.pop();
-    expect(invariants(collectErrors(c))).toContain('FR-008:total');
+    c.indexBlueprintIds = c.indexBlueprintIds.filter((id) => id !== 'S1');
+    expect(collectErrors(c)).toContainEqual(
+      expect.objectContaining({ invariant: 'FR-002:unlisted-blueprint', blueprintId: 'S1' }),
+    );
+  });
+
+  it('FR-003 — a region with no blueprints', () => {
+    const c = clone(valid);
+    c.blueprints = c.blueprints.filter((b) => b.regionCode !== 'H');
+    c.indexBlueprintIds = c.indexBlueprintIds.filter((id) => !id.startsWith('H'));
+    c.diagnoses = c.diagnoses.filter((d) => !d.mappedBlueprintId?.startsWith('H'));
+    expect(invariants(collectErrors(c))).toContain('FR-003:empty-region');
+  });
+
+  it('FR-008 — a gap in the matrix numbering', () => {
+    const c = clone(valid);
+    const middle = c.diagnoses.find((d) => d.matrixNo === 2)!;
+    c.diagnoses = c.diagnoses.filter((d) => d !== middle);
+    expect(collectErrors(c)).toContainEqual(
+      expect.objectContaining({ invariant: 'FR-008:gap', diagnosisNo: 2 }),
+    );
+  });
+
+  it('FR-008 — a duplicated matrix number', () => {
+    const c = clone(valid);
+    c.diagnoses.push({ ...c.diagnoses[0] });
+    expect(invariants(collectErrors(c))).toContain('FR-008:dup-matrixNo');
+  });
+
+  it('FR-008 — an index with no diagnoses at all', () => {
+    const c = clone(valid);
+    c.diagnoses = [];
+    expect(invariants(collectErrors(c))).toContain('FR-008:empty');
   });
 
   it('FR-009 — a REFERRAL diagnosis pointing at a blueprint', () => {

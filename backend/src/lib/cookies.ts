@@ -4,7 +4,7 @@ import { env } from '../config/env';
 /**
  * Cookie helpers (contract: Auth & CSRF). pie_sid is httpOnly (no JS access); pie_csrf is readable
  * by the SPA for the double-submit header. Both are Secure (prod) + SameSite=Lax, Domain-bound in
- * prod (your-domain.example.com). Lifetime tracks the absolute session TTL.
+ * prod (COOKIE_DOMAIN). Lifetime tracks the absolute session TTL.
  */
 const baseOptions = (): CookieOptions => ({
   secure: env.COOKIE_SECURE,

@@ -5,6 +5,7 @@ import { env } from '../../../src/config/env';
 import { runIngest } from '../../../src/ingestion/runner';
 import { adminAgent, reviewerAgent } from '../../helpers/http';
 import { seedDashboard } from '../../helpers/dashboard-seed';
+import { FIXTURE_TOTAL_BLUEPRINTS } from '../../fixtures/generate';
 
 interface ImageRow {
   blueprintId: string;
@@ -32,13 +33,13 @@ describe('admin dashboard (US1)', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({
       activeReviewerCount: 3,
-      expectedSubmissions: 153,
+      expectedSubmissions: 3 * FIXTURE_TOTAL_BLUEPRINTS,
       submittedActive: 3,
       inactiveSubmittedTotal: 1,
       highRiskCount: 9,
-      totalBlueprints: 51,
+      totalBlueprints: FIXTURE_TOTAL_BLUEPRINTS,
     });
-    expect(res.body.data.percent).toBeCloseTo(2.0, 1); // 3/153 ≈ 2.0, never > 100
+    expect(res.body.data.percent).toBeCloseTo((3 / (3 * FIXTURE_TOTAL_BLUEPRINTS)) * 100, 1); // never > 100
     expect(res.body.data.blueprintsWithRedoCount).toBeGreaterThanOrEqual(1);
   });
 
@@ -48,7 +49,7 @@ describe('admin dashboard (US1)', () => {
     const byName = Object.fromEntries(res.body.data.map((r: { displayName: string }) => [r.displayName, r]));
     expect(byName['甲醫師'].submittedCount).toBe(2);
     expect(byName['丙醫師'].submittedCount).toBe(0);
-    expect(byName['丙醫師'].unreviewedBlueprintIds).toHaveLength(51);
+    expect(byName['丙醫師'].unreviewedBlueprintIds).toHaveLength(FIXTURE_TOTAL_BLUEPRINTS);
     expect(byName['丙醫師'].lastSubmittedBlueprintId).toBeNull();
     expect(byName['前醫師'].isActive).toBe(false);
     // active reviewers come before 非在職
@@ -57,7 +58,7 @@ describe('admin dashboard (US1)', () => {
 
   it('images: coverage + distribution (active only) + 非在職 separate + filters', async () => {
     const res = await admin.agent.get('/api/admin/dashboard/images');
-    expect(res.body.meta.total).toBe(51);
+    expect(res.body.meta.total).toBe(FIXTURE_TOTAL_BLUEPRINTS);
     const s1: ImageRow = res.body.data.find((i: ImageRow) => i.blueprintId === 'S1');
     expect(s1.submittedActiveCount).toBe(2);
     expect(s1.distribution).toEqual({ 通過: 1, 需小修: 0, 需重做: 1 });

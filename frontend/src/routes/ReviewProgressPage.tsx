@@ -63,10 +63,10 @@ export function ReviewProgressPage() {
         <Card className="p-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1 space-y-2">
-              <ProgressBar value={submitted} total={data?.total ?? 51} label="已提交" />
+              <ProgressBar value={submitted} total={data?.total ?? 0} label="已提交" />
               <div className="flex flex-wrap items-center gap-4 text-sm text-ink-soft">
                 <span>草稿 {data?.draft ?? 0}</span>
-                <span>未開始 {data?.notStarted ?? 51}</span>
+                <span>未開始 {data?.notStarted ?? 0}</span>
               </div>
             </div>
             <div className="shrink-0">

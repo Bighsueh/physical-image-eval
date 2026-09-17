@@ -19,7 +19,7 @@ DATABASE_URL="postgresql://pie:pie@localhost:5433/physical_image_eval?schema=pub
 SESSION_ABSOLUTE_TTL="12h"        # absolute session lifetime (D2)
 SESSION_IDLE_TTL="60m"            # idle timeout (D2)
 COOKIE_SECURE="false"             # false on http localhost; true in prod
-COOKIE_DOMAIN=""                  # empty on localhost; your-domain.example.com in prod
+COOKIE_DOMAIN=""                  # empty on localhost; <正式網域> in prod
 COOKIE_SID_NAME="pie_sid"
 COOKIE_CSRF_NAME="pie_csrf"
 
@@ -37,8 +37,8 @@ BOOTSTRAP_ADMIN_USERNAME="admin"
 BOOTSTRAP_ADMIN_PASSWORD="change-me-on-first-login"
 ```
 
-Prod (`your-domain.example.com` via Cloudflared): set `COOKIE_SECURE=true`,
-`COOKIE_DOMAIN=your-domain.example.com`, and supply strong bootstrap creds.
+Prod (the production domain via Cloudflared): set `COOKIE_SECURE=true`,
+`COOKIE_DOMAIN=<正式網域>`, and supply strong bootstrap creds.
 
 ## 2. Bring up the stack
 
@@ -154,7 +154,7 @@ done
 
 | Check | Validates |
 |-------|-----------|
-| 5.1 + frontend landing on `/progress` showing 0／51 | FR-002, FR-003, US1 |
+| 5.1 + frontend landing on `/progress` showing 0／N | FR-002, FR-003, US1 |
 | 5.4 (identical 401 body across 3 username classes) | FR-004, SC-004, US1 |
 | 5.3 (3-step admin create → loginable reviewer) | FR-006, SC-003, US2 |
 | 5.6 (server-side 403 for reviewer on admin route) | FR-011, FR-012, SC-001, SC-008, US4 |

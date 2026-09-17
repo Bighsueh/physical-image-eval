@@ -2,6 +2,14 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { env } from '../../../src/config/env';
 import { prisma } from '../../../src/lib/prisma';
 import { runIngest, type RunIngestResult } from '../../../src/ingestion/runner';
+import { ALL_REGION_CODES } from '../../../src/catalog/constants/catalog-constants';
+import {
+  FIXTURE_MAPPED_DIAGNOSES,
+  FIXTURE_REFERRAL_DIAGNOSES,
+  FIXTURE_REGION_COUNTS,
+  FIXTURE_TOTAL_BLUEPRINTS,
+  FIXTURE_TOTAL_DIAGNOSES,
+} from '../../fixtures/generate';
 
 /** US1 — a valid source ingests to a correct catalog (SC-001). */
 describe('ingest success (US1)', () => {
@@ -16,27 +24,31 @@ describe('ingest success (US1)', () => {
     expect(result.report?.errors).toEqual([]);
   });
 
-  it('persists 51 blueprints with the S4 H4 E6 T8 P5 K7 L5 Y12 distribution', async () => {
-    expect(await prisma.blueprint.count()).toBe(51);
+  it('persists every fixture blueprint with the fixture region distribution', async () => {
+    expect(await prisma.blueprint.count()).toBe(FIXTURE_TOTAL_BLUEPRINTS);
     const regions = await prisma.region.findMany({
       include: { _count: { select: { blueprints: true } } },
       orderBy: { displayOrder: 'asc' },
     });
-    expect(regions.map((r) => r._count.blueprints)).toEqual([4, 4, 6, 8, 5, 7, 5, 12]);
+    expect(regions.map((r) => r._count.blueprints)).toEqual(
+      ALL_REGION_CODES.map((code) => FIXTURE_REGION_COUNTS[code]),
+    );
   });
 
   it('persists exactly 4 panels per blueprint', async () => {
-    expect(await prisma.panel.count()).toBe(51 * 4);
+    expect(await prisma.panel.count()).toBe(FIXTURE_TOTAL_BLUEPRINTS * 4);
     const grouped = await prisma.panel.groupBy({ by: ['blueprintId'], _count: { _all: true } });
     expect(grouped.every((g) => g._count._all === 4)).toBe(true);
   });
 
-  it('persists 134 diagnoses = 128 (mapped+template) + 6 referral', async () => {
-    expect(await prisma.diagnosis.count()).toBe(134);
-    expect(await prisma.diagnosis.count({ where: { mappingKind: 'REFERRAL' } })).toBe(6);
+  it('persists every index diagnosis, split into mapped+template and referral', async () => {
+    expect(await prisma.diagnosis.count()).toBe(FIXTURE_TOTAL_DIAGNOSES);
+    expect(await prisma.diagnosis.count({ where: { mappingKind: 'REFERRAL' } })).toBe(
+      FIXTURE_REFERRAL_DIAGNOSES,
+    );
     expect(
       await prisma.diagnosis.count({ where: { mappingKind: { in: ['MAPPED', 'TEMPLATE'] } } }),
-    ).toBe(128);
+    ).toBe(FIXTURE_MAPPED_DIAGNOSES);
   });
 
   it('marks exactly the high-risk set', async () => {

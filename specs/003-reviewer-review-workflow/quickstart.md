@@ -7,9 +7,9 @@ frontend `5180`, backend `3100`, Postgres `5433→5432`. This feature depends on
 ## Prerequisites
 
 - Docker + docker-compose, Node 22, npm.
-- 001 migrated + bootstrap admin seeded; 002 catalog ingested (51 blueprints).
-- The READ-ONLY source dir mounted for 002's image route at
-  `…/物理治療師/專案文件/04_運動圖解藍圖`.
+- 001 migrated + bootstrap admin seeded; 002 catalog ingested (all blueprints listed in the source index).
+- The READ-ONLY source dir mounted for 002's image route, configured via
+  `IMAGE_SOURCE_DIR` (conventionally the gitignored repo-root `images/`).
 
 ## 1. Environment
 
@@ -17,9 +17,9 @@ frontend `5180`, backend `3100`, Postgres `5433→5432`. This feature depends on
 
 ```bash
 DATABASE_URL="postgresql://app:app@localhost:5433/physical_image_eval?schema=public"
-IMAGE_SOURCE_DIR="/path/to/image-source"
+IMAGE_SOURCE_DIR="../images"   # absolute, or relative to the backend working directory (repo-root images/, gitignored)
 PORT=3100
-SESSION_COOKIE_SECURE=false   # dev; prod=true under Cloudflared (your-domain.example.com)
+SESSION_COOKIE_SECURE=false   # dev; prod=true under Cloudflared (production domain)
 ```
 
 `docker-compose.yml` already mounts `IMAGE_SOURCE_DIR` read-only and runs postgres + backend +
@@ -45,7 +45,7 @@ psql -h localhost -p 5433 -U app -d physical_image_eval -c '\dt' | grep -E 'Revi
 ```bash
 cd backend
 npm run seed:bootstrap-admin                  # 001: first 系統管理員 (idempotent)
-npm run ingest                                 # 002: 51 blueprints, panels, high-risk flags
+npm run ingest                                 # 002: blueprints, panels, high-risk flags
 # create a reviewer via 001's admin API (returns a one-time temp password), then change it:
 #   POST /api/admin/accounts { displayName:"林醫師", username:"dr.lin", role:"REVIEWER" }
 ```
@@ -63,10 +63,10 @@ CSRF=$(grep pie_csrf /tmp/cj.txt | awk '{print $7}')
 
 ## 5. Prove the acceptance criteria (API)
 
-### FR-039/041 · SC-009 — fresh progress is 0／51
+### FR-039/041 · SC-009 — fresh progress is 0／N
 ```bash
 curl -s -b /tmp/cj.txt $BASE/api/reviews/progress | jq '{submitted,draft,notStarted,total}'
-# { "submitted": 0, "draft": 3? , "notStarted": ..., "total": 51 }  (0 submitted on a clean reviewer)
+# { "submitted": 0, "draft": 3? , "notStarted": ..., "total": <N> }  (0 submitted on a clean reviewer; N = blueprints in catalog)
 ```
 
 ### US1 / FR-004–FR-009 — open S1: full metadata, visualDescription shown, aiPrompt absent
@@ -161,7 +161,7 @@ curl -s -b /tmp/cj_admin.txt $BASE/api/reviews/progress | jq '.error.code'   # "
 
 ## 6. Validate the UI (Layout A) at http://localhost:5180
 
-1. Log in as `dr.lin` → lands on `/progress` showing **已提交 0／51** (top, fixed).
+1. Log in as `dr.lin` → lands on `/progress` showing **已提交 0／N** (top, fixed).
 2. Open S1 → left: sticky 2×2 PNG with **inline zoom/pan** (`+`/`-`/arrows/`0`, fit default,
    **no lightbox**) + full read-only metadata (適應症/練習次數/溫馨小叮嚀 + 4 panels'
    步驟名/動作說明/時間提示/**畫面視覺描述**); right: 整體判定 + 適應症 + 4 stacked panel forms.
@@ -180,14 +180,14 @@ npx playwright test e2e/review.spec.ts              # US1–US7 end-to-end
 ```
 
 Key test groups:
-- **unit/reviews** — `review-ordering` (displayOrder→numeric id, skip 已提交, 51/51), status
+- **unit/reviews** — `review-ordering` (displayOrder→numeric id, skip 已提交, N/N), status
   machine (no elevate / no regress), per-reviewer isolation, zod schema (4 panels, enum
   members, length caps), orphan-text preservation, enum↔zh-TW mapping.
 - **integration/reviews** — all 5 routes incl. `401` (no session), `403` (admin role / CSRF),
   `400 OVERALL_JUDGEMENT_REQUIRED`, autosave-no-regress, cross-reviewer isolation, restore
   fidelity, `aiPrompt` never present.
 - **e2e/review.spec.ts** — US1 圖文並陳, US2 鍵盤快路徑 (≤15s), US3 autosave 還原 + 不回退,
-  US4 提交需整體判定 + 自動前進 + 51/51, US5 重開修訂, US6 高風險警示, US7 個人進度頁.
+  US4 提交需整體判定 + 自動前進 + N/N, US5 重開修訂, US6 高風險警示, US7 個人進度頁.
 
 ---
 

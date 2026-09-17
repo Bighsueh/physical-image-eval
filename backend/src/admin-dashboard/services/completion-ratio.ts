@@ -1,7 +1,7 @@
 /**
- * Active-basis completion ratio (FR-002/016/022). The denominator is activeReviewers × 51 and the
- * numerator counts only active reviewers' submitted records — so the percent can never exceed 100,
- * and 非在職 submissions never enter it. Denominator 0 ⇒ 0 (no division).
+ * Active-basis completion ratio (FR-002/016/022). The denominator is activeReviewers × catalog
+ * size and the numerator counts only active reviewers' submitted records — so the percent can never
+ * exceed 100, and 非在職 submissions never enter it. Denominator 0 ⇒ 0 (no division).
  */
 export const completionPercent = (submittedActive: number, expectedSubmissions: number): number => {
   if (expectedSubmissions <= 0) return 0;

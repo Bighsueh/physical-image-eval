@@ -55,8 +55,8 @@ Represents a person who can enter the system. Each account has exactly one `Role
 - `Account 1 ──< AuditLog` as **actor** (operations it performed).
 - `Account 1 ──< AuditLog` as **target** (operations performed on it).
 - `Account 0..1 ──< Account` self-reference via `createdByAccountId`.
-- *(cross-feature, not defined here)* `Account(REVIEWER) 1 ──< Review 0..51` (003) — a
-  reviewer account maps to 0..51 Reviews. Disabling an account must never delete/anonymize
+- *(cross-feature, not defined here)* `Account(REVIEWER) 1 ──< Review 0..N` (003) — a
+  reviewer account maps to 0..N Reviews (N = blueprints in the catalog). Disabling an account must never delete/anonymize
   these (FR-008, FR-022).
 
 **Indexes / uniqueness**
@@ -154,7 +154,7 @@ Account 1 ───────< AuditLog (target)  (actions taken on this accou
 Account 0..1 ────< Account            (createdByAccountId self-ref; null for first admin)
 
 # cross-feature (defined elsewhere, referenced only)
-Account(REVIEWER) 1 ──< Review 0..51  (feature 003 — never deleted on disable; FR-008/FR-022)
+Account(REVIEWER) 1 ──< Review 0..N  (feature 003 — never deleted on disable; FR-008/FR-022)
 ```
 
 ## Notes on cross-feature references

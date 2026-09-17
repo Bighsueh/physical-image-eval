@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { env } from '../../../src/config/env';
 import { prisma } from '../../../src/lib/prisma';
 import { runIngest } from '../../../src/ingestion/runner';
-import { buildValidSource, mutateEditMetadata } from '../../fixtures/generate';
+import { buildValidSource, FIXTURE_TOTAL_BLUEPRINTS, mutateEditMetadata } from '../../fixtures/generate';
 
 const hashes = async (): Promise<Record<string, string>> => {
   const bps = await prisma.blueprint.findMany({ select: { blueprintId: true, contentHash: true } });
@@ -19,7 +19,7 @@ describe('re-run idempotency + diff (US3)', () => {
     const res = await runIngest({ sourceDir: env.IMAGE_SOURCE_DIR });
     const second = await hashes();
 
-    expect(await prisma.blueprint.count()).toBe(51); // no duplicates/drift (SC-003)
+    expect(await prisma.blueprint.count()).toBe(FIXTURE_TOTAL_BLUEPRINTS); // no duplicates/drift (SC-003)
     expect(second).toEqual(first);
     expect(res.report?.diff).toEqual({ added: [], modified: [], removed: [] });
   });

@@ -53,7 +53,7 @@ const openData = (over: Record<string, unknown> = {}) => ({
     submittedAt: null,
     lastUpdatedAt: null,
   },
-  progress: { submitted: 0, total: 51 },
+  progress: { submitted: 0, total: 40 },
   neighbors: { prev: null, next: 'S2' },
 });
 
@@ -65,7 +65,7 @@ function installFetch(open: Record<string, unknown> = {}) {
     const method = opts.method ?? 'GET';
     calls.push({ url, method, body: opts.body ? JSON.parse(opts.body) : undefined });
     if (method === 'POST' && url.endsWith('/submit'))
-      return env({ status: '已提交', submittedAt: 'x', lastUpdatedAt: 'y', next: 'S2', completed: false, progress: { submitted: 1, total: 51 } });
+      return env({ status: '已提交', submittedAt: 'x', lastUpdatedAt: 'y', next: 'S2', completed: false, progress: { submitted: 1, total: 40 } });
     if (method === 'PATCH') return env({ status: '草稿', lastSavedAt: 'x', submittedAt: null, lastUpdatedAt: 'y' });
     return env(openData(open)); // any GET /reviews/:id
   });

@@ -35,7 +35,7 @@ data.
 
 **Testing**: Vitest (unit: services, hashing, session lifecycle), supertest (API
 integration over the Express app against a test Postgres / Testcontainers), Playwright
-(E2E: login → 0／51 landing, generic-failure parity, admin create→login, no-registration
+(E2E: login → 0／N landing, generic-failure parity, admin create→login, no-registration
 scan, disable/reset session invalidation). TDD, coverage ≥ 80%.
 
 **Target Platform**: Linux server containers (backend + Postgres) behind Cloudflared in
@@ -51,13 +51,13 @@ per verify on the deploy hardware.
 **Constraints**: Generic auth-failure response with constant-time behavior regardless of
 whether the username exists / is active (no observable timing or body difference —
 SC-004). Cookie `httpOnly + Secure + SameSite=Lax`, no JS access; `Secure` + domain bound
-to `your-domain.example.com` in prod. CSRF protection on every cookie-authenticated
+to the production domain (set via `COOKIE_DOMAIN`) in prod. CSRF protection on every cookie-authenticated
 mutation. Rate limiting on `/api/auth/login`. Secrets (DB URL, bootstrap-admin creds,
 cookie/session config) via env, validated present at startup. No secrets or passwords in
 logs. All boundary input validated by zod against fixed allowed sets (role enum, ids).
 
 **Scale/Scope**: ≲ a few dozen accounts; typically 1–3 admins. Each reviewer account maps
-to 0..51 Reviews (owned by feature 003). Endpoints: 4 auth + 6 admin-account = 10 routes.
+to 0..N Reviews (N = blueprints in the catalog; owned by feature 003). Endpoints: 4 auth + 6 admin-account = 10 routes.
 Frontend screens: Login, Forced-password-change, Admin account list/create/manage. No
 pagination pressure expected, but list endpoint still ships a `meta` envelope.
 
@@ -68,7 +68,7 @@ pagination pressure expected, but list endpoint still ships a `meta` envelope.
 | # | Principle | How this feature satisfies it |
 |---|-----------|-------------------------------|
 | I | Spec-First Authority | Every route, entity, and rule below traces to a spec FR (FR-001..FR-023) or a constitution principle; no capability exists without a spec line. |
-| II | Read-Only External Image Data | N/A to auth — this feature touches no image source dir and writes no files there. No code path in 001 reads or writes `04_運動圖解藍圖`. |
+| II | Read-Only External Image Data | N/A to auth — this feature touches no image source dir and writes no files there. No code path in 001 reads or writes the `IMAGE_SOURCE_DIR` source dir. |
 | III | No Open Registration | There is **no** register/signup/apply route, controller, link, form, or reachable path. Account creation exists only under `POST /api/admin/accounts` (role ADMIN). First admin is a deploy-time seed, not an endpoint. US3 E2E scan asserts registration-entry count = 0 (SC-002). |
 | IV | Least-Privilege, Server-Enforced Roles | Two roles only (`ADMIN`/`REVIEWER`). `requireRole('ADMIN')` middleware gates all `/api/admin/*`; reviewers can never reach account management or others' data. Admin accounts are never counted as reviewers (cross-ref 004). Frontend hiding is defense-in-depth only (SC-001/SC-008). |
 | V | Security Baseline | argon2id hashing; generic `帳號或密碼錯誤` on every auth failure (constant-time, FR-004/SC-004); Prisma parameterized access (no raw SQL); zod-validated boundaries; rate-limited login (FR-021); env-only secrets validated at startup; no passwords/tokens/session-ids in logs; CSRF on mutations. |
@@ -76,7 +76,7 @@ pagination pressure expected, but list endpoint still ships a `meta` envelope.
 | VII | Test-First, ≥ 80% | TDD: unit (services/hashing/session), supertest integration (all 10 routes incl. negative/role/CSRF/rate-limit), Playwright E2E for the five user stories. Coverage gate ≥ 80%. |
 | VIII | zh-TW Only | All user-facing copy in 繁體中文: login error `帳號或密碼錯誤`, `請重新登入`, `首次登入請變更密碼`, `帳號識別碼已存在`, button/label text. Error `code` fields are machine English; `message` shown to users is zh-TW. No language switcher. |
 | IX | Accessibility & Clinician Readability | Login + password-change forms fully keyboard-operable; validation/error state conveyed by text (not color alone); labels associated to inputs; desktop/laptop first. |
-| X | Fixed Environment Constraints | Dev ports backend 3100 / frontend 5180 / Postgres 5433→5432. Prod via Cloudflared; cookie `Secure` + `Domain=your-domain.example.com`, `SameSite=Lax`. New ports verified free before declaring. |
+| X | Fixed Environment Constraints | Dev ports backend 3100 / frontend 5180 / Postgres 5433→5432. Prod via Cloudflared; cookie `Secure` + `Domain=<正式網域>` (via `COOKIE_DOMAIN`), `SameSite=Lax`. New ports verified free before declaring. |
 | XI | Catalog / Review Domain Separation | 001 owns auth tables (`Account`, `Session`, `AuditLog`) — part of the **mutable** domain. It never creates or edits catalog-domain data (Region/Blueprint/Panel/Diagnosis, owned by 002). `Account` is referenced by Review (003) but 001 does not define Review. |
 
 **Result: PASS — no violations.**

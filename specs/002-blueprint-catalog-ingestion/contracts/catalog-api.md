@@ -9,7 +9,7 @@ Two surfaces: (1) a **GET-only HTTP read API** under `/api` over the catalog tab
 { "success": false, "data": null,        "error": { "code": "STRING_CODE", "message": "zh-TW 訊息" } }
 ```
 
-- `meta` carries pagination/counts where relevant (e.g. `{ "total": 51 }`).
+- `meta` carries pagination/counts where relevant (e.g. `{ "total": 40 }`, illustrative).
 - The image route is the only non-JSON response (it streams `image/png`); its errors still use the JSON envelope.
 
 ## Auth & roles
@@ -72,7 +72,7 @@ List blueprints, optionally filtered by region. Summary projection (no panels, n
       "isHighRisk": true,  "imageUrl": "/api/blueprints/S4/image", "diagnosisCount": 2 }
   ],
   "error": null,
-  "meta": { "total": 51 }
+  "meta": { "total": 40 }
 }
 ```
 
@@ -112,7 +112,7 @@ Full detail: overall metadata + the 4 panels (incl. `visualDescription`) + cover
     "diagnoses": [
       { "matrixNo": 4,  "nameZh": "五十肩",        "mappingKind": "MAPPED" },
       { "matrixNo": 12, "nameZh": "冰凍肩",        "mappingKind": "MAPPED" },
-      { "matrixNo": 51, "nameZh": "沾黏性關節囊炎", "mappingKind": "MAPPED" }
+      { "matrixNo": 15, "nameZh": "沾黏性關節囊炎", "mappingKind": "MAPPED" }
     ]
   },
   "error": null
@@ -127,7 +127,7 @@ Full detail: overall metadata + the 4 panels (incl. `visualDescription`) + cover
 
 ## 4. `GET /api/diagnoses` — diagnosis mapping (optional read)
 
-The 134-row diagnosis matrix with mapping. Supports the admin/reviewer "which diagnoses does this blueprint cover" view. Role: any authenticated.
+The full diagnosis matrix (every diagnosis listed in the index) with mapping. Supports the admin/reviewer "which diagnoses does this blueprint cover" view. Role: any authenticated.
 
 **Query params**
 | Param | Type | Required | Validation |
@@ -145,11 +145,11 @@ The 134-row diagnosis matrix with mapping. Supports the admin/reviewer "which di
     { "matrixNo": 58, "nameZh": "白內障",   "mappingKind": "REFERRAL", "mappedBlueprintId": null }
   ],
   "error": null,
-  "meta": { "total": 134, "mapped": 122, "template": 6, "referral": 6 }
+  "meta": { "total": 40, "mapped": 30, "template": 6, "referral": 4 }
 }
 ```
 
-> `meta` reflects the reconciliation. **Only `mapped + template = 128` and `referral = 6` (totalling 134) are authoritative** (per `00_藍圖總索引與設計規範.md`). The `mapped`/`template` numbers above are illustrative — the exact split is derived from the index at ingest time and is NOT a fixed invariant; do not hardcode 122/6.
+> `meta` reflects the reconciliation. All numbers above are illustrative — `total`, `mapped`, `template` and `referral` are computed from `00_藍圖總索引與設計規範.md` at ingest time (`total = mapped + template + referral`) and are NOT fixed invariants; do not hardcode any of them.
 
 ---
 
@@ -181,12 +181,12 @@ npm run ingest -- --check # dry-run: parse + validate + report ONLY; never write
 | Var | Meaning |
 |-----|---------|
 | `DATABASE_URL` | Postgres connection (dev `…:5433/…`) |
-| `IMAGE_SOURCE_DIR` | Absolute path to the READ-ONLY mounted source dir |
+| `IMAGE_SOURCE_DIR` | Absolute or relative path (resolved against the backend working directory) to the READ-ONLY source dir, e.g. `IMAGE_SOURCE_DIR="../images"` from `backend/` |
 
 **Behavior contract** (maps to FRs)
 - Reads source **read-only**; never writes/renames/moves/deletes any source file (FR-001, SC-005).
 - Validates all fail-fast invariants in memory **before** any DB write (FR-011, FR-017):
-  51 blueprints (FR-002) · region counts `S4 H4 E6 T8 P5 K7 L5 Y12` (FR-003) · exactly 4 panels each (FR-004) · single image, no bidirectional orphan (FR-005) · non-empty indications/frequency/gentleReminder (FR-006) · every panel actionDescription non-empty (FR-007) · 134 reconciliation = 128 (MAPPED+TEMPLATE) + 6 REFERRAL (FR-008) · every non-referral diagnosis → existing blueprint (FR-009) · high-risk set == `{S4,T8,P1,P4,P5,K2,K3,K5,L3}` exactly (FR-010) · legal + unique IDs (FR-022).
+  blueprint file set == blueprint IDs listed in the index's per-region tables (FR-002: `FR-002:missing-blueprint` / `FR-002:unlisted-blueprint`) · every region has ≥ 1 blueprint (FR-003: `FR-003:empty-region`) · exactly 4 panels each (FR-004) · single image, no bidirectional orphan (FR-005) · non-empty indications/frequency/gentleReminder (FR-006) · every panel actionDescription non-empty (FR-007) · diagnosis matrix numbers unique and contiguous 1..total (FR-008: `FR-008:dup-matrixNo` / `FR-008:gap`) · every non-referral diagnosis → existing blueprint (FR-009) · high-risk set == `{S4,T8,P1,P4,P5,K2,K3,K5,L3}` exactly (FR-010) · legal + unique IDs (FR-022).
 - On any failure: exit **non-zero**, persist **0 rows**, leave any prior catalog intact (FR-011/FR-015), print a report locating the failing invariant by `blueprintId` / `panelIndex` / `diagnosisNo` (FR-012, SC-004).
 - On success: open **one** `prisma.$transaction` that snapshot-replaces the catalog; exit `0`; print a report summarizing totals, per-region counts, reconciliation, high-risk set, and (on re-run) an added/modified/removed diff (FR-012, FR-014).
 - **Idempotent**: re-running on unchanged source yields an equivalent catalog, no duplicates/drift (FR-013, SC-003).

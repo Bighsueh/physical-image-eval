@@ -56,7 +56,7 @@ const openData = (over: { review?: Record<string, unknown>; neighbors?: unknown 
     lastUpdatedAt: null,
     ...(over.review ?? {}),
   },
-  progress: { submitted: 0, total: 51 },
+  progress: { submitted: 0, total: 40 },
   neighbors: over.neighbors ?? { prev: null, next: 'S2' },
 });
 
@@ -95,7 +95,7 @@ describe('ReviewWorkspacePage — reset (初始化本頁提交記錄)', () => {
               submittedAt: null,
               lastUpdatedAt: null,
             },
-            progress: { submitted: 0, total: 51 },
+            progress: { submitted: 0, total: 40 },
           });
         if (method === 'PATCH') return env({ status: '草稿', lastSavedAt: 'x', submittedAt: null, lastUpdatedAt: 'y' });
         return env(openData());

@@ -1,24 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { parseIndex } from '../../../src/ingestion/parser/index-parser';
+import { parseIndex, parseIndexBlueprintIds } from '../../../src/ingestion/parser/index-parser';
 
 const INDEX = `# 總索引
 
-## 三、134 筆診斷 → 藍圖對照表
+## 三、診斷 → 藍圖對照表
 
-### 肩部 SHOULDER（4 份）
+### 肩部 SHOULDER
 
 | 藍圖 ID | 藍圖檔名 | 涵蓋原始診斷（矩陣編號） |
 |---|---|---|
-| S1 | 五十肩鐘擺與爬牆運動 | 五十肩(4)、冰凍肩(12)、沾黏性關節囊炎(51) |
+| S1 | 五十肩鐘擺與爬牆運動 | 五十肩(4)、冰凍肩(12)、沾黏性關節囊炎(15) |
 | S4 | 肩關節穩定運動 | 肩關節不穩定(76)、肩關節前脫臼(77) |
 
-### 全身運動處方 SYSTEMIC（12 份）
+### 全身運動處方 SYSTEMIC
 
 | 藍圖 ID | 藍圖檔名 | 涵蓋原始診斷（矩陣編號） |
 |---|---|---|
 | Y1 | 骨質疏鬆負重與平衡運動 | 骨質疏鬆(121)、骨質疏鬆症(122) |
+| Y2 | 尚無對應診斷的藍圖 |  |
 
-### 不產藍圖：轉介類（6 筆）
+### 不產藍圖：轉介類
 
 | 矩陣編號 | 診斷 | 處置 |
 |---|---|---|
@@ -55,5 +56,14 @@ describe('index-parser (D2)', () => {
     expect(diagnoses).toHaveLength(9);
     expect(diagnoses.filter((d) => d.mappingKind === 'MAPPED')).toHaveLength(5);
     expect(diagnoses.filter((d) => d.mappingKind === 'TEMPLATE')).toHaveLength(2);
+  });
+
+  it('lists every blueprint ID declared in the region tables, including rows with no diagnoses', () => {
+    expect(parseIndexBlueprintIds(INDEX)).toEqual(['S1', 'S4', 'Y1', 'Y2']);
+  });
+
+  it('never treats referral-table rows as blueprint declarations', () => {
+    const referralOnly = '### 不產藍圖：轉介類\n\n| 矩陣編號 | 診斷 | 處置 |\n|---|---|---|\n| S1 | 誤植 | x |\n';
+    expect(parseIndexBlueprintIds(referralOnly)).toEqual([]);
   });
 });

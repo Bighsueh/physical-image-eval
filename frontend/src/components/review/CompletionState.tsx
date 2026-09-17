@@ -2,7 +2,7 @@ import { PartyPopper } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button, Card } from '../ui';
 
-/** 51/51 completion — NOT a dead end (FR-029): offers review/revise entry points. */
+/** All-submitted completion — NOT a dead end (FR-029): offers review/revise entry points. */
 export function CompletionState({ total }: { total: number }) {
   return (
     <Card className="p-8 max-w-xl mx-auto text-center">

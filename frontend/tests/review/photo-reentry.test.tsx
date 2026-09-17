@@ -154,7 +154,7 @@ const openData = () => ({
     lastUpdatedAt: null,
     photos: [] as ReviewPhoto[],
   },
-  progress: { submitted: 0, total: 51 },
+  progress: { submitted: 0, total: 40 },
   neighbors: { prev: null, next: 'S2' },
 });
 

@@ -127,13 +127,13 @@ describe('IndicationField + CompletionState', () => {
     expect(onChange).toHaveBeenCalledWith('有疑慮');
   });
 
-  it('CompletionState renders 51/51 with a back-to-progress entry point', () => {
+  it('CompletionState renders 40/40 with a back-to-progress entry point', () => {
     render(
       <MemoryRouter>
-        <CompletionState total={51} />
+        <CompletionState total={40} />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/全部審查完成（51／51）/)).toBeInTheDocument();
+    expect(screen.getByText(/全部審查完成（40／40）/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '回到進度頁' })).toHaveAttribute('href', '/progress');
   });
 });

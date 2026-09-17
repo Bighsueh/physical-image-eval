@@ -10,7 +10,7 @@ import { reviewReadRepository, type SubmittedReview } from '../repositories/revi
  * The admin's task is not "read opinions" but "decide how to fix this image", and that decision
  * is made panel by panel — so the evidence (judgement, problem notes, photos) is grouped where
  * it applies rather than listed per reviewer. Panels every submitting reviewer signed off
- * collapse to one line, which is what keeps a 51-image pass tractable.
+ * collapse to one line, which is what keeps a full-catalog pass tractable.
  *
  * Everything here reads **submitted reviews only**; the repository enforces that at the join.
  */

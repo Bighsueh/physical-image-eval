@@ -4,6 +4,14 @@ import { app } from '../../../src/app';
 import { env } from '../../../src/config/env';
 import { runIngest } from '../../../src/ingestion/runner';
 import { reviewerAgent, type SeededAgent } from '../../helpers/http';
+import { HIGH_RISK_BLUEPRINT_IDS } from '../../../src/catalog/constants/catalog-constants';
+import {
+  FIXTURE_MAPPED_DIAGNOSES,
+  FIXTURE_REFERRAL_DIAGNOSES,
+  FIXTURE_REGION_COUNTS,
+  FIXTURE_TOTAL_BLUEPRINTS,
+  FIXTURE_TOTAL_DIAGNOSES,
+} from '../../fixtures/generate';
 
 /** US1 — the GET-only catalog read API over the ingested catalog (contract §1–4). */
 describe('catalog read API (US1)', () => {
@@ -22,14 +30,14 @@ describe('catalog read API (US1)', () => {
     expect(res.body.data.map((x: { regionCode: string }) => x.regionCode)).toEqual([
       'S', 'H', 'E', 'T', 'P', 'K', 'L', 'Y',
     ]);
-    expect(res.body.data[0]).toMatchObject({ regionCode: 'S', nameZh: '肩部', blueprintCount: 4 });
+    expect(res.body.data[0]).toMatchObject({ regionCode: 'S', nameZh: '肩部', blueprintCount: FIXTURE_REGION_COUNTS.S });
     expect(res.body.meta.total).toBe(8);
   });
 
-  it('GET /api/blueprints → 51, with region + highRisk filters and param validation', async () => {
-    expect((await r.agent.get('/api/blueprints')).body.data).toHaveLength(51);
-    expect((await r.agent.get('/api/blueprints?region=S')).body.data).toHaveLength(4);
-    expect((await r.agent.get('/api/blueprints?highRisk=true')).body.data).toHaveLength(9);
+  it('GET /api/blueprints → whole catalog, with region + highRisk filters and param validation', async () => {
+    expect((await r.agent.get('/api/blueprints')).body.data).toHaveLength(FIXTURE_TOTAL_BLUEPRINTS);
+    expect((await r.agent.get('/api/blueprints?region=S')).body.data).toHaveLength(FIXTURE_REGION_COUNTS.S);
+    expect((await r.agent.get('/api/blueprints?highRisk=true')).body.data).toHaveLength(HIGH_RISK_BLUEPRINT_IDS.size);
     expect((await r.agent.get('/api/blueprints?region=ZZ')).status).toBe(400);
   });
 
@@ -49,12 +57,14 @@ describe('catalog read API (US1)', () => {
     expect((await r.agent.get('/api/blueprints/zzz')).status).toBe(400);
   });
 
-  it('GET /api/diagnoses → 134 with reconciliation meta + filters', async () => {
+  it('GET /api/diagnoses → every diagnosis with reconciliation meta + filters', async () => {
     const res = await r.agent.get('/api/diagnoses');
-    expect(res.body.data).toHaveLength(134);
-    expect(res.body.meta).toMatchObject({ total: 134, referral: 6 });
-    expect(res.body.meta.mapped + res.body.meta.template).toBe(128);
-    expect((await r.agent.get('/api/diagnoses?mappingKind=REFERRAL')).body.data).toHaveLength(6);
+    expect(res.body.data).toHaveLength(FIXTURE_TOTAL_DIAGNOSES);
+    expect(res.body.meta).toMatchObject({ total: FIXTURE_TOTAL_DIAGNOSES, referral: FIXTURE_REFERRAL_DIAGNOSES });
+    expect(res.body.meta.mapped + res.body.meta.template).toBe(FIXTURE_MAPPED_DIAGNOSES);
+    expect((await r.agent.get('/api/diagnoses?mappingKind=REFERRAL')).body.data).toHaveLength(
+      FIXTURE_REFERRAL_DIAGNOSES,
+    );
   });
 
   it('rejects an unauthenticated request with 401', async () => {

@@ -62,7 +62,7 @@ const openData = () => ({
     submittedAt: null,
     lastUpdatedAt: null,
   },
-  progress: { submitted: 0, total: 51 },
+  progress: { submitted: 0, total: 40 },
   neighbors: { prev: null, next: 'S2' },
 });
 

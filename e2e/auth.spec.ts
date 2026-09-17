@@ -30,8 +30,8 @@ test.beforeAll(async () => {
   await admin.dispose();
 });
 
-test.describe('US1 — reviewer login → 0/51 landing', () => {
-  test('valid reviewer login lands on /progress showing 0／51', async ({ page }) => {
+test.describe('US1 — reviewer login → 0/N landing', () => {
+  test('valid reviewer login lands on /progress showing 0／N', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('帳號').fill(reviewer.username);
     await page.getByLabel('密碼').fill(reviewer.password);
@@ -39,7 +39,7 @@ test.describe('US1 — reviewer login → 0/51 landing', () => {
 
     await expect(page).toHaveURL(/\/progress$/);
     await expect(page.getByText('我的審查進度')).toBeVisible();
-    await expect(page.getByLabel('審查進度 0 / 51')).toBeVisible(); // unique 0／51 readout (US7 landing)
+    await expect(page.getByLabel(/^審查進度 0 \/ [1-9]\d*$/)).toBeVisible(); // unique 0／N readout (US7 landing)
   });
 
   test('wrong credentials show the generic failure and stay on login', async ({ page }) => {

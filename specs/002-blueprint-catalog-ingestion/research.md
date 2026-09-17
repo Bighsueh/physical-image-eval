@@ -23,15 +23,17 @@ Fields are located by matching the bold label text inside list items under the c
 
 ## D2. Diagnosis source of truth — the `00` index is authoritative; per-blueprint line is corroborating
 
-**Decision**: The 134-diagnosis reconciliation and the `mappingKind` of each diagnosis are derived **only** from the mapping tables in `00_藍圖總索引與設計規範.md`:
+**Decision**: The diagnosis reconciliation and the `mappingKind` of each diagnosis are derived **only** from the mapping tables in `00_藍圖總索引與設計規範.md`:
 
 - Each region table row `| <blueprintId> | <name> | <name(matrixNo), …> |` yields one or more `Diagnosis` rows. `matrixNo` is the integer in parentheses (the business key), `nameZh` is the diagnosis name, `mappedBlueprint` is the row's blueprint ID.
-- The `不產藍圖：轉介類` table yields the 6 `REFERRAL` diagnoses (matrix 58/59/98/114/134/81), `mappedBlueprint = null`.
+- The `不產藍圖：轉介類` table yields the `REFERRAL` diagnoses, `mappedBlueprint = null`.
+- The region tables also define the authoritative **blueprint ID set** and each blueprint's region: the source blueprint files must equal that set exactly (FR-002: `FR-002:missing-blueprint` / `FR-002:unlisted-blueprint`), and every region must list at least one blueprint (FR-003: `FR-003:empty-region`).
+- Matrix numbers across all tables must be unique (`FR-008:dup-matrixNo`) and contiguous from 1 to the number of diagnoses listed (`FR-008:gap`).
 - `mappingKind` derivation rule: mapped to a **Y-series** blueprint ⇒ `TEMPLATE`（通用處方模板）; mapped to a **non-Y** blueprint ⇒ `MAPPED`（已對應）; in the referral table ⇒ `REFERRAL`（轉介）.
 
 The per-blueprint `> 涵蓋診斷：…` line is parsed too but used only as a **cross-check** (its named diagnoses must be a subset of those the index maps to that blueprint); it is not the counting authority.
 
-**Rationale**: FR-008 explicitly names the index as the authoritative split (128 mapped + 6 referral = 134); the per-blueprint line lacks matrix numbers, so it cannot drive reconciliation. The Y-series derivation cleanly separates 已對應 from 通用處方模板 without a second list to keep in sync.
+**Rationale**: FR-008 explicitly names the index as the authority for the diagnosis list (mapped + referral, counts computed from the source and reported, never compared to fixed constants); the per-blueprint line lacks matrix numbers, so it cannot drive reconciliation. The Y-series derivation cleanly separates 已對應 from 通用處方模板 without a second list to keep in sync.
 
 **Alternatives considered**: Trust the per-blueprint 涵蓋診斷 lines as primary — rejected (no matrix numbers, no referral entries, risks double counting synonyms). A hand-maintained mapping constant in code — rejected (duplicates the source, drifts, violates "忠實對帳, 不重新定義").
 
@@ -69,9 +71,9 @@ The per-blueprint `> 涵蓋診斷：…` line is parsed too but used only as a *
 
 ## D6. ID / region parsing & high-risk derivation — single named constant, cross-checked
 
-**Decision**: Blueprint IDs are validated against `^([SHETPKLY])([1-9][0-9]?)$`; the leading letter must equal the region implied by the containing folder (folder→letter map: `01_肩部→S`, `02_頭頸部→H`, `03_肘腕手→E`, `04_脊椎軀幹→T`, `05_骨盆髖→P`, `06_膝部→K`, `07_小腿足踝→L`, `08_全身運動處方→Y`). IDs must be unique (FR-022). `isHighRisk` is computed as `HIGH_RISK_BLUEPRINT_IDS.has(blueprintId)`, where `HIGH_RISK_BLUEPRINT_IDS = {S4, T8, P1, P4, P5, K2, K3, K5, L3}` is exported from a **single** `catalog-constants.ts` and shared by ingestion and (later) the UI. After derivation, the marked set must equal that constant exactly — no more, no less (FR-010, SC-006). The region counts `{S:4, H:4, E:6, T:8, P:5, K:7, L:5, Y:12}` live in the same constants file and gate FR-003.
+**Decision**: Blueprint IDs are validated against `^([SHETPKLY])([1-9][0-9]?)$`; the leading letter must equal the region implied by the containing folder (folder→letter map: `01_肩部→S`, `02_頭頸部→H`, `03_肘腕手→E`, `04_脊椎軀幹→T`, `05_骨盆髖→P`, `06_膝部→K`, `07_小腿足踝→L`, `08_全身運動處方→Y`). IDs must be unique (FR-022). `isHighRisk` is computed as `HIGH_RISK_BLUEPRINT_IDS.has(blueprintId)`, where `HIGH_RISK_BLUEPRINT_IDS = {S4, T8, P1, P4, P5, K2, K3, K5, L3}` is exported from a **single** `catalog-constants.ts` and shared by ingestion and (later) the UI. After derivation, the marked set must equal that constant exactly — no more, no less (FR-010, SC-006). There are **no** hard-coded region-count or total constants: FR-002/FR-003 are checked against the blueprint set and region membership parsed from the `00` index (D2).
 
-**Rationale**: Constitution's "single named constant" rule and FR-010's "不得在匯入中另行重複定義" require exactly one definition site; co-locating the region-count table and folder map keeps all authoritative cardinalities in one small file.
+**Rationale**: Constitution's "single named constant" rule and FR-010's "不得在匯入中另行重複定義" require exactly one definition site; co-locating the folder map in the same small file keeps the fixed catalog facts together, while cardinalities come from the source index so the code never embeds corpus size.
 
 **Alternatives considered**: Deriving high-risk from per-file flags in the source — the source has no such flag and the constitution declares the set authoritative; rejected. Duplicating the set in UI and ingestion — explicitly forbidden; rejected.
 
@@ -104,7 +106,7 @@ A structured object rendered to a zh-TW human-readable summary:
 ```
 { ok: boolean,
   counts: { blueprints: number, perRegion: { S,H,E,T,P,K,L,Y } },
-  reconciliation: { total, mapped, template, referral },   // expect 134 = (mapped+template=128) + referral=6
+  reconciliation: { total, mapped, template, referral },   // computed from the index: total = mapped + template + referral
   highRisk: string[],                                       // expect exactly the 9-id set
   warnings: [{ blueprintId?, panelIndex?, message }],       // non-fatal: empty 時間提示/畫面視覺描述, 0 covered diagnoses
   errors:   [{ invariant, blueprintId?, panelIndex?, diagnosisNo?, message }],  // fatal, first failure halts persistence

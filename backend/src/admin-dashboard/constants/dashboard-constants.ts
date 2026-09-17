@@ -1,11 +1,11 @@
-import { HIGH_RISK_BLUEPRINT_IDS, TOTAL_BLUEPRINTS } from '../../catalog/constants/catalog-constants';
+import { HIGH_RISK_BLUEPRINT_IDS } from '../../catalog/constants/catalog-constants';
 
 /**
  * Feature 004 constants. 004 owns no stored entity — it reuses 002's HIGH_RISK_BLUEPRINT_IDS
  * (single source, never re-declared) and 003's zh-TW enum labels verbatim (FR-019). The 27-column
  * CSV header order is fixed here (research D4).
  */
-export { HIGH_RISK_BLUEPRINT_IDS, TOTAL_BLUEPRINTS };
+export { HIGH_RISK_BLUEPRINT_IDS };
 
 export const SET_DELIMITER = '|'; // multi-select set encoding inside one CSV cell (FR-017)
 

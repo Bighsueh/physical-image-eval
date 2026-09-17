@@ -12,14 +12,14 @@ read projections without ever mutating the review domain.
 **Decision**: Compute every dashboard number live with Prisma read operations in
 `review-read.repository.ts`:
 
-- **Active reviewer denominator**: `account.count({ where: { role: 'REVIEWER', isActive: true } })` × `51`.
+- **Active reviewer denominator**: `account.count({ where: { role: 'REVIEWER', isActive: true } })` × `blueprint.count()` (blueprints currently in the catalog).
 - **Active submitted numerator**: `review.count({ where: { status: '已提交', reviewer: { isActive: true } } })`.
-- **Per-reviewer submitted count + unreviewed list**: `review.groupBy({ by: ['reviewerId'], where: { status: '已提交' }, _count: true })`, then diff each reviewer's submitted `blueprintId` set against the fixed 51 to produce 尚未提交清單; `findFirst` ordered by `submittedAt desc` for last-submit.
+- **Per-reviewer submitted count + unreviewed list**: `review.groupBy({ by: ['reviewerId'], where: { status: '已提交' }, _count: true })`, then diff each reviewer's submitted `blueprintId` set against the catalog's blueprint IDs to produce 尚未提交清單; `findFirst` ordered by `submittedAt desc` for last-submit.
 - **Per-image distribution**: `review.groupBy({ by: ['blueprintId', 'overallJudgement'], where: { status: '已提交', reviewer: { isActive: true } }, _count: true })`.
 - **Per-image coverage**: `review.groupBy({ by: ['blueprintId'], where: { status: '已提交', reviewer: { isActive: true } } })` for the active submitted count; missing = active reviewers minus submitters.
 - **Drill-down**: `review.findMany({ where: { blueprintId, status: '已提交' }, select: { reviewerId, reviewer: { select: { displayName, isActive } }, overallJudgement, indicationJudgement, submittedAt } })`.
 
-**Rationale**: The corpus is tiny (≤ a few dozen reviewers × 51 ⇒ low-thousands of `Review`
+**Rationale**: The corpus is tiny (≤ a few dozen reviewers × the blueprint catalog ⇒ low-thousands of `Review`
 rows). `groupBy` over indexed columns (`Review.blueprintId`, `Review.reviewerId`,
 `Review(reviewerId, status)` from 003; `Account(isActive)` from 001) is well under the < 150 ms
 target and is **always fresh**, satisfying SC-009 (ratio reflects active-reviewer changes on
@@ -43,7 +43,7 @@ submitted records:
 
 | Aggregate | Numerator / value | Basis |
 |-----------|-------------------|-------|
-| Overall completion | active submitted ÷ (active reviewers × 51) | active only |
+| Overall completion | active submitted ÷ (active reviewers × blueprints in catalog) | active only |
 | Per-image coverage | active submitters of that image; missing = active non-submitters | active only |
 | Per-image distribution | counts of 通過／需小修／需重做 among **active** submitters | active only |
 
@@ -234,7 +234,7 @@ for that panel (FR-026). Group headers carry「幾位標了問題」and the pane
 image", and that decision is made panel by panel. D6 established that disagreement is
 surfaced rather than mediated; grouping by panel keeps that property while putting the
 evidence (text + photo) next to the thing it describes. Collapsing all-clear panels is what
-keeps a 51-image pass tractable.
+keeps a full pass over every image tractable.
 
 **Alternatives considered**: keeping the flat per-reviewer list and appending photos (the
 reader has to re-group mentally, four times per image); a photo-only gallery (severs each
@@ -245,7 +245,7 @@ photo from the note explaining it).
 **Decision**: `GET /api/admin/dashboard/images/:blueprintId/photos.zip`, streamed rather
 than assembled on disk, containing each submitted photo's **original** and **annotated**
 version (when present), named so that 圖 × 分格 × 審查者 × 版本別 is readable from the
-filename alone (FR-029/FR-030). The global "all 51 images at once" bundle is **not built**
+filename alone (FR-029/FR-030). The global "all images at once" bundle is **not built**
 this round (FR-033).
 
 **Rationale**: Keeping it a `GET` preserves 004's defining property — every route is
@@ -281,8 +281,8 @@ percentage, warning at 80 % (FR-034). At the ceiling the system rejects **new ph
 uploads only** (FR-037); every other operation — review submission included — continues
 (003 FR-061).
 
-**Rationale**: The ceiling is close enough to plausible usage (~7–12 photos per
-reviewer × image unit across 204 units) that silent exhaustion is a real risk, and the
+**Rationale**: The ceiling is close enough to plausible usage (several photos per
+reviewer × image unit) that silent exhaustion is a real risk, and the
 failure it would otherwise produce is a raw Postgres write error surfaced to a clinician
 mid-review. Usage is one `SUM` over the photo metadata table — the byte columns are
 denormalized onto `ReviewPhoto` precisely so this aggregate never touches `ReviewPhotoBlob`

@@ -52,6 +52,8 @@ export type ParsedDiagnosis = z.infer<typeof ParsedDiagnosisSchema>;
 export interface ParsedCatalog {
   blueprints: ParsedBlueprint[];
   diagnoses: ParsedDiagnosis[];
+  /** Blueprint IDs the source index declares in its region tables (FR-002 expected set). */
+  indexBlueprintIds: string[];
   /** Image filenames discovered under the source, used for the orphan check (FR-005). */
   imageInventory: string[];
   /** Top-level folders that belong to no known region (reported as warnings). */

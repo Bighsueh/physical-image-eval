@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { z } from 'zod';
 
 /**
@@ -26,12 +27,14 @@ const envSchema = z.object({
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL 必填'),
 
-  // Absolute path to the READ-ONLY mounted AIGC image source (feature 002). Readability is checked
-  // at ingest/serve time (exit 2 / IMAGE_NOT_FOUND), not here, so env.ts stays pure.
+  // READ-ONLY AIGC image source (feature 002). Absolute, or relative to the backend's working
+  // directory (npm scripts run in backend/, so the repo-root copy is `../images`); normalized to an
+  // absolute path here. Readability is checked at ingest/serve time (exit 2 / IMAGE_NOT_FOUND).
   IMAGE_SOURCE_DIR: z
     .string()
+    .trim()
     .min(1, 'IMAGE_SOURCE_DIR 必填')
-    .refine((p) => p.startsWith('/'), 'IMAGE_SOURCE_DIR 必須為絕對路徑'),
+    .transform((p) => resolve(p)),
 
   SESSION_ABSOLUTE_TTL: durationSchema, // absolute session lifetime (ms)
   SESSION_IDLE_TTL: durationSchema, // idle/sliding timeout (ms)

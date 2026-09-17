@@ -1,4 +1,3 @@
-import { TOTAL_BLUEPRINTS } from '../../catalog/constants/catalog-constants';
 import { catalogService } from '../../catalog/services/catalog.service';
 import type { BlueprintDetailDto } from '../../catalog/dto/blueprint-public.dto';
 import { AppError } from '../../lib/errors';
@@ -62,7 +61,7 @@ export const reviewService = {
     return {
       blueprint: toReviewBlueprint(detail),
       review: { ...toReviewPayload(review), photos },
-      progress: { submitted, total: TOTAL_BLUEPRINTS },
+      progress: { submitted, total: ordered.length },
       neighbors,
     };
   },
@@ -72,10 +71,13 @@ export const reviewService = {
   async reset(reviewerId: string, code: string) {
     await requireBlueprint(code);
     await reviewRepository.deleteOwnReview(reviewerId, code);
-    const submitted = await reviewRepository.countSubmitted(reviewerId);
+    const [submitted, total] = await Promise.all([
+      reviewRepository.countSubmitted(reviewerId),
+      catalogService.countBlueprints(),
+    ]);
     return {
       review: { ...toReviewPayload(null), photos: [] },
-      progress: { submitted, total: TOTAL_BLUEPRINTS },
+      progress: { submitted, total },
     };
   },
 
@@ -109,14 +111,14 @@ export const reviewService = {
       ...write,
       intent: 'submit',
     });
-    const { next, completed, submitted } = await nextUnreviewed(reviewerId);
+    const { next, completed, submitted, total } = await nextUnreviewed(reviewerId);
     return {
       status: STATUS_ID_TO_ZH[review.status],
       submittedAt: review.submittedAt?.toISOString() ?? null,
       lastUpdatedAt: review.lastUpdatedAt.toISOString(),
       next,
       completed,
-      progress: { submitted, total: TOTAL_BLUEPRINTS },
+      progress: { submitted, total },
     };
   },
 

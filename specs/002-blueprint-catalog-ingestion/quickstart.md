@@ -5,8 +5,7 @@ Run and validate the catalog ingestion + read API end-to-end on localhost. Ports
 ## Prerequisites
 
 - Docker + docker-compose, Node 22, npm.
-- The READ-ONLY source dir present locally at:
-  `…/物理治療師/專案文件/04_運動圖解藍圖` (51 `.png`, 51 blueprint `.md`, `00_藍圖總索引與設計規範.md`).
+- The READ-ONLY source dir present locally, configured via `IMAGE_SOURCE_DIR` (conventionally the gitignored repo-root `images/` folder) — blueprint `.png` files, blueprint `.md` files, `00_藍圖總索引與設計規範.md`.
 - 001 (auth) available if you want to exercise authenticated reads; for pure ingestion validation you only need the backend + DB.
 
 ## 1. Environment
@@ -15,7 +14,7 @@ Create `backend/.env` (never commit secrets — constitution V; values validated
 
 ```bash
 DATABASE_URL="postgresql://app:app@localhost:5433/physical_image_eval?schema=public"
-IMAGE_SOURCE_DIR="/path/to/image-source"
+IMAGE_SOURCE_DIR="../images"   # absolute, or relative to the backend working directory (here: repo-root images/)
 PORT=3100
 ```
 
@@ -62,9 +61,9 @@ Expected success report (zh-TW human-readable), exit code `0`:
 
 ```
 ✅ 匯入成功
-  藍圖總數：51
-  各區域：S=4 H=4 E=6 T=8 P=5 K=7 L=5 Y=12
-  診斷對帳：134 = 對應到藍圖 128 + 轉介 6   （128 內含 已對應 與 通用處方模板，其細分非權威不變量）
+  藍圖總數：<與總索引所列一致>
+  各區域：S=<n> H=<n> E=<n> T=<n> P=<n> K=<n> L=<n> Y=<n>   （皆 ≥ 1）
+  診斷對帳：<總數> = 對應到藍圖 <n> + 轉介 <n>   （由來源計得；對應到藍圖 內含 已對應 與 通用處方模板）
   高風險：S4, T8, P1, P4, P5, K2, K3, K5, L3  （9 張，與既定集合一致）
   警示：<列出 時間提示/畫面視覺描述 為空 或 0 涵蓋診斷 的項目，若有>
 ```
@@ -73,11 +72,11 @@ Expected success report (zh-TW human-readable), exit code `0`:
 
 ### SC-001 / FR-002..FR-010 — correct catalog
 ```bash
-psql -h localhost -p 5433 -U app -d physical_image_eval -c "SELECT count(*) FROM \"Blueprint\";"        # 51
+psql -h localhost -p 5433 -U app -d physical_image_eval -c "SELECT count(*) FROM \"Blueprint\";"        # = number of blueprint IDs listed in the index
 psql -h localhost -p 5433 -U app -d physical_image_eval \
-  -c "SELECT r.\"regionCode\", count(b.*) FROM \"Region\" r JOIN \"Blueprint\" b ON b.\"regionId\"=r.id GROUP BY 1 ORDER BY 1;"  # S4 H4 E6 T8 P5 K7 L5 Y12
+  -c "SELECT r.\"regionCode\", count(b.*) FROM \"Region\" r JOIN \"Blueprint\" b ON b.\"regionId\"=r.id GROUP BY 1 ORDER BY 1;"  # all 8 regions present, each ≥ 1
 psql ... -c "SELECT \"blueprintId\", count(*) FROM \"Panel\" GROUP BY 1 HAVING count(*)<>4;"             # 0 rows
-psql ... -c "SELECT count(*) FROM \"Diagnosis\";"                                                        # 134
+psql ... -c "SELECT count(*), min(\"matrixNo\"), max(\"matrixNo\") FROM \"Diagnosis\";"                   # min = 1, max = count (unique + contiguous)
 psql ... -c "SELECT \"blueprintId\" FROM \"Blueprint\" WHERE \"isHighRisk\" ORDER BY 1;"                # exactly S4,T8,P1,P4,P5,K2,K3,K5,L3
 ```
 
@@ -111,7 +110,7 @@ Start the backend, log in via 001 to obtain the session cookie, then:
 ```bash
 BASE=http://localhost:3100
 curl -s --cookie "$COOKIE" $BASE/api/regions                 | jq '.meta.total'        # 8
-curl -s --cookie "$COOKIE" $BASE/api/blueprints              | jq '.meta.total'        # 51
+curl -s --cookie "$COOKIE" $BASE/api/blueprints              | jq '.meta.total'        # = blueprints in catalog
 curl -s --cookie "$COOKIE" $BASE/api/blueprints/S1           | jq '.data.panels|length'  # 4
 curl -s --cookie "$COOKIE" $BASE/api/blueprints/S1           | jq '.data.aiPrompt'     # null/absent (FR-020)
 curl -s --cookie "$COOKIE" $BASE/api/blueprints/S4           | jq '.data.isHighRisk'   # true

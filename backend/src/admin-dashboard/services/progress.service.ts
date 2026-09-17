@@ -1,7 +1,7 @@
 import { catalogService } from '../../catalog/services/catalog.service';
 import { AppError } from '../../lib/errors';
 import { INDICATION_ID_TO_ZH, OVERALL_ID_TO_ZH } from '../../reviews/dto/enum-maps';
-import { HIGH_RISK_BLUEPRINT_IDS, TOTAL_BLUEPRINTS } from '../constants/dashboard-constants';
+import { HIGH_RISK_BLUEPRINT_IDS } from '../constants/dashboard-constants';
 import { photoReadRepository } from '../repositories/photo-read.repository';
 import {
   reviewReadRepository,
@@ -78,7 +78,9 @@ export const buildImageProgress = (
 export const buildOverview = (reviewers: ReviewerAccount[], subs: SubmittedReview[], images: ImageProgress[]) => {
   const activeReviewerCount = reviewers.filter((r) => r.isActive).length;
   const submittedActive = subs.filter((s) => s.reviewer.isActive).length;
-  const expectedSubmissions = activeReviewerCount * TOTAL_BLUEPRINTS;
+  // One ImageProgress per catalog blueprint, so its length is the live catalog size.
+  const totalBlueprints = images.length;
+  const expectedSubmissions = activeReviewerCount * totalBlueprints;
   return {
     activeReviewerCount,
     expectedSubmissions,
@@ -88,7 +90,7 @@ export const buildOverview = (reviewers: ReviewerAccount[], subs: SubmittedRevie
     fullyCoveredCount: images.filter((i) => i.fullCoverage).length,
     blueprintsWithRedoCount: images.filter((i) => i.hasRedo).length,
     highRiskCount: HIGH_RISK_BLUEPRINT_IDS.size,
-    totalBlueprints: TOTAL_BLUEPRINTS,
+    totalBlueprints,
   };
 };
 
@@ -108,7 +110,7 @@ export const buildReviewerProgress = (
       displayName: r.displayName,
       isActive: r.isActive,
       submittedCount: mine.length,
-      total: TOTAL_BLUEPRINTS,
+      total: allCodes.length,
       unreviewedBlueprintIds: allCodes.filter((c) => !submittedCodes.has(c)),
       lastSubmittedBlueprintId: last?.blueprintCode ?? null,
       lastSubmittedAt: last?.submittedAt?.toISOString() ?? null,

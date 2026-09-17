@@ -11,7 +11,7 @@ the CSV export, and the admin-only / read-only guarantees.
 - **001** (auth) ingested/seeded: at least one `ADMIN` (bootstrap seed) and ≥ 2 `REVIEWER`
   accounts. 001's session middleware (`require-auth`, `require-role`) and `lib/envelope.ts`
   are available.
-- **002** (catalog) ingested: 51 blueprints + `HIGH_RISK_BLUEPRINT_IDS` constant present
+- **002** (catalog) ingested: catalog blueprints + `HIGH_RISK_BLUEPRINT_IDS` constant present
   (`npm run ingest`).
 - **003** (review workflow) available so reviewers can submit reviews (the data 004 aggregates).
   For pure 004 validation you can instead seed `Review`/`PanelReview` fixtures directly.
@@ -22,7 +22,7 @@ the CSV export, and the admin-only / read-only guarantees.
 
 ```bash
 DATABASE_URL="postgresql://app:app@localhost:5433/physical_image_eval?schema=public"
-IMAGE_SOURCE_DIR="/path/to/image-source"
+IMAGE_SOURCE_DIR="../images"   # absolute, or relative to the backend working directory (repo-root images/, gitignored)
 PORT=3100
 # session/cookie/bootstrap-admin vars per 001
 ```
@@ -34,7 +34,7 @@ docker compose up -d postgres            # exposes 5433 -> container 5432
 cd backend && npm install
 npx prisma migrate dev                   # applies 001+002+003 migrations (004 adds none)
 npm run seed:bootstrap-admin             # first ADMIN (001)
-npm run ingest                           # 002 catalog (51 blueprints)
+npm run ingest                           # 002 catalog (blueprints listed in the source index)
 ```
 
 ## 3. Seed reviewers + a mix of submitted / draft / 非在職 data
@@ -70,7 +70,7 @@ COOKIE="pie_sid=...; pie_csrf=..."   # from the login Set-Cookie
 ### US1 / FR-002,016,022 — overall completion on the active basis
 ```bash
 curl -s --cookie "$COOKIE" $BASE/api/admin/dashboard/overview | jq '{submittedActive,expectedSubmissions,percent,inactiveSubmittedTotal}'
-# expectedSubmissions = activeReviewers(3) × 51 = 153 ; submittedActive = 40 ; percent ≈ 26.1
+# expectedSubmissions = activeReviewers(3) × N (N = blueprints in catalog) ; submittedActive = 40 ; percent = 40 / (3 × N) × 100
 # inactiveSubmittedTotal = 8  (NOT in the 40 — separate; ratio never > 100 — FR-002/016)
 ```
 
@@ -78,12 +78,12 @@ curl -s --cookie "$COOKIE" $BASE/api/admin/dashboard/overview | jq '{submittedAc
 ```bash
 curl -s --cookie "$COOKIE" $BASE/api/admin/dashboard/reviewers \
   | jq '.data[0] | {displayName,isActive,submittedCount,unreviewed:(.unreviewedBlueprintIds|length),lastSubmittedBlueprintId,lastSubmittedAt}'
-# submittedCount + unreviewed == 51 ; lastSubmitted* reflect newest submission
+# submittedCount + unreviewed == N ; lastSubmitted* reflect newest submission
 ```
 
 ### US1 / FR-005,006 — per-image coverage + distribution (drafts excluded)
 ```bash
-curl -s --cookie "$COOKIE" $BASE/api/admin/dashboard/images | jq '.meta.total'   # 51
+curl -s --cookie "$COOKIE" $BASE/api/admin/dashboard/images | jq '.meta.total'   # N (blueprints in catalog)
 curl -s --cookie "$COOKIE" $BASE/api/admin/dashboard/images \
   | jq '.data[] | select(.blueprintId=="S1") | {submittedActiveCount,missing:(.missingReviewers|length),fullCoverage,distribution}'
 # A blueprint with only a draft shows submittedActiveCount unchanged by that draft (FR-007)

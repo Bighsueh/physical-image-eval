@@ -3,7 +3,7 @@ import { prisma } from '../../lib/prisma';
 
 /**
  * READ-ONLY data access for feature 004 (constitution XI, FR-012/SC-007). No write method exists.
- * At this corpus size (≤ a few dozen reviewers × 51) we fetch the submitted set + reviewer accounts
+ * At this corpus size (≤ a few dozen reviewers × a small fixed catalog) we fetch the submitted set + reviewer accounts
  * and aggregate in pure functions, rather than many groupBy round-trips.
  */
 export interface ReviewerAccount {

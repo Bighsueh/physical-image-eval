@@ -59,7 +59,7 @@ desktop/laptop browsers for the React admin dashboard. Dev on localhost.
 
 **Project Type**: web (monorepo `backend/` + `frontend/`, single git repo).
 
-**Performance Goals**: Corpus is tiny — ≤ a few dozen reviewers × 51 blueprints ⇒ low
+**Performance Goals**: Corpus is tiny — ≤ a few dozen reviewers × the blueprint catalog ⇒ low
 thousands of `Review` rows. Dashboard aggregate endpoints p95 < 150 ms (indexed `groupBy`
 over `Review`); drill-down p95 < 100 ms (one blueprint's submitted rows); full CSV export
 (every submitted row + 4 panels each) builds and streams in < 1 s. No pagination pressure;
@@ -76,8 +76,8 @@ text or icon, never color alone (constitution IX, FR-024). Secrets via env, vali
 startup (no new secret introduced by this feature).
 
 **Scale/Scope**: 5 endpoints (4 dashboard GET + 1 export GET). Frontend: 4 admin pages
-(overview, per-reviewer, per-image, drill-down) + an export trigger + filter controls. Fixed
-corpus of 51 blueprints; high-risk set of 9; three overall-judgement values; two
+(overview, per-reviewer, per-image, drill-down) + an export trigger + filter controls. Blueprint
+count taken from the ingested catalog; high-risk set of 9; three overall-judgement values; two
 indication-judgement values.
 
 ## Constitution Check
@@ -87,7 +87,7 @@ indication-judgement values.
 | # | Principle | How this feature satisfies it |
 |---|-----------|-------------------------------|
 | I | Spec-First Authority | Every endpoint, projection field, and rule traces to a numbered FR/SC (overview→FR-002/016/022; reviewers→FR-003/004; images→FR-005/006/009/010/011; drill-down→FR-008/018; export→FR-013..FR-017/020; read-only→FR-012). No capability exists without a spec line. |
-| II | Read-Only External Image Data | N/A as a writer — 004 touches no image source file. It only references catalog rows + 002's existing read-only image route; it never opens, writes, renames, or deletes anything under `04_運動圖解藍圖`. |
+| II | Read-Only External Image Data | N/A as a writer — 004 touches no image source file. It only references catalog rows + 002's existing read-only image route; it never opens, writes, renames, or deletes anything under the `IMAGE_SOURCE_DIR` source dir. |
 | III | No Open Registration | N/A — 004 creates no account/registration surface. The dashboard reads accounts but exposes **no** create/edit/disable control (those belong to 001). |
 | IV | Least-Privilege, Server-Enforced Roles | `require-auth` + `require-role('ADMIN')` gate all `/api/admin/dashboard/*` and `/api/admin/export/*` routes at the server boundary; a reviewer session always gets `403 FORBIDDEN_ROLE` (FR-001, SC-007). Admin never reviews; frontend hiding is defense-in-depth only. |
 | V | Security Baseline | zod-validated params against fixed allow-sets (`blueprintId` regex, boolean filter flags); Prisma parameterized aggregation (no raw SQL); free text HTML-escaped on JSON output and **formula-injection-neutralized** in CSV (leading `= + - @ tab CR` guarded, fields RFC-4180 quoted — FR-020, SC-002 §4); no secrets in code; no sensitive data logged; generic `INTERNAL_ERROR` on unexpected failure. |
@@ -95,7 +95,7 @@ indication-judgement values.
 | VII | Test-First, ≥ 80% | TDD: unit (ratio/CSV/encoder/disagreement/empty-state), supertest integration (all 5 routes + role/auth/filters/draft-exclusion/CSV bytes), Playwright E2E for the admin stories. Coverage gate ≥ 80%. |
 | VIII | zh-TW Only | All labels, badges, column headers, and **CSV cell enum values** are 繁體中文 verbatim per FR-019 (通過／需小修／需重做；合理／有疑慮；the 5 警語 + 6 問題類型). `error.code` stays machine-English; `error.message` is zh-TW. No language switcher. |
 | IX | Accessibility & Clinician Readability | 高風險／含需重做／未達全覆蓋 badges render icon + text, never color-only (FR-024). Primary monitor + filter + drill-down + export operations are fully keyboard-operable; clear focus order; desktop/laptop first. |
-| X | Fixed Environment Constraints | Dev ports backend 3100 / frontend 5180 / Postgres 5433→5432. Prod via Cloudflared; reuses 001's `Secure; SameSite=Lax` session cookie bound to `your-domain.example.com`. No new port introduced. |
+| X | Fixed Environment Constraints | Dev ports backend 3100 / frontend 5180 / Postgres 5433→5432. Prod via Cloudflared; reuses 001's `Secure; SameSite=Lax` session cookie bound to the production domain (`COOKIE_DOMAIN`). No new port introduced. |
 | XI | Catalog / Review Domain Separation | 004 is a **read-only consumer** of both domains and a writer of neither. It never edits catalog data and never mutates review data — every endpoint is `GET` and the export is a pure projection (FR-012, SC-007). |
 
 **Result: PASS — no violations.**
@@ -153,7 +153,7 @@ frontend/
 ├── src/
 │   ├── routes/admin/dashboard/
 │   │   ├── DashboardOverviewPage.tsx              # overall completion + summary cards (FR-002/016/022)
-│   │   ├── ReviewerProgressPage.tsx               # per-reviewer table (submitted/51, unreviewed, last submit)
+│   │   ├── ReviewerProgressPage.tsx               # per-reviewer table (submitted/N, unreviewed, last submit)
 │   │   ├── ImageCoveragePage.tsx                  # per-image coverage + distribution + filters + export
 │   │   └── ImageDrillDownPage.tsx                 # /admin/dashboard/images/:blueprintId cross-reviewer view
 │   ├── components/admin/dashboard/

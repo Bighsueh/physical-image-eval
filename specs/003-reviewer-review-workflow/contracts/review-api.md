@@ -83,7 +83,9 @@ JSON out. Every response uses the project envelope and reuses 001's cookie sessi
 ## 1. `GET /api/reviews/progress` — my progress + filterable index
 
 Personal progress and the jump index (FR-039–FR-042). Own data only. Counts always reflect
-all 51; `region`/`status` filter only the returned `index`.
+all catalog blueprints; `region`/`status` filter only the returned `index`. Numbers in the
+examples below are illustrative; `total` is the number of blueprints currently in the catalog
+(written `N` in prose; `N/N` = every catalog blueprint submitted).
 
 - Role: `REVIEWER`.
 - Query (optional): `region` ∈ `S H E T P K L Y`; `status` ∈ `未開始 草稿 已提交`. Bad value ⇒ `400 INVALID_PARAM`.
@@ -95,10 +97,10 @@ all 51; `region`/`status` filter only the returned `index`.
   "data": {
     "submitted": 10,
     "draft": 3,
-    "notStarted": 38,
-    "total": 51,
+    "notStarted": 27,
+    "total": 40,
     "perRegion": [
-      { "regionCode": "S", "regionNameZh": "肩部", "displayOrder": 1, "total": 4, "submitted": 2, "draft": 1, "notStarted": 1 }
+      { "regionCode": "S", "regionNameZh": "肩部", "displayOrder": 1, "total": 5, "submitted": 2, "draft": 1, "notStarted": 2 }
       /* … 8 regions, ordered by displayOrder … */
     ],
     "index": [
@@ -108,7 +110,7 @@ all 51; `region`/`status` filter only the returned `index`.
     ]
   },
   "error": null,
-  "meta": { "total": 51, "submitted": 10, "draft": 3, "notStarted": 38 }
+  "meta": { "total": 40, "submitted": 10, "draft": 3, "notStarted": 27 }
 }
 ```
 
@@ -119,22 +121,22 @@ all 51; `region`/`status` filter only the returned `index`.
 
 ## 2. `GET /api/reviews/next` — "繼續審查" target
 
-Return the next unreviewed blueprint in the deterministic order, or completion when 51/51
+Return the next unreviewed blueprint in the deterministic order, or completion when N/N
 (FR-031/FR-027–FR-029, research D7).
 
 - Role: `REVIEWER`.
 
 **Response 200 — work remaining**
 ```json
-{ "success": true, "data": { "next": "S2", "completed": false, "submitted": 10, "total": 51 }, "error": null }
+{ "success": true, "data": { "next": "S2", "completed": false, "submitted": 10, "total": 40 }, "error": null }
 ```
-**Response 200 — all submitted (51/51, non-dead-end)**
+**Response 200 — all submitted (N/N, non-dead-end)**
 ```json
-{ "success": true, "data": { "next": null, "completed": true, "submitted": 51, "total": 51 }, "error": null }
+{ "success": true, "data": { "next": null, "completed": true, "submitted": 40, "total": 40 }, "error": null }
 ```
 
 - "Next" skips `已提交`; lands on the first 未開始/草稿 by Region `displayOrder` → numeric id
-  (`S→H→E→T→P→K→L→Y`; `S2` before `S10`). `completed: true` ⇒ client shows the 51/51 state
+  (`S→H→E→T→P→K→L→Y`; `S2` before `S10`). `completed: true` ⇒ client shows the N/N state
   with review/revise entry points (FR-029/SC-008).
 - 401 `AUTH_REQUIRED`, 403 `FORBIDDEN_ROLE`.
 
@@ -184,7 +186,7 @@ for both first-time review and reopen-to-edit (US1/US5, research D5).
       "submittedAt": null,
       "lastUpdatedAt": "2026-06-30T02:05:00Z"
     },
-    "progress": { "submitted": 10, "total": 51 },
+    "progress": { "submitted": 10, "total": 40 },
     "neighbors": { "prev": null, "next": "S2" }
   },
   "error": null
@@ -270,26 +272,26 @@ blocks here (FR-030). The high-risk caution never blocks (FR-035).
     "lastUpdatedAt": "2026-06-30T02:06:00Z",
     "next": "S2",
     "completed": false,
-    "progress": { "submitted": 11, "total": 51 }
+    "progress": { "submitted": 11, "total": 40 }
   },
   "error": null
 }
 ```
 
-**Response 200 — submitted the last image (51/51)**
+**Response 200 — submitted the last image (N/N)**
 ```json
 {
   "success": true,
   "data": {
     "status": "已提交", "submittedAt": "2026-06-30T05:00:00Z", "lastUpdatedAt": "2026-06-30T05:00:00Z",
-    "next": null, "completed": true, "progress": { "submitted": 51, "total": 51 }
+    "next": null, "completed": true, "progress": { "submitted": 40, "total": 40 }
   },
   "error": null
 }
 ```
 
 - `next` = next blueprint to auto-advance to (skips 已提交; deterministic order). `next: null`
-  + `completed: true` ⇒ the 51/51 completion state, not a dead end (FR-029/SC-008).
+  + `completed: true` ⇒ the N/N completion state, not a dead end (FR-029/SC-008).
 - **400 `OVERALL_JUDGEMENT_REQUIRED`** (message **請先選擇整體判定**) when `overallJudgement`
   is null — nothing is submitted (FR-011/SC-003).
 - Re-submit of an already-`已提交` review overwrites in place, bumps `lastUpdatedAt`, leaves
@@ -322,7 +324,7 @@ gates this behind a **reconfirm**; there is no request body.
       "panels": [ { "panelIndex": 1, "noProblem": false, "requiredWarnings": [], "warningOther": null, "problemTypes": [], "problemNote": null } /* …2,3,4 */ ],
       "createdAt": null, "lastSavedAt": null, "submittedAt": null, "lastUpdatedAt": null
     },
-    "progress": { "submitted": 10, "total": 51 }
+    "progress": { "submitted": 10, "total": 40 }
   },
   "error": null
 }

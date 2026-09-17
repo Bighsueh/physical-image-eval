@@ -26,6 +26,11 @@ export const catalogService = {
     return (await catalogRepository.listRegions()).map(toRegionDto);
   },
 
+  /** Live catalog size — the progress denominator (never a hard-coded constant). */
+  countBlueprints(): Promise<number> {
+    return catalogRepository.countBlueprints();
+  },
+
   async listBlueprints(filters: { region?: RegionCode; highRisk?: boolean }) {
     const rows = await catalogRepository.listBlueprints(filters);
     return [...rows].sort(byRegionThenSerial).map(toBlueprintSummaryDto);

@@ -66,18 +66,20 @@ FR-022. Role: `ADMIN`.
   "success": true,
   "data": {
     "activeReviewerCount": 3,
-    "expectedSubmissions": 153,
+    "expectedSubmissions": 120,
     "submittedActive": 40,
-    "percent": 26.1,
+    "percent": 33.3,
     "inactiveSubmittedTotal": 5,
     "fullyCoveredCount": 4,
     "blueprintsWithRedoCount": 7,
     "highRiskCount": 9,
-    "totalBlueprints": 51
+    "totalBlueprints": 40
   },
   "error": null
 }
 ```
+- Numbers are illustrative (a 40-blueprint catalog). `totalBlueprints` is the number of blueprints
+  currently in the ingested catalog; `expectedSubmissions = activeReviewerCount × totalBlueprints`.
 - `percent` = `submittedActive / expectedSubmissions × 100`, never > 100; when
   `expectedSubmissions = 0` → `percent: 0` (no division — FR-002/016, D2/D9).
 - `inactiveSubmittedTotal` is reported **separately** and is **never** part of `submittedActive`
@@ -99,8 +101,8 @@ Per-reviewer progress. FR-003, FR-004. Role: `ADMIN`.
       "displayName": "林醫師",
       "isActive": true,
       "submittedCount": 12,
-      "total": 51,
-      "unreviewedBlueprintIds": ["S2","S3","H1","…(39)"],
+      "total": 40,
+      "unreviewedBlueprintIds": ["S2","S3","H1","…(28)"],
       "lastSubmittedBlueprintId": "S4",
       "lastSubmittedAt": "2026-06-30T03:12:00Z"
     },
@@ -109,8 +111,8 @@ Per-reviewer progress. FR-003, FR-004. Role: `ADMIN`.
       "displayName": "前審查者",
       "isActive": false,
       "submittedCount": 8,
-      "total": 51,
-      "unreviewedBlueprintIds": ["…(43)"],
+      "total": 40,
+      "unreviewedBlueprintIds": ["…(32)"],
       "lastSubmittedBlueprintId": "K3",
       "lastSubmittedAt": "2026-06-20T09:00:00Z"
     }
@@ -119,7 +121,7 @@ Per-reviewer progress. FR-003, FR-004. Role: `ADMIN`.
   "meta": { "total": 2, "activeCount": 1, "inactiveCount": 1 }
 }
 ```
-- A reviewer with 0 submissions ⇒ `submittedCount: 0`, `unreviewedBlueprintIds` = all 51,
+- A reviewer with 0 submissions ⇒ `submittedCount: 0`, `unreviewedBlueprintIds` = every catalog blueprint,
   `lastSubmittedBlueprintId: null`, `lastSubmittedAt: null` (spec Edge Cases).
 - `displayName` is sanitized (constitution V).
 
@@ -137,7 +139,7 @@ FR-005, FR-006, FR-009, FR-010, FR-011. Role: `ADMIN`.
 | `highRisk` | boolean | keep only high-risk blueprints (from `HIGH_RISK_BLUEPRINT_IDS`, FR-009) |
 | `notFullyCovered` | boolean | keep only blueprints with ≥1 active reviewer not yet submitted (FR-011) |
 
-Filters are ANDed. No filter ⇒ all 51, ordered by region `displayOrder` then numeric id.
+Filters are ANDed. No filter ⇒ every catalog blueprint, ordered by region `displayOrder` then numeric id.
 
 **Response 200**
 ```json
@@ -170,7 +172,7 @@ Filters are ANDed. No filter ⇒ all 51, ordered by region `displayOrder` then n
     }
   ],
   "error": null,
-  "meta": { "total": 51, "returned": 2 }
+  "meta": { "total": 40, "returned": 2 }
 }
 ```
 - `distribution` counts **active** submitters only; `inactiveSubmittedCount` is separate
@@ -412,5 +414,5 @@ Remains a `GET` so 004 stays CSRF-free and entirely read-only.
 
 - No route mutates anything — 004 remains GET-only and CSRF-free (FR-012/FR-036/SC-007/SC-016).
 - No route exposes a photo belonging to a **draft** review, by any id or filter (FR-028).
-- No global "all 51 blueprints" bundle this round (FR-033, research D12).
+- No global "all blueprints" bundle this round (FR-033, research D12).
 - No route returns photo bytes inside a JSON envelope.

@@ -121,7 +121,7 @@ enum RegionCode {
   Y // 全身運動處方
 }
 
-/// Diagnosis mapping kind. MAPPED∪TEMPLATE = 128 「對應到藍圖」; REFERRAL = 6. Total 134 (FR-008).
+/// Diagnosis mapping kind. MAPPED∪TEMPLATE = 「對應到藍圖」; REFERRAL = 轉介 (FR-008).
 enum MappingKind {
   MAPPED // 已對應 — synonym/same-treatment → a specific non-Y blueprint
   TEMPLATE // 通用處方模板 — systemic diagnosis covered by a Y-series blueprint
@@ -186,7 +186,7 @@ model Panel {
   @@unique([blueprintId, panelIndex])
 }
 
-/// 診斷 — one row of the 134-diagnosis mapping matrix (authoritative: 00 index).
+/// 診斷 — one row of the diagnosis mapping matrix (authoritative: 00 index).
 model Diagnosis {
   id                String      @id @default(cuid())
   matrixNo          Int         @unique

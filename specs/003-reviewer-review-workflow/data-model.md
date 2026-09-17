@@ -63,7 +63,7 @@ Stored status of a `Review` (FR-024).
 
 | zh-TW value | Prisma id `@map` | Meaning |
 |-------------|------------------|---------|
-| `草稿` | `DRAFT` | Has at least one autosave; **not** counted in 已提交 x/51. |
+| `草稿` | `DRAFT` | Has at least one autosave; **not** counted in 已提交 x/N. |
 | `已提交` | `SUBMITTED` | Has `overallJudgement`; counted, comparable, exportable (004). |
 
 > **未開始** is **not** a stored value — it is the *absence* of a `Review` row for that
@@ -176,7 +176,7 @@ be incomplete, but at **submit** each panel must be `noProblem` OR carry an anno
 ## Entity-relationship summary
 
 ```text
-Account(REVIEWER) 1 ──< Review 0..51 ──= PanelReview ×4
+Account(REVIEWER) 1 ──< Review 0..N ──= PanelReview ×4
                           │
                           └──*:1── Blueprint (002, read-only;  UNIQUE(reviewerId, blueprintId))
 
@@ -259,7 +259,7 @@ can accidentally load them (research D11).
 ## Entity-relationship summary (updated)
 
 ```text
-Account(REVIEWER) 1 ──< Review 0..51 ──= PanelReview ×4
+Account(REVIEWER) 1 ──< Review 0..N ──= PanelReview ×4
                           │
                           ├──< ReviewPhoto 0..n ──1 ReviewPhotoBlob   (cascade on Review delete)
                           │       panelIndex 1..4 = 分格；NULL = 圖層級

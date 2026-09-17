@@ -1,11 +1,10 @@
 import type { RegionCode, ReviewStatus } from '@prisma/client';
-import { TOTAL_BLUEPRINTS } from '../../catalog/constants/catalog-constants';
 import { catalogService } from '../../catalog/services/catalog.service';
 import { reviewRepository } from '../repositories/review.repository';
 import type { ProgressQuery } from '../validation/review.schema';
 
 /**
- * Personal progress (US7, FR-039/040/042). Counts always reflect all 51; region/status filter only
+ * Personal progress (US7, FR-039/040/042). Counts always reflect the whole catalog; region/status filter only
  * the returned `index`. 未開始 = no Review row (derived). Scoped to the session reviewer only.
  */
 const statusToZh = (s: ReviewStatus | undefined): '未開始' | '草稿' | '已提交' =>
@@ -26,7 +25,7 @@ export const reviewProgressService = {
       if (s === 'SUBMITTED') submitted += 1;
       else if (s === 'DRAFT') draft += 1;
     }
-    const notStarted = TOTAL_BLUEPRINTS - submitted - draft;
+    const notStarted = blueprints.length - submitted - draft;
 
     const perRegion = regions.map((r) => {
       const inRegion = blueprints.filter((b) => b.regionCode === (r.regionCode as RegionCode));
@@ -58,6 +57,6 @@ export const reviewProgressService = {
     if (filters.region) index = index.filter((i) => i.regionCode === filters.region);
     if (filters.status) index = index.filter((i) => i.myStatus === filters.status);
 
-    return { submitted, draft, notStarted, total: TOTAL_BLUEPRINTS, perRegion, index };
+    return { submitted, draft, notStarted, total: blueprints.length, perRegion, index };
   },
 };

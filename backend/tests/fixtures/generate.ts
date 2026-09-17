@@ -3,22 +3,41 @@ import { join } from 'node:path';
 import type { RegionCode } from '@prisma/client';
 import {
   ALL_REGION_CODES,
-  REGION_COUNTS,
   REGION_FOLDER_MAP,
   REGION_NAME_MAP,
 } from '../../src/catalog/constants/catalog-constants';
 
 /**
  * Hermetic synthetic source-tree generator for 002 tests. `buildValidSource` writes a tree that
- * passes ALL invariants (51 blueprints, region counts, 4 panels, 134 diagnoses = 128 + 6, exact
- * high-risk set). Mutators derive each-broken trees by copying-then-breaking one invariant.
+ * passes ALL invariants (index-declared blueprint set, every region populated, 4 panels, contiguous
+ * diagnosis numbering, exact high-risk set). Mutators derive each-broken trees by
+ * copying-then-breaking one invariant.
+ *
+ * The distribution is SYNTHETIC — it does not mirror the real corpus. It only has to contain every
+ * high-risk ID plus the IDs individual tests reference. Tests assert against the FIXTURE_* exports.
  */
+export const FIXTURE_REGION_COUNTS: Record<RegionCode, number> = {
+  S: 4,
+  H: 2,
+  E: 6,
+  T: 8,
+  P: 5,
+  K: 5,
+  L: 3,
+  Y: 2,
+};
+export const FIXTURE_TOTAL_BLUEPRINTS = Object.values(FIXTURE_REGION_COUNTS).reduce((a, n) => a + n, 0);
+/** Diagnoses assigned round-robin to blueprints (MAPPED/TEMPLATE), then the referral rows. */
+export const FIXTURE_MAPPED_DIAGNOSES = 70;
+export const FIXTURE_REFERRAL_DIAGNOSES = 3;
+export const FIXTURE_TOTAL_DIAGNOSES = FIXTURE_MAPPED_DIAGNOSES + FIXTURE_REFERRAL_DIAGNOSES;
+
 const FOLDER_BY_CODE: Record<RegionCode, string> = Object.fromEntries(
   Object.entries(REGION_FOLDER_MAP).map(([folder, code]) => [code, folder]),
 ) as Record<RegionCode, string>;
 
 export const blueprintIdsFor = (code: RegionCode): string[] =>
-  Array.from({ length: REGION_COUNTS[code] }, (_, i) => `${code}${i + 1}`);
+  Array.from({ length: FIXTURE_REGION_COUNTS[code] }, (_, i) => `${code}${i + 1}`);
 
 export const allBlueprintIds = (): string[] => ALL_REGION_CODES.flatMap(blueprintIdsFor);
 
@@ -59,11 +78,11 @@ interface DiagnosisAssign {
   byBlueprint: Map<string, Array<{ no: number; name: string }>>;
 }
 
-/** Round-robin 128 diagnoses (matrix 1..128) across the 51 blueprints (each gets ≥ 1). */
+/** Round-robin the mapped diagnoses (matrix 1..FIXTURE_MAPPED_DIAGNOSES) across all blueprints. */
 const assignDiagnoses = (ids: string[]): DiagnosisAssign => {
   const byBlueprint = new Map<string, Array<{ no: number; name: string }>>();
   for (const id of ids) byBlueprint.set(id, []);
-  for (let no = 1; no <= 128; no += 1) {
+  for (let no = 1; no <= FIXTURE_MAPPED_DIAGNOSES; no += 1) {
     const id = ids[(no - 1) % ids.length];
     byBlueprint.get(id)!.push({ no, name: `診斷${no}` });
   }
@@ -71,10 +90,10 @@ const assignDiagnoses = (ids: string[]): DiagnosisAssign => {
 };
 
 const indexMd = (assign: DiagnosisAssign): string => {
-  const lines: string[] = ['# 總索引', '', '## 三、134 筆診斷 → 藍圖對照表', ''];
+  const lines: string[] = ['# 總索引', '', '## 三、診斷 → 藍圖對照表', ''];
   for (const code of ALL_REGION_CODES) {
     const meta = REGION_NAME_MAP[code];
-    lines.push(`### ${meta.nameZh} ${meta.nameEn}（${REGION_COUNTS[code]} 份）`, '');
+    lines.push(`### ${meta.nameZh} ${meta.nameEn}（${FIXTURE_REGION_COUNTS[code]} 份）`, '');
     lines.push('| 藍圖 ID | 藍圖檔名 | 涵蓋原始診斷（矩陣編號） |', '|---|---|---|');
     for (const id of blueprintIdsFor(code)) {
       const covered = (assign.byBlueprint.get(id) ?? []).map((d) => `${d.name}(${d.no})`).join('、');
@@ -82,9 +101,11 @@ const indexMd = (assign: DiagnosisAssign): string => {
     }
     lines.push('');
   }
-  lines.push('### 不產藍圖：轉介類（6 筆）', '');
+  lines.push(`### 不產藍圖：轉介類（${FIXTURE_REFERRAL_DIAGNOSES} 筆）`, '');
   lines.push('| 矩陣編號 | 診斷 | 處置 |', '|---|---|---|');
-  for (let no = 129; no <= 134; no += 1) lines.push(`| ${no} | 轉介診斷${no} | 轉介眼科 |`);
+  for (let no = FIXTURE_MAPPED_DIAGNOSES + 1; no <= FIXTURE_TOTAL_DIAGNOSES; no += 1) {
+    lines.push(`| ${no} | 轉介診斷${no} | 轉介眼科 |`);
+  }
   lines.push('');
   return lines.join('\n');
 };
@@ -162,7 +183,7 @@ export const mutateDeleteImage = (dir: string, id: string): void =>
 export const mutateOrphanImage = (dir: string, code: RegionCode, fakeId: string): void =>
   writeFileSync(join(dir, '_產圖', FOLDER_BY_CODE[code], `${fakeId}_x.png`), PNG_BYTES);
 
-/** Delete a whole blueprint (md + png) → region count off + total off. */
+/** Delete a whole blueprint (md + png) the index still lists (⇒ FR-002 missing blueprint). */
 export const mutateDeleteBlueprint = (dir: string, id: string): void => {
   const code = codeOf(id);
   unlinkSync(mdPath(dir, code, id));
@@ -176,12 +197,12 @@ export const mutateDuplicateId = (dir: string, id: string): void => {
   writeFileSync(join(dir, '_產圖', FOLDER_BY_CODE[code], `${id}_dup.png`), PNG_BYTES);
 };
 
-/** Drop the last diagnosis row from the index (⇒ FR-008 total mismatch). */
+/** Drop the first referral row from the index, leaving a numbering gap (⇒ FR-008 gap). */
 export const mutateDropDiagnosis = (dir: string): void => {
   const file = join(dir, '00_藍圖總索引與設計規範.md');
   const lines = readFileSync(file, 'utf8').split('\n');
-  // remove the last referral row (| 134 | … |)
-  const idx = lines.findIndex((l) => /^\|\s*134\s*\|/.test(l));
+  const firstReferral = FIXTURE_MAPPED_DIAGNOSES + 1;
+  const idx = lines.findIndex((l) => new RegExp(`^\\|\\s*${firstReferral}\\s*\\|`).test(l));
   if (idx >= 0) lines.splice(idx, 1);
   writeFileSync(file, lines.join('\n'));
 };

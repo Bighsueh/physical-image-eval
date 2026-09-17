@@ -7,7 +7,7 @@
 ## Summary
 
 Feature 003 is the **product core**: it owns the **review domain** — the only data a
-reviewer creates or edits. A logged-in 審查者 reviews all 51 AIGC exercise-education
+reviewer creates or edits. A logged-in 審查者 reviews all AIGC exercise-education
 blueprints, one at a time, in a left/right **Layout A** screen (sticky zoomable PNG +
 full read-only blueprint metadata on the left; pinned 整體判定 + 適應症 + four stacked
 panel forms + prev/next + save-draft + submit on the right). A review's identity is the
@@ -19,7 +19,7 @@ exactly-four `PanelReview` rows — plus five review enums. Multi-select panel s
 elevates to 已提交 and **never** regresses 已提交→草稿. **Submit** requires a non-null
 整體判定 (else the inline zh-TW message 請先選擇整體判定 blocks it) and then **auto-advances**
 to the next unreviewed blueprint in the deterministic order (Region `displayOrder` →
-numeric blueprint id), skipping 已提交; 51/51 is a completion state, never a dead end.
+numeric blueprint id), skipping 已提交; N/N is a completion state, never a dead end.
 Edit-after-submit is an in-place overwrite that refreshes `lastUpdatedAt` — **no** version
 history, **no** 已修訂 state. Every read/write is scoped to the session reviewer (own data
 only). The catalog (002) is consumed **read-only**: blueprint metadata + four panels incl.
@@ -53,7 +53,7 @@ isolation / autosave-no-regress), RTL (Layout A components, autosave hook, keybo
 Playwright (E2E: US1–US7). TDD, coverage ≥ 80%.
 
 **Target Platform**: Linux server containers behind Cloudflared in prod
-(`https://your-domain.example.com`); desktop/laptop browsers for the React SPA. Dev on
+(the production domain, set via `COOKIE_DOMAIN`); desktop/laptop browsers for the React SPA. Dev on
 localhost.
 
 **Project Type**: web (monorepo `backend/` + `frontend/`, single git repo). This feature
@@ -62,21 +62,21 @@ touches both sides.
 **Performance Goals**: Reviewer-scale is small (a handful of clinicians). Targets: open a
 blueprint for review p95 < 120 ms (one indexed `(reviewerId, blueprintId)` lookup + a
 cached catalog read); autosave `PATCH` p95 < 100 ms (single transaction: upsert review +
-replace 4 panels); progress page p95 < 100 ms (one grouped count over ≤ 51 rows/reviewer).
+replace 4 panels); progress page p95 < 100 ms (one grouped count over ≤ N rows/reviewer).
 A clean-image keyboard-only review completes in ≤ 15 s (SC-001).
 
 **Constraints**: Autosave never elevates 草稿→已提交 and never regresses 已提交→草稿
 (FR-025/FR-026); submit hard-requires `overallJudgement` (FR-011/SC-003); all-empty panels
 are a valid 通過 (FR-018/SC-004); auto-advance is deterministic (Region `displayOrder` →
-numeric id) and skips 已提交 (FR-027–FR-029); 51/51 is non-dead-end (FR-029/SC-008);
+numeric id) and skips 已提交 (FR-027–FR-029); N/N is non-dead-end (FR-029/SC-008);
 per-reviewer isolation — `reviewerId` is taken **only** from the session, never the request
 (FR-003/SC-010); orphan free-text is preserved (FR-019/SC-002); high-risk badge is
 icon+text, never color-only, never blocking (FR-033–FR-035); `aiPrompt` never reaches the
 reviewer (FR-009); full keyboard operability (FR-037/FR-038/SC-011). Free text sanitized on
 output; CSRF on every mutation; secrets via env validated at startup.
 
-**Scale/Scope**: Per reviewer: 0..51 `Review` rows, each with exactly 4 `PanelReview`
-(≤ 204 panel rows/reviewer). Endpoints: 3 GET + 1 PATCH + 1 POST = 5 routes, all
+**Scale/Scope**: Per reviewer: 0..N `Review` rows, each with exactly 4 `PanelReview`
+(≤ 4 × N panel rows/reviewer, N = blueprints in the catalog). Endpoints: 3 GET + 1 PATCH + 1 POST = 5 routes, all
 reviewer-role, own-data only. Frontend: 2 routes (progress, review workspace) + the Layout A
 component set + autosave/keyboard hooks.
 
@@ -95,7 +95,7 @@ component set + autosave/keyboard hooks.
 | VII | Test-First, ≥ 80% | TDD per acceptance scenario: unit (ordering, status machine, isolation, schema, orphan text), supertest integration (5 routes + negative/role/CSRF/isolation/no-regress), Playwright E2E US1–US7. Coverage gate ≥ 80%. **PASS** |
 | VIII | Traditional Chinese Only | All labels, enum values (通過／需小修／需重做; 合理／有疑慮; 注意跌倒／需有專人幫助指導／骨鬆注意／心肺功能不全者注意／其它; 部位／主題錯誤…有錯字; 草稿／已提交), validation copy (請先選擇整體判定), soft prompts and badges are zh-TW verbatim. `error.code` is machine English; `error.message` is zh-TW. No language switcher. **PASS** |
 | IX | Accessibility & Clinician Readability | The full single-blueprint review path (focus 整體判定 → choose → submit → advance) is keyboard-only (FR-037/SC-011); inline zoom has keyboard controls. The high-risk caution and review-status badges convey state by **icon + text**, never color alone (FR-034). Predictable focus order; desktop/laptop first. **PASS** |
-| X | Fixed Environment Constraints | Dev ports 5180 / 3100 / 5433→5432; prod via Cloudflared at `https://your-domain.example.com`; the session cookie from 001 is reused as-is. No new port introduced. **PASS** |
+| X | Fixed Environment Constraints | Dev ports 5180 / 3100 / 5433→5432; prod via Cloudflared at the production domain; the session cookie from 001 is reused as-is. No new port introduced. **PASS** |
 | XI | Catalog / Review Domain Separation | 003 **is** the review (mutable) domain. It creates/edits only `Review`/`PanelReview` and never writes a `Region`/`Blueprint`/`Panel`/`Diagnosis` (002) or `Account`/`Session` (001) row. It consumes the catalog through 002's read API/service and the shared `HIGH_RISK_BLUEPRINT_IDS` constant — no redefinition. **PASS** |
 
 **Result: PASS — no violations.**
@@ -132,7 +132,7 @@ backend/
 │       ├── controllers/review.controller.ts       # thin: validate → service → envelope
 │       ├── services/
 │       │   ├── review.service.ts                  # open / autosave / submit; status machine; isolation
-│       │   ├── review-progress.service.ts         # x/51, draft count, per-region, filterable index
+│       │   ├── review-progress.service.ts         # x/N, draft count, per-region, filterable index
 │       │   └── review-ordering.ts                 # next-unreviewed: displayOrder → numeric id, skip 已提交
 │       ├── repositories/review.repository.ts      # Prisma: upsert Review + replace 4 PanelReview in one $transaction
 │       ├── dto/review.dto.ts                       # reviewer projection: composes 002 blueprint-public (no aiPrompt)
@@ -146,7 +146,7 @@ backend/
 frontend/
 ├── src/
 │   ├── routes/
-│   │   ├── ReviewProgressPage.tsx                 # 已提交 x/51, draft count, per-region, region/status filter + jump (FR-039/040/042)
+│   │   ├── ReviewProgressPage.tsx                 # 已提交 x/N, draft count, per-region, region/status filter + jump (FR-039/040/042)
 │   │   └── ReviewWorkspacePage.tsx                # Layout A; route /review/:blueprintId (US1–US6)
 │   ├── components/review/
 │   │   ├── ReviewLayout.tsx                       # left/right split; left column sticky (FR-004/FR-005)
@@ -154,7 +154,7 @@ frontend/
 │   │   ├── BlueprintMetaPanel.tsx                 # read-only: 適應症/練習次數/溫馨小叮嚀 + 4 panels'
 │   │   │                                          #   步驟名/動作說明/時間提示/畫面視覺描述 (FR-007/FR-009)
 │   │   ├── HighRiskBadge.tsx                      # icon + text, non-color-only, non-blocking (FR-033–FR-035)
-│   │   ├── TopProgressBar.tsx                     # fixed-top 已提交 x/51 (FR-041)
+│   │   ├── TopProgressBar.tsx                     # fixed-top 已提交 x/N (FR-041)
 │   │   ├── OverallJudgementField.tsx              # radio 通過/需小修/需重做 + inline 請先選擇整體判定 (FR-010/FR-011)
 │   │   ├── IndicationField.tsx                    # 合理/有疑慮 + 適應症說明, optional (FR-012)
 │   │   ├── PanelReviewForm.tsx                    # per-panel multi-selects + free text (FR-013–FR-020)
@@ -168,7 +168,7 @@ frontend/
 
 e2e/
 └── review.spec.ts                                 # Playwright: US1 圖文並陳, US2 乾淨圖鍵盤快路徑(≤15s),
-                                                   #   US3 autosave restore + 不回退, US4 提交需整體判定 + 自動前進 + 51/51,
+                                                   #   US3 autosave restore + 不回退, US4 提交需整體判定 + 自動前進 + N/N,
                                                    #   US5 重開修訂, US6 高風險警示, US7 個人進度頁
 ```
 

@@ -33,7 +33,7 @@ imported from 002's `catalog-constants.ts` (single named constant; FR-009).
 **Indexes 004 depends on** (owned by 001/003 — 004 adds none): from 003 — `Review(reviewerId)`,
 `Review(blueprintId)`, `Review(reviewerId, status)`, unique `Review(reviewerId, blueprintId)`
 (guarantees ≤ 1 submitted row per pair — FR-023); from 001 — `Account(isActive)` (+ `role`).
-At this corpus size (≤ a few dozen reviewers × 51) these suffice; 004 requests no extra indexes.
+At this corpus size (≤ a few dozen reviewers × the blueprint catalog) these suffice; 004 requests no extra indexes.
 
 ---
 
@@ -48,14 +48,14 @@ records; 非在職 submissions are surfaced separately, never in an active numer
 | Field | Logical type | Source / rule |
 |-------|--------------|---------------|
 | `activeReviewerCount` | int | `count(Account where role=REVIEWER, isActive=true)` |
-| `expectedSubmissions` | int | `activeReviewerCount × 51` (FR-002 denominator) |
+| `expectedSubmissions` | int | `activeReviewerCount × totalBlueprints` (FR-002 denominator) |
 | `submittedActive` | int | `count(Review where status=已提交, account.isActive=true)` (FR-002 numerator) |
 | `percent` | number (0–100) | `expectedSubmissions = 0 ⇒ 0`, else `submittedActive / expectedSubmissions × 100` (never > 100 — FR-002/016) |
 | `inactiveSubmittedTotal` | int | `count(Review where status=已提交, account.isActive=false)` — shown **separately** (FR-016) |
 | `fullyCoveredCount` | int | # blueprints with full active coverage (FR-011) |
 | `blueprintsWithRedoCount` | int | # blueprints with ≥1 submitted 需重做 (FR-010) |
 | `highRiskCount` | int | `9` (size of `HIGH_RISK_BLUEPRINT_IDS`) |
-| `totalBlueprints` | int | `51` |
+| `totalBlueprints` | int | `count(Blueprint)` — blueprints currently in the ingested catalog (no hard-coded constant) |
 
 **Invariant (FR-022)**: `submittedActive = Σ_blueprint perImage.submittedActiveCount`
 `= Σ_reviewer reviewer.submittedCount(active)`. The three layers are projections of one
@@ -68,17 +68,17 @@ filtered set; they cannot disagree at one point in time.
 | `accountId` | string | `Account.id` |
 | `displayName` | string | `Account.displayName`, sanitized on output (constitution V) |
 | `isActive` | boolean | `Account.isActive` → label 在職／非在職 (FR-016) |
-| `submittedCount` | int (0..51) | `count(Review where reviewerId, status=已提交)` (FR-003) |
-| `unreviewedBlueprintIds` | string[] | the 51 blueprintIds minus this reviewer's submitted set (FR-003) |
+| `submittedCount` | int (0..N) | `count(Review where reviewerId, status=已提交)` (FR-003) |
+| `unreviewedBlueprintIds` | string[] | all catalog blueprintIds minus this reviewer's submitted set (FR-003) |
 | `lastSubmittedBlueprintId` | string \| null | blueprintId of `max(submittedAt)` (FR-004); `null` if none |
 | `lastSubmittedAt` | timestamptz \| null | `max(Review.submittedAt)` for this reviewer (FR-004) |
 
 - Active reviewers feed the active ratio; 非在職 reviewers are still listed (flagged 非在職)
   for visibility but excluded from `submittedActive`/`expectedSubmissions` (FR-002/016).
-- Edge: a reviewer with 0 submissions ⇒ `submittedCount = 0`, `unreviewedBlueprintIds` = all 51,
+- Edge: a reviewer with 0 submissions ⇒ `submittedCount = 0`, `unreviewedBlueprintIds` = all catalog blueprints,
   `lastSubmitted* = null` (spec Edge Cases).
 
-### Layer 3 — `ImageProgress[]`（各圖投影；one per blueprint, 51）
+### Layer 3 — `ImageProgress[]`（各圖投影；one per catalog blueprint）
 
 | Field | Logical type | Source / rule |
 |-------|--------------|---------------|

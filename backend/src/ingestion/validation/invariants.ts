@@ -1,20 +1,14 @@
 import type { RegionCode } from '@prisma/client';
-import {
-  DIAGNOSIS_MAPPED_TEMPLATE,
-  DIAGNOSIS_REFERRAL,
-  DIAGNOSIS_TOTAL,
-  HIGH_RISK_BLUEPRINT_IDS,
-  REGION_COUNTS,
-  TOTAL_BLUEPRINTS,
-} from '../../catalog/constants/catalog-constants';
+import { ALL_REGION_CODES, HIGH_RISK_BLUEPRINT_IDS } from '../../catalog/constants/catalog-constants';
 import { isLegalBlueprintId, parseBlueprintId } from '../parser/id-region';
 import type { ParsedCatalog } from '../parser/types';
 import type { ReportError } from './report-types';
 
 /**
- * All fail-fast invariants over a ParsedCatalog (FR-002..FR-010, FR-022). Collects a LOCATED
- * ReportError per violation (no throwing) so the report can point at the blueprintId / panelIndex /
- * diagnosisNo (SC-004). An empty array means the catalog is clean and may be persisted.
+ * All fail-fast invariants over a ParsedCatalog (FR-002..FR-010, FR-022). Cardinalities are never
+ * hard-coded: the source index declares the expected blueprint set and diagnosis numbering.
+ * Collects a LOCATED ReportError per violation (no throwing) so the report can point at the
+ * blueprintId / panelIndex / diagnosisNo (SC-004). An empty array means the catalog is clean and may be persisted.
  */
 const isBlank = (s: string | null | undefined): boolean => (s ?? '').trim().length === 0;
 
@@ -44,16 +38,24 @@ export const collectErrors = (catalog: ParsedCatalog): ReportError[] => {
     }
   }
 
-  // FR-002: exactly 51 blueprints.
-  if (blueprints.length !== TOTAL_BLUEPRINTS) {
-    errors.push({ invariant: 'FR-002:count', message: `藍圖數量應為 ${TOTAL_BLUEPRINTS}，實際為 ${blueprints.length}` });
+  // FR-002: the source blueprint set equals the set the index declares (no hard-coded count).
+  const indexIds = new Set(catalog.indexBlueprintIds);
+  for (const id of indexIds) {
+    if (!blueprintIds.has(id)) {
+      errors.push({ invariant: 'FR-002:missing-blueprint', blueprintId: id, message: `總索引列出藍圖 ${id}，但來源缺少其企劃檔` });
+    }
+  }
+  for (const id of blueprintIds) {
+    if (!indexIds.has(id)) {
+      errors.push({ invariant: 'FR-002:unlisted-blueprint', blueprintId: id, message: `來源藍圖 ${id} 未列於總索引` });
+    }
   }
 
-  // FR-003: per-region counts.
+  // FR-003: every region holds at least one blueprint.
   const perRegion = countPerRegion(catalog);
-  for (const code of Object.keys(REGION_COUNTS) as RegionCode[]) {
-    if (perRegion[code] !== REGION_COUNTS[code]) {
-      errors.push({ invariant: 'FR-003:region-count', message: `區域 ${code} 藍圖數應為 ${REGION_COUNTS[code]}，實際為 ${perRegion[code]}` });
+  for (const code of ALL_REGION_CODES) {
+    if (perRegion[code] === 0) {
+      errors.push({ invariant: 'FR-003:empty-region', message: `區域 ${code} 沒有任何藍圖` });
     }
   }
 
@@ -97,18 +99,17 @@ export const collectErrors = (catalog: ParsedCatalog): ReportError[] => {
   // (Derivation is from the constant, so marked ⊆ constant by construction; the only failure mode
   //  is a high-risk id missing from the catalog, handled above.)
 
-  // FR-008: reconciliation + unique matrixNo.
+  // FR-008: matrix numbers are unique and contiguous 1..N (N = diagnoses listed in the index).
   const byNo = new Set<number>();
   for (const d of diagnoses) {
     if (byNo.has(d.matrixNo)) errors.push({ invariant: 'FR-008:dup-matrixNo', diagnosisNo: d.matrixNo, message: `重複矩陣編號：${d.matrixNo}` });
     byNo.add(d.matrixNo);
   }
-  const mapped = diagnoses.filter((d) => d.mappingKind === 'MAPPED').length;
-  const template = diagnoses.filter((d) => d.mappingKind === 'TEMPLATE').length;
-  const referral = diagnoses.filter((d) => d.mappingKind === 'REFERRAL').length;
-  if (diagnoses.length !== DIAGNOSIS_TOTAL) errors.push({ invariant: 'FR-008:total', message: `診斷總數應為 ${DIAGNOSIS_TOTAL}，實際為 ${diagnoses.length}` });
-  if (mapped + template !== DIAGNOSIS_MAPPED_TEMPLATE) errors.push({ invariant: 'FR-008:mapped-template', message: `對應到藍圖診斷應為 ${DIAGNOSIS_MAPPED_TEMPLATE}，實際為 ${mapped + template}` });
-  if (referral !== DIAGNOSIS_REFERRAL) errors.push({ invariant: 'FR-008:referral', message: `轉介診斷應為 ${DIAGNOSIS_REFERRAL}，實際為 ${referral}` });
+  if (diagnoses.length === 0) errors.push({ invariant: 'FR-008:empty', message: '總索引未列出任何診斷' });
+  const maxNo = Math.max(0, ...byNo);
+  for (let no = 1; no <= maxNo; no += 1) {
+    if (!byNo.has(no)) errors.push({ invariant: 'FR-008:gap', diagnosisNo: no, message: `診斷矩陣編號缺號：${no}` });
+  }
 
   // FR-009: every non-referral diagnosis resolves to an existing blueprint; REFERRAL ⇔ null.
   for (const d of diagnoses) {

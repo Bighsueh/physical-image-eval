@@ -13,18 +13,18 @@ const env = (data: unknown, meta?: unknown) => ({ ok: true, status: 200, json: a
 
 const overview = {
   activeReviewerCount: 3,
-  expectedSubmissions: 153,
+  expectedSubmissions: 120,
   submittedActive: 3,
   percent: 2.0,
   inactiveSubmittedTotal: 1,
   fullyCoveredCount: 0,
   blueprintsWithRedoCount: 1,
   highRiskCount: 9,
-  totalBlueprints: 51,
+  totalBlueprints: 40,
 };
 const reviewers = [
-  { accountId: '1', displayName: '甲醫師', isActive: true, submittedCount: 2, total: 51, unreviewedBlueprintIds: ['x'], lastSubmittedBlueprintId: 'S2', lastSubmittedAt: '2026-06-30T05:00:00Z' },
-  { accountId: '4', displayName: '前醫師', isActive: false, submittedCount: 1, total: 51, unreviewedBlueprintIds: [], lastSubmittedBlueprintId: 'S1', lastSubmittedAt: '2026-06-20T09:00:00Z' },
+  { accountId: '1', displayName: '甲醫師', isActive: true, submittedCount: 2, total: 40, unreviewedBlueprintIds: ['x'], lastSubmittedBlueprintId: 'S2', lastSubmittedAt: '2026-06-30T05:00:00Z' },
+  { accountId: '4', displayName: '前醫師', isActive: false, submittedCount: 1, total: 40, unreviewedBlueprintIds: [], lastSubmittedBlueprintId: 'S1', lastSubmittedAt: '2026-06-20T09:00:00Z' },
 ];
 const images = [
   { blueprintId: 'S1', exerciseName: '五十肩', regionCode: 'S', isHighRisk: false, submittedActiveCount: 2, missingReviewers: [{ accountId: '3', displayName: '丙醫師' }], fullCoverage: false, distribution: { 通過: 1, 需小修: 0, 需重做: 1 }, hasRedo: true, inactiveSubmittedCount: 1 },
@@ -37,7 +37,7 @@ function installFetch() {
     calls.push(url);
     if (url.includes('/dashboard/overview')) return env(overview);
     if (url.includes('/dashboard/reviewers')) return env(reviewers, { total: 2, activeCount: 1, inactiveCount: 1 });
-    if (url.includes('/dashboard/images')) return env(images, { total: 51, returned: images.length });
+    if (url.includes('/dashboard/images')) return env(images, { total: 40, returned: images.length });
     return env(null);
   }));
   return calls;
@@ -85,7 +85,7 @@ describe('DashboardPage (US1–US3)', () => {
       if (url.includes('reviews.csv')) return { ok: true, blob: async () => new Blob(['csv']) };
       if (url.includes('/overview')) return env(overview);
       if (url.includes('/reviewers')) return env(reviewers, {});
-      return env(images, { total: 51, returned: 2 });
+      return env(images, { total: 40, returned: 2 });
     });
     const user = userEvent.setup();
     renderWithProviders(<DashboardPage />, { account: admin });

@@ -2,9 +2,9 @@ import { BLUEPRINT_ID_REGEX } from '../../catalog/constants/catalog-constants';
 import { ParsedDiagnosisSchema, type ParsedDiagnosis } from './types';
 
 /**
- * Parse the 134-diagnosis matrix from `00_藍圖總索引與設計規範.md` (D2 — authoritative source).
- * Region tables yield MAPPED (non-Y blueprint) / TEMPLATE (Y-series blueprint) diagnoses; the
- * 轉介類 table yields the 6 REFERRAL rows. Table rows are parsed line-by-line (the source uses GFM
+ * Parse the diagnosis matrix from `00_藍圖總索引與設計規範.md` (D2 — authoritative source).
+ * Region tables yield MAPPED (non-Y blueprint) / TEMPLATE (Y-series blueprint) diagnoses and
+ * declare the expected blueprint set (FR-002); the 轉介類 table yields the REFERRAL rows. Table rows are parsed line-by-line (the source uses GFM
  * pipe tables; remark-parse alone does not emit table nodes, and a line parse is robust here).
  */
 
@@ -26,10 +26,15 @@ const parseCovered = (covered: string): Array<{ matrixNo: number; nameZh: string
   return out;
 };
 
-export const parseIndex = (content: string): ParsedDiagnosis[] => {
-  const diagnoses: ParsedDiagnosis[] = [];
-  let inReferral = false;
+interface IndexRow {
+  cols: string[];
+  inReferral: boolean;
+}
 
+/** Walk the index's pipe-table rows, tagging each with whether it sits in the 轉介類 section. */
+const indexRows = (content: string): IndexRow[] => {
+  const rows: IndexRow[] = [];
+  let inReferral = false;
   for (const line of content.split('\n')) {
     // Section tracking: the 轉介類 subsection is the only REFERRAL table.
     if (/^#{2,3}\s/.test(line)) {
@@ -37,10 +42,22 @@ export const parseIndex = (content: string): ParsedDiagnosis[] => {
       continue;
     }
     if (!line.trim().startsWith('|')) continue;
-
     const cols = rowCells(line);
-    if (cols.length < 2) continue;
+    if (cols.length >= 2) rows.push({ cols, inReferral });
+  }
+  return rows;
+};
 
+/** Blueprint IDs declared by the region tables, in index order (FR-002 expected set). */
+export const parseIndexBlueprintIds = (content: string): string[] =>
+  indexRows(content)
+    .filter((r) => !r.inReferral && BLUEPRINT_ID_REGEX.test(r.cols[0]))
+    .map((r) => r.cols[0]);
+
+export const parseIndex = (content: string): ParsedDiagnosis[] => {
+  const diagnoses: ParsedDiagnosis[] = [];
+
+  for (const { cols, inReferral } of indexRows(content)) {
     if (!inReferral) {
       const blueprintId = cols[0];
       if (!BLUEPRINT_ID_REGEX.test(blueprintId)) continue; // skip header/separator rows

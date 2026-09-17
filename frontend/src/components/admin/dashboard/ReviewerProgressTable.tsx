@@ -1,7 +1,7 @@
 import type { ReviewerRow } from '../../../api/admin-dashboard';
 import { Card, StatusPill } from '../../ui';
 
-/** Per-reviewer progress (submitted/51, unreviewed count, last submit). 非在職 flagged by text+icon. */
+/** Per-reviewer progress (submitted/total, unreviewed count, last submit). 非在職 flagged by text+icon. */
 export function ReviewerProgressTable({ rows }: { rows: ReviewerRow[] }) {
   return (
     <Card className="overflow-hidden">

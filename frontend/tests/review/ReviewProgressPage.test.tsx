@@ -18,11 +18,11 @@ const env = (data: unknown) => ({ ok: true, status: 200, json: async () => ({ su
 const progress = (index: unknown[]) => ({
   submitted: 1,
   draft: 1,
-  notStarted: 49,
-  total: 51,
+  notStarted: 38,
+  total: 40,
   perRegion: [
     { regionCode: 'S', regionNameZh: '肩部', displayOrder: 1, total: 4, submitted: 1, draft: 0, notStarted: 3 },
-    { regionCode: 'K', regionNameZh: '膝部', displayOrder: 6, total: 7, submitted: 0, draft: 1, notStarted: 6 },
+    { regionCode: 'K', regionNameZh: '膝部', displayOrder: 6, total: 5, submitted: 0, draft: 1, notStarted: 4 },
   ],
   index,
 });
@@ -37,7 +37,7 @@ function installFetch(index: unknown[] = fullIndex) {
     'fetch',
     vi.fn(async (url: string) => {
       calls.push(url);
-      if (url.includes('/reviews/next')) return env({ next: 'S2', completed: false, submitted: 1, total: 51 });
+      if (url.includes('/reviews/next')) return env({ next: 'S2', completed: false, submitted: 1, total: 40 });
       return env(progress(index));
     }),
   );
@@ -52,7 +52,7 @@ describe('ReviewProgressPage (US7)', () => {
     renderWithProviders(<ReviewProgressPage />, { account: reviewer });
 
     expect(await screen.findByText('我的審查進度')).toBeInTheDocument();
-    expect(await screen.findByLabelText('審查進度 1 / 51')).toBeInTheDocument(); // wait for data
+    expect(await screen.findByLabelText('審查進度 1 / 40')).toBeInTheDocument(); // wait for data
     expect(screen.getByText('草稿 1')).toBeInTheDocument();
     expect(screen.getAllByText(/肩部/).length).toBeGreaterThan(0);
 

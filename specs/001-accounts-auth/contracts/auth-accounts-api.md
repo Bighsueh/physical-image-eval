@@ -23,7 +23,7 @@ response uses the project envelope; cookie-based auth + CSRF as defined in
 
 - On login the server sets two cookies:
   - `pie_sid` — opaque session token. `HttpOnly; Secure; SameSite=Lax; Path=/`
-    (`Domain=your-domain.example.com` in prod). No JS access.
+    (`Domain=<正式網域>` in prod, via `COOKIE_DOMAIN`). No JS access.
   - `pie_csrf` — CSRF token. `Secure; SameSite=Lax; Path=/` (readable by the SPA).
 - Every **mutating** request (POST) that relies on the session cookie MUST send header
   `X-CSRF-Token` equal to the `pie_csrf` cookie value. Mismatch ⇒ `403 CSRF_INVALID`.
@@ -85,7 +85,7 @@ Log in and start a session. **No auth required. Rate limited (FR-021). CSRF not 
     "error": null
   }
   ```
-  - For a REVIEWER, `redirect` points at the personal-progress page (003) — the 0／51
+  - For a REVIEWER, `redirect` points at the personal-progress page (003) — the 0／N
     landing (FR-002, FR-003). For an ADMIN, `redirect` is `/admin/accounts`.
   - When `mustChangePassword = true`, `redirect` is `/password/change` (FR-009).
 - 401 `AUTH_FAILED` — unknown username **or** wrong password **or** disabled account.

@@ -11,6 +11,10 @@ export const catalogRepository = {
     });
   },
 
+  countBlueprints() {
+    return prisma.blueprint.count();
+  },
+
   listBlueprints(filters: { region?: RegionCode; highRisk?: boolean }) {
     // select: (not include:) so aiPrompt/contentHash/sourceMarkdownRef are never fetched (SEC-M1).
     return prisma.blueprint.findMany({

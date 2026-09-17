@@ -5,6 +5,7 @@ import { env } from '../../../src/config/env';
 import { runIngest } from '../../../src/ingestion/runner';
 import { adminAgent, reviewerAgent, type SeededAgent } from '../../helpers/http';
 import { cleanDoc, docWithPanel, emptyDoc } from '../../helpers/review';
+import { FIXTURE_TOTAL_BLUEPRINTS } from '../../fixtures/generate';
 
 /** US1–US5 review workflow over the ingested catalog. Reviewer auth is recreated per test; the
  * catalog persists (reviews are cascade-cleared with Account each test). */
@@ -32,7 +33,7 @@ describe('review workflow (US1–US5)', () => {
     expect(JSON.stringify(res.body)).not.toContain('prompt for');
     expect(res.body.data.review.status).toBe('未開始');
     expect(res.body.data.review.panels).toHaveLength(4);
-    expect(res.body.data.progress).toEqual({ submitted: 0, total: 51 });
+    expect(res.body.data.progress).toEqual({ submitted: 0, total: FIXTURE_TOTAL_BLUEPRINTS });
   });
 
   it('US1: open errors — 400 bad id, 404 unknown, 401 no session, 403 admin', async () => {

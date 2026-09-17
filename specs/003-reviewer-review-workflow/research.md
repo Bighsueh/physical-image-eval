@@ -105,7 +105,7 @@ when computing progress. Transitions:
 | 已提交 | re-submit | 已提交 | `lastUpdatedAt` = now; `submittedAt` unchanged |
 | 已提交 | any event | **never → 草稿** | — (FR-026 hard invariant) |
 
-`已提交 x/51` counts rows with `status = 已提交` for the session reviewer; `草稿` rows are not
+`已提交 x/N` counts rows with `status = 已提交` for the session reviewer; `草稿` rows are not
 counted (FR-024, US3-AS5). `createdAt` is immutable; `lastUpdatedAt` is bumped by **every**
 mutation and is the "最近更新時間 / last-updated" of FR-032; `submittedAt` records the original
 submission and is **not** rewritten on re-submit; `lastSavedAt` marks the last autosave.
@@ -165,7 +165,7 @@ Requiring `indicationNote` when `有疑慮` — explicitly **not** required (FR-
 
 ---
 
-## D7. Auto-advance & "繼續審查" — deterministic next-unreviewed, skip 已提交, 51/51 non-dead-end
+## D7. Auto-advance & "繼續審查" — deterministic next-unreviewed, skip 已提交, N/N non-dead-end
 
 **Decision**: "Next unreviewed" = the first blueprint, in the deterministic order
 **Region `displayOrder` ascending, then the numeric suffix of `blueprintId` ascending**
@@ -176,10 +176,10 @@ ordering (Region `displayOrder` → numeric id). This is computed by `review-ord
 the catalog blueprint list joined with the reviewer's review statuses. It is returned by both:
 
 - the **submit** response (`data.next` = next blueprintId, or `null` + `completed: true` when
-  all 51 are 已提交) — drives auto-advance (FR-027);
+  all catalog blueprints are 已提交) — drives auto-advance (FR-027);
 - `GET /api/reviews/next` — drives the "繼續審查" entry point (FR-031).
 
-When `next` is `null`, the client shows the **51/51 completion** state with review/revise
+When `next` is `null`, the client shows the **N/N completion** state with review/revise
 entry points, never a dead end (FR-029/SC-008).
 
 **Rationale**: A single ordering function shared by submit and "繼續審查" guarantees both land
@@ -415,7 +415,7 @@ dashboard shows used/ceiling and a percentage, warns at 80 %, and at 100 % the s
 FR-034/FR-037).
 
 **Rationale**: 10 GB is real headroom — ~1,450 annotated or ~2,560 unannotated photos,
-i.e. 7–12 per (reviewer × blueprint) unit across 204 units, where in practice only panels
+i.e. several per (reviewer × blueprint) unit for a handful of reviewers, where in practice only panels
 with problems get photographed. The scoping rule matters more than the number: a quota that
 blocks the whole write path would turn a storage-capacity issue into a stopped review task.
 Judgement, warnings, problem notes, draft saves, submit and auto-advance must all continue,

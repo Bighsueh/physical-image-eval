@@ -1,7 +1,8 @@
 import type { RegionCode } from '@prisma/client';
 
 /**
- * The SINGLE source of truth for catalog cardinalities and the high-risk set (FR-003/FR-010, D6).
+ * The SINGLE source of truth for the high-risk set and region metadata (FR-010, D6). Catalog
+ * cardinalities are NOT constants: the source index is authoritative (FR-002/FR-003/FR-008).
  * Constitution: the high-risk constant must be defined exactly ONCE and shared by ingestion + UI.
  */
 
@@ -17,25 +18,6 @@ export const HIGH_RISK_BLUEPRINT_IDS = new Set<string>([
   'K5',
   'L3',
 ]);
-
-/** Authoritative blueprint count per region (sum = 51). Gates FR-003. */
-export const REGION_COUNTS: Record<RegionCode, number> = {
-  S: 4,
-  H: 4,
-  E: 6,
-  T: 8,
-  P: 5,
-  K: 7,
-  L: 5,
-  Y: 12,
-};
-
-export const TOTAL_BLUEPRINTS = 51;
-
-/** Diagnosis reconciliation split (FR-008). mapped+template=128, referral=6, total=134. */
-export const DIAGNOSIS_TOTAL = 134;
-export const DIAGNOSIS_MAPPED_TEMPLATE = 128;
-export const DIAGNOSIS_REFERRAL = 6;
 
 /** Source region folder base-name → region code (D6). Same names under top-level and `_產圖/`. */
 export const REGION_FOLDER_MAP: Record<string, RegionCode> = {

@@ -26,10 +26,10 @@ const bp = (blueprintId: string, isHighRisk = false) => ({ blueprintId, exercise
 
 describe('completionPercent (active basis, FR-002)', () => {
   it('computes, caps at 100, and returns 0 on a zero denominator', () => {
-    expect(completionPercent(40, 153)).toBeCloseTo(26.1, 1);
-    expect(completionPercent(3, 153)).toBeCloseTo(2.0, 1);
+    expect(completionPercent(40, 160)).toBeCloseTo(25.0, 1);
+    expect(completionPercent(3, 120)).toBeCloseTo(2.5, 1);
     expect(completionPercent(0, 0)).toBe(0);
-    expect(completionPercent(60, 51)).toBe(100); // never > 100
+    expect(completionPercent(60, 40)).toBe(100); // never > 100
   });
 });
 
