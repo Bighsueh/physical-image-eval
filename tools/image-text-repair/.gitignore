@@ -1,0 +1,7 @@
+venv/
+work/
+fonts/*.ttf
+__pycache__/
+# Internal session hand-off notes (reference the private image set)
+HANDOFF.md
+*.pyc

@@ -153,7 +153,7 @@ The full paper trail is in the repo: [`specs/`](specs/) holds the spec, plan, da
 
 ## Related work: repairing text inside the generated images
 
-Image models render Chinese text poorly — wrong characters, malformed glyphs, garbled numerals. Regenerating an image to fix a typo usually breaks something else, so alongside this tool I built an offline **image text-repair pipeline** (kept outside this public repo together with the image assets):
+Image models render Chinese text poorly — wrong characters, malformed glyphs, garbled numerals. Regenerating an image to fix a typo usually breaks something else, so alongside this tool I built an offline **image text-repair pipeline** — [`tools/image-text-repair`](tools/image-text-repair/) (the images themselves are not included):
 
 1. **Extract** every text line with on-device OCR, language correction disabled so the OCR reports what is actually drawn.
 2. **Proofread** against the storyboard brief, with a recorded reason for every correction; a human approves each image before rendering.
